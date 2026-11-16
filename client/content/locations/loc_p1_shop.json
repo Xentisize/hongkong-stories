@@ -1,0 +1,103 @@
+{
+  "schema_version": 1,
+  "id": "loc_p1_shop",
+  "placeholder": true,
+  "_comment": "P1 engine test location. Deliberately not chapter content: the chapter-1 framing and canonical locale are still open (PLAN §14), so this room is named 'Test Shop' in every locale and carries no story.",
+  "display_name": {
+    "zh_HK": "測試店舖",
+    "zh_CN": "测试店铺",
+    "en": "Test Shop"
+  },
+  "tile_size": 24,
+  "atlas": "res://assets/tiles/p1_tiles.png",
+  "legend": {
+    ".": [0, 0],
+    ",": [1, 0],
+    "#": [2, 0],
+    "D": [3, 0]
+  },
+  "tilemap": [
+    "####################",
+    "#..................#",
+    "#..................#",
+    "#..................#",
+    "#....########......#",
+    "#..................#",
+    "#..................#",
+    "#..................#",
+    "#..................#",
+    "#.........,........#",
+    "#........,,........#",
+    "#########DD#########"
+  ],
+  "collision": [
+    [0, 0, 20, 1],
+    [0, 11, 9, 1],
+    [11, 11, 9, 1],
+    [0, 0, 1, 12],
+    [19, 0, 1, 12],
+    [5, 4, 8, 1]
+  ],
+  "spawn_points": {
+    "default": [9.5, 9.5]
+  },
+  "doors": [
+    {
+      "id": "shop_door",
+      "tiles": [[9, 11], [10, 11]],
+      "requires": {
+        "any": [
+          { "flag": "door_open" },
+          { "has_item": "item_rusty_key" }
+        ]
+      },
+      "prompt": { "zh_HK": "開門", "zh_CN": "开门", "en": "Open the door" },
+      "blocked": {
+        "zh_HK": "鎖住咗，開唔到。",
+        "zh_CN": "锁住了，打不开。",
+        "en": "Locked. It won't budge."
+      },
+      "opened": {
+        "zh_HK": "門開咗，出面好靜。",
+        "zh_CN": "门开了，外面很安静。",
+        "en": "The door swings open. The street outside is quiet."
+      },
+      "open_flag": "shop_door_opened"
+    }
+  ],
+  "interactables": [
+    {
+      "id": "crate",
+      "tile": [4, 7],
+      "once": true,
+      "prompt": { "zh_HK": "查下個木箱", "zh_CN": "查看木箱", "en": "Search the crate" },
+      "on_interact": [
+        { "type": "give", "item": "item_rusty_key", "count": 1 },
+        {
+          "type": "say",
+          "text": {
+            "zh_HK": "箱底有一條生鏽鎖匙。",
+            "zh_CN": "箱底有一把生锈的钥匙。",
+            "en": "At the bottom of the crate: a rusty key."
+          }
+        }
+      ]
+    },
+    {
+      "id": "sign",
+      "tile": [15, 2],
+      "prompt": { "zh_HK": "睇招牌", "zh_CN": "查看招牌", "en": "Read the sign" },
+      "on_interact": [
+        {
+          "type": "say",
+          "text": {
+            "zh_HK": "招牌寫住「測試店舖」。",
+            "zh_CN": "招牌上写着「测试店铺」。",
+            "en": "The sign reads: Test Shop (placeholder)."
+          }
+        }
+      ]
+    }
+  ],
+  "exits": []
+}

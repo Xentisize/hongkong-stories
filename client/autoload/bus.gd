@@ -1,0 +1,27 @@
+extends Node
+## Signal-only event bus (docs/PLAN.md §6.2).
+##
+## No logic belongs in this file. Systems emit here and listen here instead of holding
+## references to each other, which is what keeps the autoloads from becoming spaghetti.
+
+signal flag_set(flag: String, value: bool)
+signal var_changed(var_name: String, value: float)
+signal item_gained(item_id: String, count: int)
+signal item_lost(item_id: String, count: int)
+
+signal quest_updated(quest_id: String, node_id: String)
+signal quest_completed(quest_id: String)
+
+signal location_entered(location_id: String)
+signal player_interacted(target_name: String)
+
+signal dialogue_started(npc_id: String)
+signal npc_spoke(npc_id: String, text: String)
+signal dialogue_finished(npc_id: String)
+
+signal effect_applied(effect: Dictionary)
+signal message_shown(text: String)
+signal inventory_changed()
+signal save_written(slot: int)
+signal save_loaded(slot: int)
+signal locale_changed(locale: String)

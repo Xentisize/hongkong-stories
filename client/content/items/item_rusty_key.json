@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "id": "item_rusty_key",
+  "placeholder": true,
+  "name": {
+    "zh_HK": "生鏽鎖匙",
+    "zh_CN": "生锈钥匙",
+    "en": "Rusty Key"
+  },
+  "desc": {
+    "zh_HK": "細細條，匙身佈滿鏽跡，匙齒已經磨平。",
+    "zh_CN": "小小一条，表面布满锈迹，匙齿已经磨平。",
+    "en": "Small and covered in rust; the teeth are worn smooth."
+  },
+  "icon": "res://assets/sprites/item_rusty_key.png",
+  "stack_max": 1,
+  "category": "key",
+  "usable": false,
+  "on_use": [],
+  "on_acquire": [],
+  "lore_ref": ""
+}

@@ -1,0 +1,91 @@
+extends Node2D
+## P1 root: builds the active location from content, spawns the player, restores the save.
+##
+## The player is a child of WorldHost (not of the location), so swapping locations never
+## destroys the player or its camera — the reason this indirection exists at all (§6.3).
+
+const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
+const DEFAULT_LOCATION := "loc_p1_shop"
+
+@onready var world_host: Node2D = $WorldHost
+
+var location: LocationRoot = null
+var player: CharacterBody2D = null
+
+var _restored_position: bool = false
+
+
+func _ready() -> void:
+	add_to_group("main")
+	var version := Engine.get_version_info()
+	print("[Main] Godot %s | renderer=%s | viewport=%dx%d" % [
+		version.get("string", "?"),
+		ProjectSettings.get_setting("rendering/renderer/rendering_method", "?"),
+		ProjectSettings.get_setting("display/window/size/viewport_width", 0),
+		ProjectSettings.get_setting("display/window/size/viewport_height", 0),
+	])
+	print("[ContentDB] loaded %d entities | locale=%s" % [ContentDB.loaded_count, Settings.locale])
+
+	if Save.has_save(1) and Save.load_game(1):
+		_restored_position = Game.player_position != Vector2.ZERO
+		print("[Main] restored save slot 1 (flags=%d, items=%d)" % [
+			Game.flags.size(), Game.inventory.size(),
+		])
+	else:
+		Game.new_game()
+
+	var start := Game.current_location if not Game.current_location.is_empty() else DEFAULT_LOCATION
+	load_location(start)
+	Save.bind_autosave()
+
+
+## Rebuilds the world for a location id. Safe to call at runtime (dev console `loc` command).
+func load_location(location_id: String) -> void:
+	var definition := ContentDB.get_entity("locations", location_id)
+	if definition.is_empty():
+		push_error("Main: unknown location '%s'" % location_id)
+		return
+
+	if location != null and is_instance_valid(location):
+		location.queue_free()
+
+	location = LocationRoot.new()
+	world_host.add_child(location)
+	location.build(definition)
+
+	if player == null:
+		player = PLAYER_SCENE.instantiate()
+		world_host.add_child(player)
+
+	Game.current_location = location_id
+	Game.visited[location_id] = true
+
+	if _restored_position:
+		player.global_position = Game.player_position
+		_restored_position = false
+	else:
+		player.global_position = location.get_spawn("default")
+	Game.player_position = player.global_position
+
+	_apply_camera_limits()
+	Bus.location_entered.emit(location_id)
+
+
+func _apply_camera_limits() -> void:
+	if player == null:
+		return
+	var camera := player.get_node_or_null("Camera2D") as Camera2D
+	if camera == null:
+		return
+	var bounds: Rect2 = location.get_bounds()
+	camera.limit_left = int(bounds.position.x)
+	camera.limit_top = int(bounds.position.y)
+	camera.limit_right = int(bounds.end.x)
+	camera.limit_bottom = int(bounds.end.y)
+
+
+## Called by the dev console via call_group("main", ...).
+func dev_teleport(x: float, y: float) -> void:
+	if player != null:
+		player.global_position = Vector2(x, y)
+		Game.player_position = player.global_position

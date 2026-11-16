@@ -1,0 +1,35 @@
+# --- Godot ---
+**/.godot/
+**/*.translation.orig
+build/
+*.tpz
+
+# --- Python (backend) ---
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# --- bun (admin SPA) ---
+node_modules/
+# bun is the only package manager (docs/PLAN.md §10.6):
+# any of these appearing means someone ran npm/yarn/pnpm by mistake.
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+*.lockb
+
+# --- secrets (docs/PLAN.md §3) ---
+.env
+.env.*
+!.env.example
+*_credentials.json
+
+# --- OS / editors ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp

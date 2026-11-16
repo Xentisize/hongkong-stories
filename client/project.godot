@@ -1,0 +1,56 @@
+; Hong Kong Stories — Godot project configuration.
+; Hand-authored for P0; every non-default value here is justified in docs/PLAN.md §6.1.
+; Edit via the Godot editor when convenient — it will rewrite this file in the same format.
+
+config_version=5
+
+[application]
+
+config/name="Hong Kong Stories"
+config/description="A pixel-art 2D RPG set in Hong Kong, present and past."
+run/main_scene="res://scenes/main/Main.tscn"
+config/features=PackedStringArray("4.7", "GL Compatibility")
+boot_splash/show_image=false
+
+[autoload]
+
+Bus="*res://autoload/bus.gd"
+Settings="*res://autoload/settings.gd"
+Game="*res://autoload/game.gd"
+ContentDB="*res://autoload/content_db.gd"
+Conditions="*res://autoload/conditions.gd"
+Effects="*res://autoload/effects.gd"
+Net="*res://autoload/net.gd"
+Dialogue="*res://autoload/dialogue.gd"
+Save="*res://autoload/save.gd"
+Dev="*res://autoload/dev.gd"
+
+[display]
+
+; 384x216 = 16:9 at exactly 16x9 tiles of 24px; integer-scaled x5 to 1080p (§6.1).
+window/size/viewport_width=384
+window/size/viewport_height=216
+window/size/window_width_override=1152
+window/size/window_height_override=648
+window/size/resizable=true
+window/stretch/mode="canvas_items"
+window/stretch/scale_mode="integer"
+
+[internationalization]
+
+; Fallback chain zh_HK -> zh_CN -> en is handled in Settings (§6.5); this is the engine floor.
+locale/fallback="en"
+
+[physics]
+
+common/physics_ticks_per_second=60
+2d/default_gravity=0.0
+
+[rendering]
+
+; Web must be WebGL2: Forward+ would need WebGPU (§6.1).
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+textures/canvas_textures/default_texture_filter=0
+anti_aliasing/quality/msaa_2d=0
+environment/defaults/default_clear_color=Color(0.063, 0.071, 0.086, 1)
