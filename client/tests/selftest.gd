@@ -47,6 +47,7 @@ static func run(tree: SceneTree) -> int:
 	_test_save_code(c)
 	_test_placement_writer(c)
 	await _test_door_gating(c, tree)
+	_test_interactable_gating(c, tree)
 
 	Settings.set_locale(original_locale)
 	print("[selftest] %d checks, %d failures" % [c.count, c.failures])
@@ -281,6 +282,30 @@ static func _test_placement_writer(c: Checker) -> void:
 	c.check("placement: missing file refuses",
 		NpcPlacementWriter.write_npc_placements(dst + ".missing", []).has("error"))
 	DirAccess.remove_absolute(dst)
+
+
+## Interactable gating (§5.5): a prop whose `requires` fails stays hidden until the story
+## reaches it — driven here by flipping a flag directly, the same signal path the bus uses.
+static func _test_interactable_gating(c: Checker, tree: SceneTree) -> void:
+	Game.new_game()
+	var location := LocationRoot.new()
+	tree.root.add_child(location)
+	location.build(ContentDB.get_entity("locations", LOCATION))
+
+	c.check("gating: props built", location.interactables.size() >= 1)
+	if location.interactables.is_empty():
+		location.queue_free()
+		return
+	var prop := location.interactables[0] as LocationInteractable
+	prop._requires = {"flag": "selftest_gate"}
+	prop.call("refresh_availability")
+	c.check("gating: prop hidden while its condition fails",
+		not prop.is_available() and not prop.visible)
+	Game.set_flag("selftest_gate", true)
+	prop.call("refresh_availability")
+	c.check("gating: prop appears when its condition passes",
+		prop.is_available() and prop.visible)
+	location.queue_free()
 
 
 ## Touch controls (§12 P5): built only on touch devices — desktop and headless runs get an

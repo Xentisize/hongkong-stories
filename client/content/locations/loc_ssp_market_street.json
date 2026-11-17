@@ -48,9 +48,17 @@
     { "art": "art/props/prop_plant.png", "tile": [17, 2] }
   ],
   "npcs": [
-    { "npc": "npc_ch01_ken", "tile": [7, 4], "facing": "down" },
-    { "npc": "npc_ch01_ming", "tile": [20, 3], "facing": "down" },
-    { "npc": "npc_ch01_wai", "tile": [11, 12], "facing": "up" }
+    { "npc": "npc_ch01_ken", "tile": [7, 4], "facing": "down",
+      "requires": { "not": { "quest_state": "ch06" } } },
+    { "npc": "npc_ch01_ming", "tile": [20, 3], "facing": "down",
+      "requires": { "not": { "quest_state": "ch06" } } },
+    { "npc": "npc_ch01_wai", "tile": [11, 12], "facing": "up" },
+    { "npc": "npc_ch06_tai", "tile": [16, 4], "facing": "down",
+      "requires": { "quest_state": "ch06" } },
+    { "npc": "npc_ch06_ken", "tile": [7, 4], "facing": "down",
+      "requires": { "quest_state": "ch06" } },
+    { "npc": "npc_ch06_ming", "tile": [20, 3], "facing": "down",
+      "requires": { "quest_state": "ch06" } }
   ],
   "doors": [],
   "interactables": [

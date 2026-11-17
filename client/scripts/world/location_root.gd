@@ -145,15 +145,18 @@ func _build_npcs() -> void:
 		node.configure(placement, tile_size)
 		npcs.append(node)
 
-	# NPC presence is condition-gated (§5.1); re-evaluate whenever state changes or a
-	# conversation ends (talk counts). The connections die with this node on a location swap.
-	Bus.effect_applied.connect(func(_effect: Dictionary) -> void: _refresh_npcs())
-	Bus.dialogue_finished.connect(func(_npc_id: String) -> void: _refresh_npcs())
+	# NPC presence (§5.1) and prop gating (§5.5) are condition-driven: re-evaluate whenever
+	# state changes or a conversation ends (talk counts). The connections die with this node
+	# on a location swap.
+	Bus.effect_applied.connect(func(_effect: Dictionary) -> void: _refresh_gated())
+	Bus.dialogue_finished.connect(func(_npc_id: String) -> void: _refresh_gated())
 
 
-func _refresh_npcs() -> void:
+func _refresh_gated() -> void:
 	for npc in npcs:
 		npc.call("refresh_availability")
+	for prop in interactables:
+		prop.call("refresh_availability")
 
 
 func _build_exits() -> void:

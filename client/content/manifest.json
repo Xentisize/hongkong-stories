@@ -1,7 +1,7 @@
 {
   "manifest_schema": 1,
   "version": 1,
-  "content_hash": "0b1dcbab391a",
+  "content_hash": "06bf75ae3d62",
   "files": [
     "npcs/npc_ch01_ken.json",
     "npcs/npc_ch01_ming.json",
@@ -20,6 +20,9 @@
     "npcs/npc_ch05_caai.json",
     "npcs/npc_ch05_suet.json",
     "npcs/npc_ch05_wai.json",
+    "npcs/npc_ch06_ken.json",
+    "npcs/npc_ch06_ming.json",
+    "npcs/npc_ch06_tai.json",
     "npcs/npc_p2_shopkeeper.json",
     "items/item_cassette_tape.json",
     "items/item_flat_key.json",
@@ -50,6 +53,7 @@
     "quests/ch03.json",
     "quests/ch04.json",
     "quests/ch05.json",
+    "quests/ch06.json",
     "quests/q_test_chain.json",
     "quests/q_test_gated.json"
   ]

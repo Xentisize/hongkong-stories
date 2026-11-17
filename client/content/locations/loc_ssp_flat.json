@@ -43,6 +43,21 @@
   "doors": [],
   "interactables": [
     {
+      "id": "the_box",
+      "tile": [6, 2],
+      "prompt": { "zh_HK": "打開屋企個箱", "zh_CN": "打开家里的箱子", "en": "Open the family box" },
+      "requires": { "all": [
+        { "quest_done": "ch02" },
+        { "quest_done": "ch03" },
+        { "quest_done": "ch04" },
+        { "quest_done": "ch05" }
+      ] },
+      "on_interact": [
+        { "type": "quest", "quest": "ch06", "op": "start" }
+      ],
+      "_comment": "The finale trigger (§12.2: decide what the box is for) — appears only after all four journeys are complete."
+    },
+    {
       "id": "box_on_the_altar",
       "tile": [8, 2],
       "once": true,

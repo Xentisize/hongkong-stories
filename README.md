@@ -166,7 +166,10 @@ quest arc whose every flag beat has a deterministic offline fallback line:
 
 The memento doors chain the whole game: album→ch02, cassette→ch03, tram ticket→ch04,
 letter→ch05 — each opening its era, each closing cutscene returning the player to 2027.
-(The 2027 finale, chapter 6, is the remaining content.)
+And when all four are done, the family box in the flat finally opens: **chapter 6, the 2027
+finale**, reuses chapter-1's street with the cast in journey-after variants (cute register,
+chibi sprites), ends in a street memory corner built by the shop's door, and closes with a
+thank-you.
 
 Systems shipped: **save-code export/import** (§6.4 — length-prefixed deflate, `savecode` /
 `code` dev commands, a selftest round-trip that also refuses mangled codes), the **Audio
@@ -175,17 +178,17 @@ seamless looping), **touch controls** (a virtual d-pad plus E/I, touchscreen-onl
 **NPC-placement editor plugin** (§9.1 — `addons/npc_placement`: a JSON write-back core the
 selftest exercises plus an `@tool` dock for the editor).
 
-Verified on this machine: 49 entities validate with 0 errors, the font-coverage gate passes
+Verified on this machine: 53 entities validate with 0 errors, the font-coverage gate passes
 over every new era string, three-locale parity holds with zero Cantonese particles in
-`zh_CN`, and `--selftest` runs via the Windows Godot through WSL interop: **119 checks,
-0 failures** — now covering the placement writer and the real audio assets. Earlier runs
-verified the web export (`index.wasm` 38 MB · `index.pck` 5.0 MB) and the browser smokes
-(backend up: real model reply; backend down: scripted fallback). The Seedream art pass
-shipped too: a generated tileset repaints every room, 17 era NPC sprites render in-world
-(replacing the placeholder rectangles), and eight props dress the locations through the
-`decor` system (~$0.45 of generations, style bible referenced throughout). Remaining: the
-30-minute phone play, chapter 6 (the 2027 finale), and real recordings to replace the
-synthesized beds.
+`zh_CN`, and `--selftest` runs via the Windows Godot through WSL interop: **122 checks,
+0 failures** — now covering the placement writer, the real audio assets, and the
+interactable gating that opens the finale. The final build exports and the browser smokes
+pass on it (backend up: real model reply; backend down: scripted fallback). The Seedream
+art pass shipped too: a generated tileset repaints every room, 18 era NPC sprites render
+in-world (replacing the placeholder rectangles), and eight props dress the locations through
+the `decor` system (~$0.55 of generations, style bible referenced throughout). Remaining:
+the 30-minute phone play, real recordings to replace the synthesized beds, and the P6 ship
+list.
 
 ## Fonts and licensing (read before swapping fonts)
 
@@ -204,8 +207,8 @@ against the Cantonese particle set and every string in `client/content/`.
 
 - **Admin + art + §9.2 authoring tools shipped** (see "Status: P4"); the remaining admin
   depth is the 2027-chapter fact-check classifier hook-up (§7.6 optional hardening).
-  Chapters 1–5 content exists (see "Status: P3" / "Status: P5"); the 2027 finale
-  (chapter 6) remains.
+  Chapters 1–6 content exists — the finale included (see "Status: P3" / "Status: P5");
+  what remains is the P6 ship list and the gdUnit4 port.
 - **Cache-hit telemetry is only partially wired.** The admin playground reads real
   prompt/cached/cost numbers (OpenRouter `usage.include`) — live-measured 2026-11-17:
   same-prefix turns hit 60% / 0% / 76% depending on which upstream serves the request —

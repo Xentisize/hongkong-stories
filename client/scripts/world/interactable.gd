@@ -9,6 +9,8 @@ extends Node2D
 var data: Dictionary = {}
 var _tile_size: int = 24
 var _used: bool = false
+var _requires: Variant = null
+var _requires_pass: bool = true
 
 
 func configure(definition: Dictionary, tile_size: int) -> void:
@@ -19,6 +21,9 @@ func configure(definition: Dictionary, tile_size: int) -> void:
 
 	var tile: Array = data.get("tile", [0, 0])
 	position = Vector2(float(tile[0]) + 0.5, float(tile[1]) + 0.5) * _tile_size
+	# §5.5: conditions gate interactables too — a prop can wait for the story to reach it.
+	_requires = data.get("requires")
+	refresh_availability()
 	queue_redraw()
 
 
@@ -27,7 +32,14 @@ func get_prompt() -> String:
 
 
 func is_available() -> bool:
-	return not _used
+	return not _used and _requires_pass
+
+
+## Re-evaluated on state changes; LocationRoot fans the bus signals out to every prop.
+## Named like LocationNpc.refresh_availability so the duck-typed refresh stays uniform.
+func refresh_availability() -> void:
+	_requires_pass = _requires == null or Conditions.evaluate(_requires)
+	visible = _requires_pass and not _used
 
 
 func interact() -> void:

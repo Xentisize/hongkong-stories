@@ -226,6 +226,7 @@ def validate_store(store: ContentStore) -> list[dict]:
             prop_id = str(interactable.get("id", "?"))
             check_localized(interactable.get("prompt"), f"{at}.interactables/{prop_id}.prompt",
                             required=False)
+            walk_conditions(interactable.get("requires"), f"{at}.interactables/{prop_id}.requires")
             walk_effects(interactable.get("on_interact"), f"{at}.interactables/{prop_id}.on_interact")
         spawns = location.get("spawn_points", {}) or {}
         for exit_def in location.get("exits", []) or []:

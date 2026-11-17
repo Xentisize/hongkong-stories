@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "id": "ch06",
+  "title": { "zh_HK": "第六章：箱裡嘅光", "zh_CN": "第六章：箱里的光", "en": "Chapter 6: The Light in the Box" },
+  "entry_requires": null,
+  "nodes": [
+    {
+      "id": "n1",
+      "type": "cutscene",
+      "text": [
+        {
+          "zh_HK": "四段路行完，返到2027年。條街冇變——但你看佢嘅眼神唔同晒喇。",
+          "zh_CN": "四段路走完，回到2027年。街道没变——但你看着它的眼神完全不同了。",
+          "en": "Four journeys done, and you are back in 2027. The street has not changed — the way you look at it has."
+        },
+        {
+          "zh_HK": "個箱喺你腳邊打開，每件嘢都喺度輕輕嗡緊，好似等緊你講佢哋嘅故事。",
+          "zh_CN": "箱子在你脚边打开，每件东西都在轻轻嗡鸣，像在等你讲出它们的故事。",
+          "en": "The box opens at your feet; every keepsake hums softly, waiting for its story to be told."
+        }
+      ],
+      "next": "n2",
+      "on_complete": []
+    },
+    {
+      "id": "n2",
+      "type": "objective",
+      "text": { "zh_HK": "同陳太傾完最後一頁。", "zh_CN": "和陈太聊完最后一页。", "en": "Finish the last page with Mrs Chan." },
+      "complete_when": { "talked": "npc_ch06_tai", "min": 1 },
+      "next": "n3",
+      "on_complete": []
+    },
+    {
+      "id": "n3",
+      "type": "objective",
+      "text": { "zh_HK": "搵根叔講最後一句。", "zh_CN": "找根叔说最后一句。", "en": "Bring Ken the last word." },
+      "complete_when": { "flag": "ken_finale_told" },
+      "next": "n4",
+      "on_complete": []
+    },
+    {
+      "id": "n4",
+      "type": "objective",
+      "text": { "zh_HK": "聽下阿明嘅好主意。", "zh_CN": "听听阿明的好主意。", "en": "Hear Ming's bright idea." },
+      "complete_when": { "flag": "ming_finale_idea" },
+      "next": "n5",
+      "on_complete": []
+    },
+    {
+      "id": "n5",
+      "type": "cutscene",
+      "text": [
+        {
+          "zh_HK": "個箱唔使搬走——街坊一齊喺舖頭門口搭咗個小小嘅回憶角：茶罐、票根、行李牌、嗰封信，一邊一個位，配一句佢嘅故事。",
+          "zh_CN": "箱子不用搬走——街坊一起在铺子门口搭了个小小的回忆角：茶罐、票根、行李牌、那封信，一边一个位，配一句它的故事。",
+          "en": "The box does not have to go anywhere — the street builds a little memory corner by the shop: the tea tin, the ticket stubs, the luggage tag, the letter, each with its place and one line of its story."
+        },
+        {
+          "zh_HK": "阿明掛上一串燈籠，陳太沖咗奶茶，根叔隻雀仔唱咗成個下晝。《香港故事》——多謝你陪呢條街行完呢段路。",
+          "zh_CN": "阿明挂上一串灯笼，陈太冲了奶茶，根叔的鸟唱了一整个下午。《香港故事》——谢谢你陪这条街走完这段路。",
+          "en": "Ming strings up lanterns, Mrs Chan brews the milk tea, and Ken's bird sings all afternoon. HONG KONG STORIES — thank you for walking this street with us."
+        }
+      ],
+      "next": null,
+      "on_complete": [ { "type": "set_flag", "flag": "game_complete" } ]
+    }
+  ],
+  "_comment": "Chapter-6 finale (PLAN §12.2: deliver the last story, decide what the box is for) — the bookend on chapter-1's street, cute and warm. Triggered by the box in the flat after all four journeys. The resolution is a street memory corner: the mementos stay where their stories live."
+}
