@@ -17,6 +17,12 @@ dev = [
     "pytest>=8.3,<9",
     "pytest-asyncio>=0.25,<1",
 ]
+# Art pipeline extras (PLAN 8): the Seedream post-processor needs Pillow. Kept out of the
+# default deps deliberately — 10.6 warns fresh-interpreter wheels are the real risk, and chat
+# must run even where Pillow has no wheel yet. `uv sync --group art` opts in.
+art = [
+    "pillow>=11",
+]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

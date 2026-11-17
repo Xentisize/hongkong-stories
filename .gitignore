@@ -11,9 +11,12 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
+server/data/
 
 # --- bun (admin SPA) ---
 node_modules/
+# the SPA build output is a build artifact — CI and `bun run build` recreate it
+server/admin/dist/
 # bun is the only package manager (docs/PLAN.md §10.6):
 # any of these appearing means someone ran npm/yarn/pnpm by mistake.
 package-lock.json

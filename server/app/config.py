@@ -45,6 +45,10 @@ class Settings:
     session_token_budget: int = 60_000
     upstream_timeout_sec: float = 30.0
     content_dir: Path = CLIENT_CONTENT
+    # Single-operator admin auth (PLAN 9.3): bearer token compared with compare_digest;
+    # empty means the admin API is disabled entirely, never "open".
+    admin_token: str = ""
+    admin_data_dir: Path = REPO_ROOT / "server" / "data"
     allowed_origins: tuple[str, ...] = (
         "http://localhost:8099",
         "http://127.0.0.1:8099",
@@ -55,6 +59,10 @@ class Settings:
     def has_key(self) -> bool:
         return bool(self.openrouter_api_key)
 
+    @property
+    def has_admin(self) -> bool:
+        return bool(self.admin_token)
+
     @classmethod
     def from_env(cls) -> Settings:
         # Real environment variables win over .env, so container deploys and CI work unchanged.
@@ -62,6 +70,8 @@ class Settings:
         origins = env.get("HKS_ALLOWED_ORIGINS", "")
         return cls(
             openrouter_api_key=env.get("OPENROUTER_API_KEY", ""),
+            admin_token=env.get("HKS_ADMIN_TOKEN", ""),
+            admin_data_dir=Path(env.get("HKS_ADMIN_DATA_DIR", cls.admin_data_dir)),
             chat_model=env.get("HKS_CHAT_MODEL", cls.chat_model),
             image_model=env.get("HKS_IMAGE_MODEL", cls.image_model),
             chat_output_mode=env.get("HKS_CHAT_OUTPUT_MODE", cls.chat_output_mode),

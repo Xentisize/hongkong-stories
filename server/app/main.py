@@ -8,6 +8,7 @@ client. A wasm bundle is fully inspectable, so no key can ever be shipped to it.
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -35,10 +36,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.sessions = SessionStore(settings.session_token_budget)
     app.state.content = ContentStore.load(settings.content_dir)
 
-    from .routers import chat, session  # imported lazily so tests can build an app cheaply
+    from .routers import admin, chat, content, session  # imported lazily so tests can build an app cheaply
 
     app.include_router(session.router)
     app.include_router(chat.router)
+    app.include_router(content.router)
+    app.include_router(admin.router)
+
+    # Admin SPA (PLAN 9.1): built with bun/vite into server/admin/dist, served same-origin
+    # at /admin so the API needs no extra CORS surface. Dev mode is `bun run dev` (proxied).
+    admin_dist = Path(__file__).resolve().parents[1] / "admin" / "dist"
+    if admin_dist.is_dir():
+        from fastapi.staticfiles import StaticFiles
+
+        app.mount("/admin", StaticFiles(directory=admin_dist, html=True), name="admin")
 
     if not settings.has_key:
         LOGGER.warning("OPENROUTER_API_KEY is not set — /v1/chat will return no_api_key")

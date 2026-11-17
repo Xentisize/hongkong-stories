@@ -21,6 +21,9 @@ class ContentStore:
     tables: dict[str, dict[str, dict]] = field(default_factory=dict)
     content_hash: str = ""
     version: int = 0
+    # The raw manifest as read from disk — served verbatim by /v1/content/manifest.json
+    # for the client's hot-pack check (PLAN 5.7).
+    manifest: dict = field(default_factory=dict)
 
     @classmethod
     def load(cls, content_dir: Path) -> ContentStore:
@@ -34,6 +37,7 @@ class ContentStore:
             content_dir=content_dir,
             content_hash=str(manifest.get("content_hash", "")),
             version=int(manifest.get("version", 0)),
+            manifest=manifest,
         )
         for entry in manifest.get("files", []):
             kind, _, _name = str(entry).partition("/")

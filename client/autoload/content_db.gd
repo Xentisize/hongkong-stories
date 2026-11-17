@@ -21,6 +21,10 @@ var version: int = 0
 var content_hash: String = ""
 var loaded_count: int = 0
 
+## Hot-pack art decoded at runtime (§5.7), keyed by the pack-relative path the entity JSON
+## references (e.g. "art/npcs/x.png").
+var _art_textures: Dictionary = {}
+
 
 func _ready() -> void:
 	load_baseline()
@@ -138,3 +142,41 @@ func localize(field: Variant, requested_locale: String = "") -> String:
 	for key in table.keys():
 		return String(table[key])
 	return ""
+
+
+## Hot-pack overrides (§5.7): newer entity files replace their baseline counterparts in
+## memory; art arrives decoded. The baseline stays on disk, and Game.content_version records
+## what was live so saves can migrate forward.
+func apply_hotpack(manifest: Dictionary, entities: Array, art: Dictionary) -> void:
+	for entry in entities:
+		if typeof(entry) != TYPE_ARRAY or (entry as Array).size() != 2:
+			continue
+		var rel := String((entry as Array)[0])
+		var payload: Variant = (entry as Array)[1]
+		if typeof(payload) != TYPE_DICTIONARY:
+			continue
+		var entity: Dictionary = payload
+		var parts := rel.split("/", false)
+		if parts.size() != 2 or entity.is_empty():
+			continue
+		var kind := String(parts[0])
+		if not _tables.has(kind):
+			continue
+		var id := String(entity.get("id", ""))
+		if id.is_empty():
+			continue
+		_tables[kind][id] = entity
+		loaded_count += 1
+	for path in art.keys():
+		_art_textures[String(path)] = art[path]
+	version = int(manifest.get("version", version))
+	content_hash = String(manifest.get("content_hash", content_hash))
+	print("[ContentDB] hot-pack v%d applied (%d entities, %d art)" % [
+		version, entities.size(), art.size(),
+	])
+
+
+## Decoded hot-pack art, or null when nothing was fetched for the path. Bundled res:// art
+## is loaded through ResourceLoader by callers, as before.
+func get_art(path: String) -> Texture2D:
+	return _art_textures.get(path, null)

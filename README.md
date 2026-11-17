@@ -39,10 +39,11 @@ speak · **Esc** leave the conversation · **I** inventory · **F1** dev console
 ## Tests
 
 ```bash
-cd server && uv run pytest                                  # 44 backend tests
-godot --headless --path client -- --selftest                # 65 client checks (offline)
-godot --headless --path client -- --live-chat               # 6 checks (needs the backend)
+cd server && uv run pytest                                  # backend tests
+godot --headless --path client -- --selftest                # client checks (offline)
+godot --headless --path client -- --live-chat               # checks (needs the backend)
 python3 tools/check_font_coverage.py                        # CJK glyph coverage gate
+python3 tools/check_content.py                              # content validator (publish/CI gate)
 node tools/web_smoke.mjs http://127.0.0.1:8099/ /tmp/s.png 12000 talk   # browser E2E
 ```
 
@@ -99,6 +100,29 @@ backend `pytest` (uv cannot fetch CPython 3.15.2 here). The §12 exit criterion 
 player finishing chapter 1 without a dead end — still needs a human playtest, backend up
 and down.
 
+## Status: P4 — admin + art pipeline, first form
+
+The authoring loop exists end to end: **Admin SPA at `/admin`** (bun + Vite, dev via
+`cd admin && bun run dev`, production `bun run build` → served same-origin by FastAPI) on top
+of an **admin API** — `HKS_ADMIN_TOKEN` bearer auth (unset = disabled, never open), drafts
+CRUD under `server/data/drafts/`, validate, publish. Publish runs the **content validator**
+(`server/app/content_validate.py`, CLI `tools/check_content.py`) over the merged pack, refuses
+on any error, copies drafts into `client/content/`, bumps the manifest version, reloads the
+store — and every booted client **hot-packs** it (§5.7): newer entities and art bytes
+override the bundled baseline in memory, saves record the content version.
+
+The **Seedream pipeline** (§8) turns renders into game art: `/v1/images` client, NEAREST
+downscale to pixel targets, snap onto the fixed `hk_palette_v1`, 1px outline, PNG written
+into the pack with a `.gen.json` provenance sidecar (model/seed/palette/cost — "regenerate
+this sprite exactly" stays possible). Pillow lives in the optional `art` dependency group
+(`uv sync --group art`) so chat still runs where fresh-interpreter wheels lag (§10.6).
+
+Verified: 67 backend tests pass in an ephemeral CPython 3.14 environment (the pinned 3.15.2
+is not downloadable on this machine — run `uv run pytest` on a toolchain machine for the
+pinned interpreter). Still to come from §9.2: condition builder, persona playground,
+fact-check queue, usage dashboard, and style-bible `input_references` in the generate flow;
+plus the live exit-criterion run — author an NPC, publish, reload the game, see it.
+
 ## Fonts and licensing (read before swapping fonts)
 
 Godot ships **no CJK glyphs**, so Chinese renders as a wall of boxes with the default theme font.
@@ -114,8 +138,9 @@ against the Cantonese particle set and every string in `client/content/`.
 
 ## Known gaps
 
-- **No admin mode yet** (P4), no art pipeline (P4). The P3 story engine and chapter-1 content
-  now exist (see "Status: P3").
+- **Admin mode + art pipeline exist in first form** (see "Status: P4"); the deeper §9.2
+  tooling (condition builder, persona playground, fact-check queue, usage dashboard) is still
+  to come. The P3 story engine and chapter-1 content exist (see "Status: P3").
 - **Cache-hit telemetry is not wired.** Prefix stability is *asserted* by test, but the actual hit
   rate is unmeasured — PLAN §7.5's cost model assumes it works.
 - **Token counts are estimated** (CJK ≈ 1 token/char), not read from the provider, so budgets are
@@ -151,7 +176,8 @@ against the Cantonese particle set and every string in `client/content/`.
 - Godot **4.7.2** with web export templates for `4.7.2.stable` (PLAN §10.1).
 - **Python 3.15.2**, locked exactly — `uv` manages it (`uv python pin 3.15.2`). The system
   `python3` is 3.9.6 and is used only for the stdlib tools in `tools/`.
-- **bun 1.4.4** for the admin SPA when it lands — the only package manager.
+- **bun 1.4.4** for the admin SPA (`admin/`) — the only package manager; `bun run dev`
+  proxies to the local backend, `bun run build` produces what `/admin` serves.
 
 ## Secrets
 

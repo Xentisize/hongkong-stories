@@ -44,6 +44,9 @@ func _ready() -> void:
 	var start := Game.current_location if not Game.current_location.is_empty() else DEFAULT_LOCATION
 	load_location(start)
 	Save.bind_autosave()
+	# Fire-and-forget hot-pack check (§5.7): a newer published pack overrides the baseline in
+	# memory; with the backend down this is a silent no-op and the baseline rules.
+	Net.fetch_content_pack()
 
 
 ## Rebuilds the world for a location id. Safe to call at runtime (dev console `loc` command).

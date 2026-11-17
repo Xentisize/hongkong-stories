@@ -31,6 +31,7 @@ var remaining: int = 0
 var last_error: String = ""
 
 var _http: HTTPRequest = null
+var _pack_http: HTTPRequest = null
 var _ws: WebSocketPeer = null
 var _pending_frame: Dictionary = {}
 var _frame_sent: bool = false
@@ -49,6 +50,11 @@ func _ready() -> void:
 	_http.name = "SessionHTTP"
 	_http.timeout = 10.0
 	add_child(_http)
+
+	_pack_http = HTTPRequest.new()
+	_pack_http.name = "ContentPackHTTP"
+	_pack_http.timeout = 10.0
+	add_child(_pack_http)
 
 
 func chat_url() -> String:
@@ -205,3 +211,79 @@ func _cleanup() -> void:
 
 func is_configured() -> bool:
 	return not base_url.is_empty()
+
+
+## Hot-pack check (§5.7): on boot, ask the backend whether the content pack is newer than the
+## bundled baseline and pull the newer entity files plus any referenced art bytes. Silent on
+## any failure — the baseline keeps the game playable offline. Skipped in headless runs so CI
+## stays hermetic (no backend there by design).
+func fetch_content_pack() -> void:
+	if DisplayServer.get_name() == "headless":
+		return
+	var manifest := await _get_json("/v1/content/manifest.json")
+	if manifest.is_empty():
+		return
+	var server_version := int(manifest.get("version", 0))
+	if server_version <= ContentDB.version:
+		return
+
+	var entities: Array = []
+	var art_paths: Dictionary = {}
+	for rel in manifest.get("files", []):
+		var entity := await _get_json("/v1/content/file/" + String(rel))
+		if entity.is_empty():
+			continue
+		entities.append([String(rel), entity])
+		_collect_art_paths(entity, art_paths)
+
+	var art: Dictionary = {}
+	for path in art_paths.keys():
+		var texture := await _get_texture("/v1/content/file/" + String(path))
+		if texture != null:
+			art[String(path)] = texture
+
+	ContentDB.apply_hotpack(manifest, entities, art)
+	Game.content_version = server_version
+
+
+func _get_json(path: String) -> Dictionary:
+	var err := _pack_http.request(base_url + path, [], HTTPClient.METHOD_GET)
+	if err != OK:
+		return {}
+	var response: Array = await _pack_http.request_completed
+	if int(response[0]) != HTTPRequest.RESULT_SUCCESS or int(response[1]) != 200:
+		return {}
+	var parsed: Variant = JSON.parse_string((response[3] as PackedByteArray).get_string_from_utf8())
+	return parsed if typeof(parsed) == TYPE_DICTIONARY else {}
+
+
+func _get_texture(path: String) -> Texture2D:
+	var err := _pack_http.request(base_url + path, [], HTTPClient.METHOD_GET)
+	if err != OK:
+		return null
+	var response: Array = await _pack_http.request_completed
+	if int(response[0]) != HTTPRequest.RESULT_SUCCESS or int(response[1]) != 200:
+		return null
+	var image := Image.new()
+	if image.load_png_from_buffer(response[3]) != OK:
+		return null
+	return ImageTexture.create_from_image(image)
+
+
+## Pack-relative art paths (e.g. "art/npcs/x.png") are fetched as bytes and decoded at
+## runtime (§5.7); res:// paths are bundled and need no fetch.
+func _collect_art_paths(entity: Dictionary, out: Dictionary) -> void:
+	var stack: Array = [entity]
+	while not stack.is_empty():
+		var node: Variant = stack.pop_back()
+		match typeof(node):
+			TYPE_DICTIONARY:
+				for value in (node as Dictionary).values():
+					stack.append(value)
+			TYPE_ARRAY:
+				for value in node as Array:
+					stack.append(value)
+			TYPE_STRING:
+				var text := String(node)
+				if text.ends_with(".png") and not text.begins_with("res://"):
+					out[text] = true
