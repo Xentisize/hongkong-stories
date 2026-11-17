@@ -11,6 +11,7 @@ var _tile_size: int = 24
 var _used: bool = false
 var _requires: Variant = null
 var _requires_pass: bool = true
+var _art_tex: Texture2D = null
 
 
 func configure(definition: Dictionary, tile_size: int) -> void:
@@ -23,6 +24,8 @@ func configure(definition: Dictionary, tile_size: int) -> void:
 	position = Vector2(float(tile[0]) + 0.5, float(tile[1]) + 0.5) * _tile_size
 	# §5.5: conditions gate interactables too — a prop can wait for the story to reach it.
 	_requires = data.get("requires")
+	# Generated prop art (§8): when an `art` field exists it replaces the rect placeholder.
+	_art_tex = ContentDB.art_texture(String(data.get("art", "")))
 	refresh_availability()
 	queue_redraw()
 
@@ -52,6 +55,14 @@ func interact() -> void:
 
 
 func _draw() -> void:
+	# Generated prop art when present: drawn up from the feet (Y-sort depth line matches the
+	# placeholder), scaled by the definition's optional `scale` (1.0 = a full tile, furniture
+	# sized; small keepsakes go 0.4-0.6 so they never read person-sized).
+	if _art_tex != null:
+		var size: Vector2 = _art_tex.get_size() * float(data.get("scale", 1.0))
+		draw_rect(Rect2(-7, -1, 14, 2), Color(0, 0, 0, 0.25))   # ground shadow
+		draw_texture_rect(_art_tex, Rect2(-size.x / 2.0, -size.y + 1.0, size.x, size.y), false)
+		return
 	# Placeholder props, drawn above the tile centre. No art files needed for P1 (§8 comes
 	# later), but they must be legible at 1x so the interaction radius reads correctly.
 	match String(data.get("kind", "crate")):

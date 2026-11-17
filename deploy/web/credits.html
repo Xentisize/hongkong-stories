@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="zh-HK">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hong Kong Stories — Credits &amp; Privacy / 製作名單與私隱</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; padding: 24px; background: #101216; color: #d8d5c8;
+         font: 14px/1.7 ui-monospace, Menlo, Consolas, monospace; max-width: 720px; margin: 0 auto; }
+  h1 { font-size: 20px; color: #7ac97f; letter-spacing: .08em; }
+  h2 { font-size: 13px; color: #8a919c; text-transform: uppercase; letter-spacing: .06em; margin-top: 28px; }
+  a { color: #7ac97f; }
+  li { margin-bottom: 6px; }
+  .muted { color: #8a919c; }
+</style>
+</head>
+<body>
+<h1>香港故事 · HONG KONG STORIES</h1>
+<p class="muted">Credits &amp; privacy · 製作名單與私隱說明</p>
+
+<h2>Credits · 製作</h2>
+<ul>
+  <li><strong>Engine:</strong> <a href="https://godotengine.org">Godot Engine 4.7</a> — MIT Licence</li>
+  <li><strong>Fonts:</strong> Fusion Pixel 12px monospaced (zh_hk / zh_hans) — SIL Open Font Licence 1.1; licence files ship inside the game package</li>
+  <li><strong>Generated art:</strong> sprites, tiles and props generated with <strong>Seedream</strong> via OpenRouter, palette-processed onto the project palette; generation provenance (model, seed, palette, cost) ships alongside every asset</li>
+  <li><strong>Backend:</strong> FastAPI + uvicorn; dialogue generated with DeepSeek via OpenRouter</li>
+  <li><strong>Stories, characters and text:</strong> © the Hong Kong Stories team — the people are fiction, the streets are real</li>
+</ul>
+
+<h2>Privacy · 私隱說明</h2>
+<ul>
+  <li><strong>No accounts, no sign-up.</strong> 無帳號、無登記。</li>
+  <li><strong>Saves stay in your browser</strong> (IndexedDB). Clearing site data clears progress — use the save code in-game as backup. 進度只存在你的瀏覽器內。</li>
+  <li><strong>No personal data leaves your browser.</strong> The backend sees an anonymous session token and your sanitised in-game state only — never your files, never your identity. 後端只會收到匿名工作階段代號與遊戲內狀態。</li>
+  <li><strong>Dialogue text</strong> you type is sent to the LLM provider to generate the reply. 你輸入的對話文字會傳送至語言模型服務以產生回覆。</li>
+  <li><strong>Telemetry is counts only:</strong> error codes, token and spend totals — no message text, no addresses, no identifiers. 遙測只有錯誤代碼與用量計數。</li>
+</ul>
+
+<p class="muted">Questions: open an issue on the project repository. 有問題請到項目倉庫開 issue。</p>
+</body>
+</html>

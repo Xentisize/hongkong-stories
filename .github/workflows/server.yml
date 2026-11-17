@@ -1,0 +1,58 @@
+# Server CI (docs/PLAN.md §10.5, §10.6): the pinned interpreter asserted loudly, pytest,
+# the admin SPA built with bun (the only package manager), Docker as the packaging gate,
+# Fly for the deploy.
+name: server
+
+on:
+  push:
+    branches: [main]
+    paths: ["server/**", "admin/**", "deploy/**", ".github/workflows/server.yml"]
+
+jobs:
+  test-build-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+
+      - name: Install the pinned interpreter + dependencies
+        working-directory: server
+        run: |
+          uv python install 3.15.2
+          uv sync --frozen
+          uv run python -VV | tee /dev/stderr | grep -q "3.15.2"
+
+      - name: Pytest
+        working-directory: server
+        run: uv run pytest -q
+
+      - name: Admin SPA (bun 1.4.4 — the only package manager, §10.6)
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+
+      - name: Build admin SPA
+        working-directory: admin
+        run: |
+          bun install --frozen-lockfile
+          bun run build
+
+      - name: No foreign lockfiles in admin/
+        run: |
+          test ! -f admin/package-lock.json
+          test ! -f admin/yarn.lock
+          test ! -f admin/pnpm-lock.yaml
+
+      - name: Docker build (packaging gate)
+        run: docker build -f deploy/Dockerfile -t hongkong-stories-api:ci .
+
+      - name: Deploy backend to Fly
+        if: github.ref == 'refs/heads/main'
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Fly deploy (remote build)
+        if: github.ref == 'refs/heads/main'
+        run: fly deploy --dockerfile deploy/Dockerfile --config deploy/fly.toml --remote-only
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}

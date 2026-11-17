@@ -1,6 +1,7 @@
 {
   "schema_version": 1,
   "id": "item_tram_ticket",
+  "icon": "res://content/art/items/item_tram_ticket.png",
   "name": { "zh_HK": "電車票根", "zh_CN": "电车票根", "en": "Tram Ticket Stub" },
   "desc": {
     "zh_HK": "一張尾班車票根，邊角起晒毛。",

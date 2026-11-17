@@ -1,5 +1,5 @@
 {
-  "prompt_id": "gen_20261117_660381",
+  "prompt_id": "gen_20261117_a40905",
   "model": "bytedance-seed/seedream-5-0-flash",
   "seed": 0,
   "resolution": "1K",
@@ -19,6 +19,6 @@
   },
   "cost_usd": 0.018,
   "accepted_by": "admin",
-  "ts": "2026-11-17T03:53:10.870507+00:00",
-  "prompt": "pixel art sprite of a wiry 70-year-old Hong Kong street elder in a flat cap and plain dark shirt, holding a small bird cage, standing, full body, front view, hk_palette_v1 palette, 24px tile scale, side/front view, T-pose-adjacent stance, flat cel shading, no outline glow, no text, plain transparent background, posterized 4 shades per hue"
+  "ts": "2026-11-17T06:38:16.755689+00:00",
+  "prompt": "pixel art sprite of EXACTLY ONE cute chibi character, single figure centered: a gentle elderly Hong Kong gentleman in his seventies, weathered kind face, worn beige vest over a rolled-sleeve shirt and a flat cap, holding a round bamboo bird cage with a small songbird inside, facing the viewer, standing relaxed, big head small body, full body, no duplicates, no sheet layout, plain transparent background, hk_palette_v1 palette, 24px tile scale, side/front view, T-pose-adjacent stance, flat cel shading, no outline glow, no text, plain transparent background, posterized 4 shades per hue"
 }

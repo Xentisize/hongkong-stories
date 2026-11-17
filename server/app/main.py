@@ -13,8 +13,10 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from . import caps
 from .config import Settings, get_settings
 from .content import ContentStore
+from .errors import ErrorCounts
 from .sessions import SessionStore
 
 LOGGER = logging.getLogger("hkstories")
@@ -34,6 +36,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.state.settings = settings
     app.state.sessions = SessionStore(settings.session_token_budget)
+    app.state.caps = caps.DailyCaps(settings.per_ip_daily_sessions, settings.per_ip_daily_cost_usd)
+    app.state.error_counts = ErrorCounts()
     app.state.content = ContentStore.load(settings.content_dir)
 
     from .routers import admin, chat, content, session  # imported lazily so tests can build an app cheaply
@@ -72,6 +76,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "content": app.state.content.counts(),
             "content_hash": app.state.content.content_hash,
             "sessions": len(app.state.sessions),
+            "caps": app.state.caps.summary(),
+            "errors": app.state.error_counts.summary(),
         }
 
     return app

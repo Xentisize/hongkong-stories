@@ -17,6 +17,7 @@ import time
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
+from .. import caps as ip_caps
 from .. import usage as usage_log
 from ..llm import actions as action_rules
 from ..llm import openrouter, prompts
@@ -25,6 +26,9 @@ router = APIRouter()
 
 
 async def _error(websocket: WebSocket, code: str, detail: str = "") -> None:
+    # Counts-only telemetry (PLAN P6): the code is all that is recorded — no detail text,
+    # no session token, no address.
+    websocket.app.state.error_counts.record(code)
     payload = {"type": "error", "code": code}
     if detail:
         payload["detail"] = detail[:200]
@@ -59,6 +63,10 @@ async def chat(websocket: WebSocket) -> None:
         return
     if session.exhausted:
         await _error(websocket, "budget_exceeded")
+        return
+    # Per-IP daily cap (PLAN 7.5, P6): a spent address gets the same graceful refusal.
+    if websocket.app.state.caps.cost_cap_reached(session.ip):
+        await _error(websocket, "daily_cap")
         return
     if not settings.has_key:
         await _error(websocket, "no_api_key")
@@ -107,6 +115,12 @@ async def chat(websocket: WebSocket) -> None:
     used = prompt_tokens + openrouter.estimate_tokens(result.say)
     session.charge(used)
 
+    # Per-IP daily spend accrues here (PLAN 7.5): estimated tokens at the §7.5 price model,
+    # matching the usage log's cost so the caps and the dashboard agree.
+    turn_cost = usage_log.estimate_cost(
+        prompt_tokens, 0, openrouter.estimate_tokens(result.say))
+    websocket.app.state.caps.add_cost(session.ip, turn_cost)
+
     # Usage dashboard row (PLAN 9.2): streaming has no provider usage, so cost is the §7.5
     # price model over the estimated tokens; latency is end-to-end for this turn.
     usage_log.log_event(
@@ -114,8 +128,7 @@ async def chat(websocket: WebSocket) -> None:
         session=str(start.get("session_token", "")),
         npc=str(npc.get("id", "")),
         tokens=used,
-        cost_usd=usage_log.estimate_cost(
-            prompt_tokens, 0, openrouter.estimate_tokens(result.say)),
+        cost_usd=turn_cost,
         latency_ms=round((time.monotonic() - started) * 1000.0, 1),
         rejected=[r["reason"] for r in rejected],
     )

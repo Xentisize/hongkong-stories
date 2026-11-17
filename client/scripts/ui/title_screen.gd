@@ -60,6 +60,21 @@ func _build() -> void:
 	_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(_panel)
 
+	# The cute cover: a generated chibi street corner behind a soft dim — the scene sells
+	# the game's warmth while the text stays readable.
+	var backdrop := TextureRect.new()
+	backdrop.texture = ContentDB.art_texture("art/backdrops/title_cute.png")
+	if backdrop.texture != null:
+		backdrop.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		backdrop.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		backdrop.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+		backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
+		_panel.add_child(backdrop)
+		var dim := ColorRect.new()
+		dim.color = Color(0.04, 0.045, 0.055, 0.55)
+		dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+		_panel.add_child(dim)
+
 	var column := VBoxContainer.new()
 	column.set_anchors_preset(Control.PRESET_FULL_RECT)
 	column.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -69,6 +84,10 @@ func _build() -> void:
 	var title := Label.new()
 	title.text = "香港故事"
 	title.add_theme_font_size_override("font_size", 24)  # exact 2x of the 12px design grid
+	title.add_theme_color_override("font_color", Color(0.99, 0.93, 0.8))
+	title.add_theme_color_override("font_shadow_color", Color(0.55, 0.25, 0.2, 0.85))
+	title.add_theme_constant_override("shadow_offset_x", 2)
+	title.add_theme_constant_override("shadow_offset_y", 2)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(title)
 
@@ -102,6 +121,7 @@ func _build() -> void:
 		var button := Button.new()
 		button.text = entry[1]
 		button.focus_mode = Control.FOCUS_NONE
+		_style_cute(button, false)
 		button.pressed.connect(_on_locale.bind(entry[0]))
 		locale_row.add_child(button)
 		_locale_buttons.append(button)
@@ -109,11 +129,37 @@ func _build() -> void:
 
 	var start_wrap := CenterContainer.new()
 	_start = Button.new()
-	_start.custom_minimum_size = Vector2(140, 0)
+	_start.custom_minimum_size = Vector2(150, 24)
 	_start.focus_mode = Control.FOCUS_NONE
+	_style_cute(_start, true)
 	_start.pressed.connect(close)
 	start_wrap.add_child(_start)
 	column.add_child(start_wrap)
+
+
+## Rounded, warm buttons — the cute register in one place: soft cream fill, warm border,
+## a slightly lifted hover.
+func _style_cute(button: Button, primary: bool) -> void:
+	var normal := _cute_style(Color(0.16, 0.17, 0.2, 0.92) if not primary else Color(0.47, 0.3, 0.24, 0.95))
+	var hover := _cute_style(Color(0.24, 0.26, 0.31, 0.95) if not primary else Color(0.58, 0.38, 0.3, 0.98))
+	var pressed := _cute_style(Color(0.11, 0.12, 0.14, 1.0) if not primary else Color(0.4, 0.25, 0.2, 1.0))
+	button.add_theme_stylebox_override("normal", normal)
+	button.add_theme_stylebox_override("hover", hover)
+	button.add_theme_stylebox_override("pressed", pressed)
+	button.add_theme_color_override("font_color", Color(0.95, 0.92, 0.85))
+
+
+func _cute_style(bg: Color) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = bg
+	style.set_corner_radius_all(6)
+	style.set_border_width_all(1)
+	style.border_color = Color(0.72, 0.66, 0.52, 0.9)
+	style.content_margin_left = 10
+	style.content_margin_right = 10
+	style.content_margin_top = 4
+	style.content_margin_bottom = 4
+	return style
 
 
 func _t(key: String) -> String:

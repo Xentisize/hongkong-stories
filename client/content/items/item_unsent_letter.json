@@ -1,6 +1,7 @@
 {
   "schema_version": 1,
   "id": "item_unsent_letter",
+  "icon": "res://content/art/items/item_unsent_letter.png",
   "name": { "zh_HK": "未寄嘅信", "zh_CN": "未寄出的信", "en": "Unsent Letter" },
   "desc": {
     "zh_HK": "封咗口但冇貼郵票嘅信，字跡係女性嘅。",

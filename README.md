@@ -190,6 +190,32 @@ the `decor` system (~$0.55 of generations, style bible referenced throughout). R
 the 30-minute phone play, real recordings to replace the synthesized beds, and the P6 ship
 list.
 
+## Deployment & soft launch (P6)
+
+The shipping path is CI-first; the two workflows in `.github/workflows/` exercise it.
+
+**Backend (Fly.io)** — `server.yml` on push: the pinned interpreter asserted (`uv python
+install 3.15.2`, then `python -VV` must report 3.15.2), pytest, the admin SPA with
+bun 1.4.4 (the only package manager), a Docker packaging gate (`deploy/Dockerfile`:
+python:3.15.2-slim + `uv sync --frozen`), then `fly deploy --remote-only` with
+`deploy/fly.toml` (hkg region, auto-stop for a near-free idle). Secrets live in Fly's vault
+— `fly secrets set OPENROUTER_API_KEY=… HKS_ADMIN_TOKEN=… HKS_ALLOWED_ORIGINS=…`.
+
+**Web (Cloudflare Pages)** — `client.yml` on push: content gates → headless import +
+selftest (exit code = failures) → `tools/export_web.sh` (the credits page ships inside the
+build) → browser smokes (boot + offline talk; Chrome is preinstalled on the runners) →
+brotli → `wrangler pages deploy`. Secrets: `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID`.
+
+**Cost guards (§7.5, P6)** — per-IP daily caps (default 40 sessions and $2.00 spend per
+address per day; tune with `HKS_PER_IP_DAILY_SESSIONS` / `HKS_PER_IP_DAILY_COST_USD`): a
+spent address gets 429 `daily_cap` and the game shows its one-time localized notice, then
+the scripted ladder keeps it playable. Error telemetry is counts-only, exposed at
+`/healthz` — no message text, no addresses, no identifiers, ever.
+
+**Privacy & credits** — `/credits.html` ships with every export (deploy/web/credits.html):
+no accounts; saves stay in the browser (IndexedDB); only dialogue text is sent to the LLM
+provider; telemetry is counts only.
+
 ## Fonts and licensing (read before swapping fonts)
 
 Godot ships **no CJK glyphs**, so Chinese renders as a wall of boxes with the default theme font.

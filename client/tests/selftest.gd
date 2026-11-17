@@ -41,6 +41,7 @@ static func run(tree: SceneTree) -> int:
 	_test_shared_condition_fixtures(c)
 	_test_font_coverage(c)
 	_test_dialogue_fallback(c)
+	_test_budget_ux(c)
 	_test_audio(c)
 	_test_touch(c, tree)
 	_test_save_round_trip(c)
@@ -306,6 +307,25 @@ static func _test_interactable_gating(c: Checker, tree: SceneTree) -> void:
 	c.check("gating: prop appears when its condition passes",
 		prop.is_available() and prop.visible)
 	location.queue_free()
+
+
+## P6 budget UX: a spent budget (session or per-IP day) announces itself exactly once —
+## localized toast via message_shown — then the scripted ladder keeps playing.
+static func _test_budget_ux(c: Checker) -> void:
+	Dialogue.active_npc = "npc_p2_shopkeeper"
+	Dialogue.using_fallback = false
+	# Counted through an Array on purpose: GDScript lambdas capture scalars BY VALUE, so an
+	# int counter inside the lambda would never reach the outer scope.
+	var toasts: Array = []
+	var listener := func(text: String) -> void: toasts.append(text)
+	Bus.message_shown.connect(listener)
+	Net.chat_error.emit("budget_exceeded")
+	Net.chat_error.emit("budget_exceeded")
+	Bus.message_shown.disconnect(listener)
+	c.check("budget: exhausted notice shown exactly once", toasts.size() == 1)
+	c.check("budget: one-time flag set", Dialogue._exhausted_notified)
+	Dialogue._exhausted_notified = false
+	Dialogue.active_npc = ""
 
 
 ## Touch controls (§12 P5): built only on touch devices — desktop and headless runs get an

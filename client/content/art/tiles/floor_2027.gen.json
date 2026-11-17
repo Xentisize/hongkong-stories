@@ -1,0 +1,24 @@
+{
+  "prompt_id": "gen_20261117_58eb60",
+  "model": "bytedance-seed/seedream-5-0-flash",
+  "seed": 0,
+  "resolution": "1K",
+  "aspect_ratio": "1:1",
+  "background": "opaque",
+  "input_references": [
+    "art/stylebible.png"
+  ],
+  "post": {
+    "palette": "hk_palette_v1",
+    "target_px": [
+      24,
+      24
+    ],
+    "outline": false,
+    "pad": 0
+  },
+  "cost_usd": 0.018,
+  "accepted_by": "admin",
+  "ts": "2026-11-17T06:46:53.554739+00:00",
+  "prompt": "pixel art a seamless square tile of warm grey storybook pavement with a tiny chalk doodle and a small daisy growing from a crack, cute and cozy, top-down view, hk_palette_v1 palette, fills the entire square edge to edge, tileable texture, flat shading, no border, no outline, no text, no drop shadow"
+}

@@ -14,7 +14,11 @@ config/name="Hong Kong Stories"
 config/description="A pixel-art 2D RPG set in Hong Kong, present and past."
 run/main_scene="res://scenes/main/Main.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
-boot_splash/show_image=false
+boot_splash/show_image=true
+boot_splash/image="res://content/art/backdrops/splash_cute.png"
+boot_splash/bg_color=Color(0.055, 0.05, 0.065, 1)
+boot_splash/fullsize=true
+boot_splash/use_filter=false
 
 [autoload]
 

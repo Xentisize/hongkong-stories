@@ -120,6 +120,16 @@ def visible_secrets(npc: dict, state: dict[str, Any]) -> list[dict]:
     return revealed
 
 
+LANGUAGE_REMINDER: dict[str, str] = {
+    "zh_HK": "LANGUAGE REMINDER: this turn's reply must be in WRITTEN CANTONESE (Traditional). "
+             "Do not continue in any other language, even if the history above is in one.",
+    "zh_CN": "LANGUAGE REMINDER: this turn's reply must be in Simplified Chinese (書面語, no "
+             "Cantonese particles), even if the history above is in another language.",
+    "en": "LANGUAGE REMINDER: this turn's reply must be in English, even if the history above "
+          "is in another language.",
+}
+
+
 def volatile_block(npc: dict, state: dict[str, Any], lang: str, player_input: str) -> str:
     sections: list[str] = []
 
@@ -144,6 +154,9 @@ def volatile_block(npc: dict, state: dict[str, Any], lang: str, player_input: st
 
     line = player_input or "(The player says nothing, and just looks at you.)"
     sections.append("PLAYER SAYS:\n" + line)
+    # The last word before generation decides the language when history disagrees with the
+    # current locale (P6 fix: conversations kept the old language after a switch).
+    sections.append(LANGUAGE_REMINDER.get(lang, LANGUAGE_REMINDER["en"]).strip())
     return "\n\n".join(sections)
 
 

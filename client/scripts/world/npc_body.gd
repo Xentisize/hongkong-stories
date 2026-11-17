@@ -13,6 +13,7 @@ var _tile_size: int = 24
 var _requires: Variant = null
 var _requires_pass: bool = true
 var _sprite_tex: Texture2D = null
+var _locale_connected: bool = false
 
 
 func configure(placement: Dictionary, tile_size: int) -> void:
@@ -35,6 +36,18 @@ func configure(placement: Dictionary, tile_size: int) -> void:
 		_requires = trigger.get("requires")
 	refresh_availability()
 	_sprite_tex = _load_sprite_texture(definition)
+	# The display name is localized at configure time; follow locale switches live so the
+	# interaction prompt never shows a stale language.
+	if not _locale_connected:
+		_locale_connected = true
+		Bus.locale_changed.connect(_on_locale_changed)
+	queue_redraw()
+
+
+func _on_locale_changed(_locale: String) -> void:
+	var definition := ContentDB.get_entity("npcs", npc_id)
+	if not definition.is_empty():
+		display_name = ContentDB.localize(definition.get("display_name", npc_id), Settings.locale)
 	queue_redraw()
 
 

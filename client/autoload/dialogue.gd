@@ -16,6 +16,21 @@ signal line_finished(text: String)
 
 const MAX_HISTORY_TURNS := 12
 
+## P6 UX: when a budget is spent the player is told exactly once, then the scripted ladder
+## takes over — visible, localized, and never repeated every turn.
+const EXHAUSTED_LINES := {
+	"budget_exceeded": {
+		"zh_HK": "今日嘅故事魔法用完喇，聽日再嚟——而家由腳本對白陪你。",
+		"zh_CN": "今天的故事魔法用完了，明天再来——现在由脚本对白陪你。",
+		"en": "Today's story magic is spent — come back tomorrow. Scripted lines will keep you company.",
+	},
+	"daily_cap": {
+		"zh_HK": "今日街坊都好踴躍，額滿喇——聽日再嚟。",
+		"zh_CN": "今天街坊都很踊跃，额满了——明天再来。",
+		"en": "The street is busy today — the daily cap is reached. Come back tomorrow.",
+	},
+}
+
 var active_npc: String = ""
 var is_streaming: bool = false
 var using_fallback: bool = false
@@ -24,6 +39,7 @@ var _pending_input: String = ""
 var _scripted_index: int = 0
 var _stream_buffer: String = ""
 var _turn_count: int = 0
+var _exhausted_notified: bool = false
 
 
 func _ready() -> void:
@@ -166,8 +182,18 @@ func _on_done(frame: Dictionary) -> void:
 
 func _on_error(code: String) -> void:
 	is_streaming = false
+	_notify_exhausted(code)
 	push_warning("Dialogue: chat failed (%s) — falling back to scripted lines" % code)
 	_fallback_line()
+
+
+## P6 UX: a spent budget (session or per-IP day) is announced exactly once per run, then
+## the scripted ladder keeps the game playable — graceful degradation, never a dead screen.
+func _notify_exhausted(code: String) -> void:
+	if _exhausted_notified or not EXHAUSTED_LINES.has(code):
+		return
+	_exhausted_notified = true
+	Bus.message_shown.emit(ContentDB.localize(EXHAUSTED_LINES[code], Settings.locale))
 
 
 func _fallback_line() -> void:

@@ -1,6 +1,7 @@
 {
   "schema_version": 1,
   "id": "item_octopus_card",
+  "icon": "res://content/art/items/item_octopus_card.png",
   "name": { "zh_HK": "八達通", "zh_CN": "八达通", "en": "Octopus Card" },
   "desc": {
     "zh_HK": "舊款八達通，卡面已經刮花，入面仲有尾數。",

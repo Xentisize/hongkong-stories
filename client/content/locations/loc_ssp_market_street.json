@@ -3,7 +3,7 @@
   "id": "loc_ssp_market_street",
   "display_name": { "zh_HK": "北河街街市", "zh_CN": "北河街街市", "en": "Pei Ho Street Market" },
   "tile_size": 24,
-  "atlas": "res://assets/tiles/p1_tiles.png",
+  "atlas": "res://assets/tiles/p1_tiles_2027.png",
   "legend": {
     ".": [0, 0],
     ",": [1, 0],
@@ -45,7 +45,9 @@
   "decor": [
     { "art": "art/props/prop_lantern.png", "tile": [2, 2] },
     { "art": "art/props/prop_crate.png", "tile": [8, 2] },
-    { "art": "art/props/prop_plant.png", "tile": [17, 2] }
+    { "art": "art/props/prop_plant.png", "tile": [17, 2] },
+    { "art": "art/props/prop_cat.png", "tile": [22, 2] },
+    { "art": "art/props/prop_scooter.png", "tile": [4, 9] }
   ],
   "npcs": [
     { "npc": "npc_ch01_ken", "tile": [7, 4], "facing": "down",
@@ -65,6 +67,8 @@
     {
       "id": "shop_sign",
       "tile": [16, 12],
+      "art": "art/props/prop_shop_signboard.png",
+      "scale": 0.8,
       "once": true,
       "prompt": { "zh_HK": "執起塊招牌", "zh_CN": "捡起招牌", "en": "Pick up the sign" },
       "on_interact": [
@@ -82,6 +86,8 @@
     {
       "id": "fish_tank",
       "tile": [19, 9],
+      "art": "art/props/prop_fishtank.png",
+      "scale": 0.8,
       "prompt": { "zh_HK": "望下個水箱", "zh_CN": "看看水箱", "en": "Look at the tank" },
       "on_interact": [
         {

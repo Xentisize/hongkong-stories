@@ -18,6 +18,7 @@ MAX_SESSIONS = 4096
 class Session:
     token: str
     budget: int
+    ip: str = ""
     used_tokens: int = 0
     turns: int = 0
     created_at: float = field(default_factory=time.time)
@@ -48,12 +49,12 @@ class SessionStore:
         self._max_sessions = max_sessions
         self._sessions: dict[str, Session] = {}
 
-    def create(self) -> Session:
+    def create(self, ip: str = "") -> Session:
         if len(self._sessions) >= self._max_sessions:
             # Drop the oldest third rather than refusing: this is a public, anonymous game.
             for token in sorted(self._sessions, key=lambda t: self._sessions[t].created_at)[: self._max_sessions // 3]:
                 self._sessions.pop(token, None)
-        session = Session(token=secrets.token_urlsafe(24), budget=self._token_budget)
+        session = Session(token=secrets.token_urlsafe(24), budget=self._token_budget, ip=ip)
         self._sessions[session.token] = session
         return session
 

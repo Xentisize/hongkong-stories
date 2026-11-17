@@ -1,6 +1,7 @@
 {
   "schema_version": 1,
   "id": "item_shop_sign_plate",
+  "icon": "res://content/art/items/item_shop_sign_plate.png",
   "name": { "zh_HK": "木招牌", "zh_CN": "木招牌", "en": "Shop Sign" },
   "desc": {
     "zh_HK": "塊木招牌拆咗落嚟，店名畀人用砂紙磨走咗。",

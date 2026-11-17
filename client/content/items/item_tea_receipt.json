@@ -1,6 +1,7 @@
 {
   "schema_version": 1,
   "id": "item_tea_receipt",
+  "icon": "res://content/art/items/item_tea_receipt.png",
   "name": { "zh_HK": "茶樓收據", "zh_CN": "茶楼收据", "en": "Tea-house Receipt" },
   "desc": {
     "zh_HK": "一張外賣收據，日期被人用鉛筆圈起咗。",

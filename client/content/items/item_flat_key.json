@@ -1,6 +1,7 @@
 {
   "schema_version": 1,
   "id": "item_flat_key",
+  "icon": "res://content/art/items/item_flat_key.png",
   "name": { "zh_HK": "單位鎖匙", "zh_CN": "单元钥匙", "en": "Flat Key" },
   "desc": {
     "zh_HK": "陳太交返俾你嘅單位鎖匙，匙圈仲縛住一條紅繩。",

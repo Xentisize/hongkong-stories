@@ -53,6 +53,10 @@ class Settings:
     # empty means the admin API is disabled entirely, never "open".
     admin_token: str = ""
     admin_data_dir: Path = REPO_ROOT / "server" / "data"
+    # Per-IP daily caps (PLAN 7.5 guards, P6): bound the anonymous spend per address per
+    # day. In-memory (a restart is a soft reset); tuned for a soft launch.
+    per_ip_daily_sessions: int = 40
+    per_ip_daily_cost_usd: float = 2.0
     allowed_origins: tuple[str, ...] = (
         "http://localhost:8099",
         "http://127.0.0.1:8099",
@@ -76,6 +80,10 @@ class Settings:
             openrouter_api_key=env.get("OPENROUTER_API_KEY", ""),
             admin_token=env.get("HKS_ADMIN_TOKEN", ""),
             admin_data_dir=Path(env.get("HKS_ADMIN_DATA_DIR", cls.admin_data_dir)),
+            per_ip_daily_sessions=int(
+                env.get("HKS_PER_IP_DAILY_SESSIONS", cls.per_ip_daily_sessions)),
+            per_ip_daily_cost_usd=float(
+                env.get("HKS_PER_IP_DAILY_COST_USD", cls.per_ip_daily_cost_usd)),
             chat_model=env.get("HKS_CHAT_MODEL", cls.chat_model),
             image_model=env.get("HKS_IMAGE_MODEL", cls.image_model),
             image_model_transparent=env.get(

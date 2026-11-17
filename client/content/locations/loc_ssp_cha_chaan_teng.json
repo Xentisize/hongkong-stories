@@ -3,7 +3,7 @@
   "id": "loc_ssp_cha_chaan_teng",
   "display_name": { "zh_HK": "茶餐廳", "zh_CN": "茶餐厅", "en": "Cha Chaan Teng" },
   "tile_size": 24,
-  "atlas": "res://assets/tiles/p1_tiles.png",
+  "atlas": "res://assets/tiles/p1_tiles_2027.png",
   "legend": {
     ".": [0, 0],
     ",": [1, 0],
@@ -39,7 +39,9 @@
   "music": "audio/ssp_cct_2027.wav",
   "decor": [
     { "art": "art/props/prop_lantern.png", "tile": [12, 2] },
-    { "art": "art/props/prop_plant.png", "tile": [3, 2] }
+    { "art": "art/props/prop_plant.png", "tile": [3, 2] },
+    { "art": "art/props/prop_menu_board.png", "tile": [15, 8] },
+    { "art": "art/props/prop_teapot.png", "tile": [15, 7] }
   ],
   "npcs": [
     { "npc": "npc_ch01_tai", "tile": [4, 4], "facing": "down" },
@@ -50,6 +52,8 @@
     {
       "id": "menu_board",
       "tile": [9, 3],
+      "art": "art/props/prop_menu_board.png",
+      "scale": 0.8,
       "prompt": { "zh_HK": "睇餐牌", "zh_CN": "看餐牌", "en": "Read the menu" },
       "on_interact": [
         {

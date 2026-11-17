@@ -78,10 +78,11 @@ def test_generate_endpoint_writes_pack_and_provenance(
         return seedream.GeneratedImage(png=_blob_png(), seed=424242, cost_usd=0.018)
 
     monkeypatch.setattr(admin_mod.seedream, "generate_image", fake_generate)
-    client = TestClient(create_app(Settings(
+    settings = Settings(
         openrouter_api_key="x", admin_token="t",
         content_dir=pack, admin_data_dir=data,
-    )))
+    )
+    client = TestClient(create_app(settings))
 
     response = client.post("/v1/admin/art/generate", headers={"Authorization": "Bearer t"}, json={
         "kind": "sprite", "subject_id": "npc_art_test", "desc": "a test caretaker",
@@ -92,7 +93,10 @@ def test_generate_endpoint_writes_pack_and_provenance(
     assert (pack / "art" / "npcs" / "npc_art_test.png").is_file()
 
     provenance = json.loads((pack / "art" / "npcs" / "npc_art_test.gen.json").read_text())
-    assert provenance["model"] == "bytedance-seed/seedream-5-0-flash"
+    # The contract: the provenance records the model the settings selected for this KIND —
+    # a sprite is transparent-background, so the transparent-capable model is on record.
+    # (Pinned by name once and it broke on a model migration; the setting is the truth.)
+    assert provenance["model"] == settings.image_model_transparent
     assert provenance["seed"] == 424242
     assert provenance["post"]["palette"] == "hk_palette_v1"
     assert provenance["accepted_by"] == "admin"

@@ -47,5 +47,11 @@ else
 	echo "==> brotli not installed; skipping pre-compression (install it: apt install brotli / brew install brotli)"
 fi
 
+# P6: the credits/privacy page ships alongside the build (deploy/web/*.html).
+if ls "$ROOT"/deploy/web/*.html >/dev/null 2>&1; then
+	cp "$ROOT"/deploy/web/*.html "$OUT"/
+	echo "==> copied deploy/web pages (credits & privacy)"
+fi
+
 echo "==> artifacts"
 ls -lh "$OUT"

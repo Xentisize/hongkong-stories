@@ -1,6 +1,7 @@
 {
   "schema_version": 1,
   "id": "item_photo_album",
+  "icon": "res://content/art/items/item_photo_album.png",
   "name": { "zh_HK": "舊相簿", "zh_CN": "旧相簿", "en": "Photo Album" },
   "desc": {
     "zh_HK": "黑皮相簿，繩結已經鬆開，入面全係黑白相。",

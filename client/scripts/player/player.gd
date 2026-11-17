@@ -106,7 +106,48 @@ func _title_showing() -> bool:
 	return title != null and bool(title.call("is_showing"))
 
 
+var _sprite_tex: Texture2D = null
+var _sprite_checked: bool = false
+
+
+## The generated walk sheet (bundled or hot-pack), attempted once; nearest-filtered for
+## crisp pixels. Cells: 4 columns (down, right, left, up) x 2 rows (stand, step). The
+## placeholder rectangles below remain the fallback when art is missing.
+func _player_sprite() -> Texture2D:
+	if not _sprite_checked:
+		_sprite_checked = true
+		_sprite_tex = ContentDB.art_texture("art/npcs/player_walk.png")
+		texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	return _sprite_tex
+
+
+## Sheet column by facing: down, right, left, up.
+func _facing_column() -> int:
+	if facing.y > 0.5:
+		return 0
+	if facing.x > 0.5:
+		return 1
+	if facing.x < -0.5:
+		return 2
+	if facing.y < -0.5:
+		return 3
+	return 0
+
+
 func _draw() -> void:
+	var sprite := _player_sprite()
+	if sprite != null:
+		# Two-frame directional walk: row 0 stands, row 1 steps, alternating at walk cadence.
+		var cell := Vector2(26.0, 34.0)
+		var col := _facing_column()
+		var row := 0
+		if is_walking:
+			row = _frame % 2
+		var region := Rect2(col * cell.x, row * cell.y, cell.x, cell.y)
+		var dest := Rect2(-cell.x / 2.0, -cell.y + 1.0, cell.x, cell.y)
+		draw_rect(Rect2(-7, -1, 14, 2), Color(0, 0, 0, 0.25))   # ground shadow
+		draw_texture_rect_region(sprite, dest, region)
+		return
 	# Scene 1 of the placeholder art: 12x26 body at 24px tile scale, drawn up from the feet.
 	var bob := -1.0 if (is_walking and _frame % 2 == 1) else 0.0
 	var step := 0.0

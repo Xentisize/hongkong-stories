@@ -1,0 +1,24 @@
+{
+  "prompt_id": "gen_20261117_e43cb9",
+  "model": "bytedance-seed/seedream-5-0-flash",
+  "seed": 0,
+  "resolution": "1K",
+  "aspect_ratio": "16:9",
+  "background": "opaque",
+  "input_references": [
+    "art/stylebible.png"
+  ],
+  "post": {
+    "palette": "hk_palette_v1",
+    "target_px": [
+      256,
+      144
+    ],
+    "outline": false,
+    "pad": 0
+  },
+  "cost_usd": 0.018,
+  "accepted_by": "admin",
+  "ts": "2026-11-17T05:58:31.920396+00:00",
+  "prompt": "pixel art top-down street scene of a cute chibi pixel-art Hong Kong street corner at dusk with glowing red lanterns, a small cat sitting by a tea stall, warm cozy colors, adorable storybook mood, 16:9, muted hk_palette_v1 palette, walkable ground plane, no characters, no text, no UI"
+}

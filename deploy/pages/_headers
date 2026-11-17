@@ -1,0 +1,14 @@
+# Cloudflare Pages headers (docs/PLAN.md §10.3): hashed Godot assets are immutable and
+# cache forever; the entry document is no-cache so a deploy is seen on the next visit.
+/index.html
+  Cache-Control: no-cache
+/index.pck
+  Cache-Control: public, max-age=31536000, immutable
+/index.wasm
+  Cache-Control: public, max-age=31536000, immutable
+/index.js
+  Cache-Control: public, max-age=31536000, immutable
+/*.png
+  Cache-Control: public, max-age=31536000, immutable
+/credits.html
+  Cache-Control: no-cache

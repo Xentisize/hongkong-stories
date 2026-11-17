@@ -54,6 +54,10 @@ func _build_decor() -> void:
 			continue
 		var sprite := Sprite2D.new()
 		sprite.texture = texture
+		sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		# Decor reads smaller than characters (a person-sized cat reads wrong): default 0.66,
+		# overridable per entry with `scale`.
+		sprite.scale = Vector2.ONE * float(entry.get("scale", 0.66))
 		var tile: Array = entry.get("tile", [0, 0])
 		sprite.position = Vector2(float(tile[0]) + 0.5, float(tile[1]) + 0.5) * tile_size
 		add_child(sprite)
