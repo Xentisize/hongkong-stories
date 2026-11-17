@@ -150,32 +150,39 @@ passes `--enable-unsafe-swiftshader`/`--use-angle=swiftshader` and takes `CHROME
 Playwright's Chromium in WSL — the Windows-Chrome CDP path proved flaky over NAT). A
 pinned-3.15.2 pytest run remains the last unchecked box.
 
-## Status: P5 — chapters 2–3, systems, ongoing
+## Status: P5 — complete
 
-Chapters 2 and 3 are authored end to end: **1955 Kowloon market & hut settlement** (阿彩 the
-tea stall — the grandmother before she was anyone's 嫲嫲, 華叔 opening the shop, 阿好's fire
-night) and **1963 the mill floor & the standpipe lane** (the rationing is real history per
-the lore file; 阿榮 is the player's father as a child and never learns who the player is).
-Each chapter carries `lore/*.md` + 2 locations + 3 NPCs + a quest arc whose every flag beat
-has a deterministic offline fallback line. The memento doors now chain: the album opens 1955
-(quest start + travel), chapter 2's closing cutscene returns the player to 2027, and the
-cassette — usable once ch02 is done — opens 1963 the same way.
+Chapters 2–5 are authored end to end, each carrying `lore/*.md` + 2 locations + 3 NPCs + a
+quest arc whose every flag beat has a deterministic offline fallback line:
 
-Systems shipped: **save-code export/import** (§6.4 — base64+deflate with a length prefix,
-`savecode` / `code` dev commands, a selftest round-trip that also refuses mangled codes), the
-**Audio autoload** (location music loops + `play_sfx` consumers; graceful silence with a
-once-per-name missing counter — no OGG assets exist yet, so dropping files into
-`client/assets/audio/` and referencing them via content `music` fields makes them play), and
-**touch controls** (a virtual d-pad plus E/I, built only on touchscreen devices, with
-synthesized `InputEventAction` events so the keyboard paths are untouched).
+- **1955 Kowloon market & hut settlement** — 阿彩 the tea stall (the grandmother before she
+  was anyone's 嫲嫲), 華叔 opening the shop, 阿好's fire night.
+- **1963 the mill floor & the standpipe lane** — the rationing is real history per the lore
+  file; 阿榮 is the player's father as a child and never learns who the player is.
+- **1979 the family shop & the rooftop** — Kai Tak's approach overhead, the generation that
+  moved up, 光叔's runway stories.
+- **1996 the same street & the flat** — the emigration wave, and the unsent letter finally
+  carried by 阿雪 to the address her mother left.
 
-Verified on this machine: 36 entities validate with 0 errors, the font-coverage gate passes
-over every new 1955/1963 string, and three-locale parity holds with zero Cantonese particles
-in `zh_CN`. The expanded `--selftest` runs via the Windows Godot through WSL interop
-(**111 checks, 0 failures**), the web build exports (`index.wasm` 38 MB · `index.pck`
-5.0 MB), and the browser smokes pass with chapters 1–3 in the pack — backend up (real model
-reply) and down (scripted fallback). Still to come in P5: the NPC-placement editor plugin
-(§9.1), real audio assets, the 30-minute phone play, and chapters 4–5 content.
+The memento doors chain the whole game: album→ch02, cassette→ch03, tram ticket→ch04,
+letter→ch05 — each opening its era, each closing cutscene returning the player to 2027.
+(The 2027 finale, chapter 6, is the remaining content.)
+
+Systems shipped: **save-code export/import** (§6.4 — length-prefixed deflate, `savecode` /
+`code` dev commands, a selftest round-trip that also refuses mangled codes), the **Audio
+autoload** with five synthesized ambience beds (4.0 MB of WAV, content `music` fields wired,
+seamless looping), **touch controls** (a virtual d-pad plus E/I, touchscreen-only), and the
+**NPC-placement editor plugin** (§9.1 — `addons/npc_placement`: a JSON write-back core the
+selftest exercises plus an `@tool` dock for the editor).
+
+Verified on this machine: 49 entities validate with 0 errors, the font-coverage gate passes
+over every new era string, three-locale parity holds with zero Cantonese particles in
+`zh_CN`, and `--selftest` runs via the Windows Godot through WSL interop: **119 checks,
+0 failures** — now covering the placement writer and the real audio assets. Earlier runs
+verified the web export (`index.wasm` 38 MB · `index.pck` 5.0 MB) and the browser smokes
+(backend up: real model reply; backend down: scripted fallback). Remaining: the 30-minute
+phone play, chapter 6 (the 2027 finale), and real recordings to replace the synthesized
+beds.
 
 ## Fonts and licensing (read before swapping fonts)
 
@@ -194,8 +201,8 @@ against the Cantonese particle set and every string in `client/content/`.
 
 - **Admin + art + §9.2 authoring tools shipped** (see "Status: P4"); the remaining admin
   depth is the 2027-chapter fact-check classifier hook-up (§7.6 optional hardening).
-  Chapters 1–3 content exists (see "Status: P3" / "Status: P5"); chapters 4–5 and the
-  2027 return are authored in later P5 passes.
+  Chapters 1–5 content exists (see "Status: P3" / "Status: P5"); the 2027 finale
+  (chapter 6) remains.
 - **Cache-hit telemetry is only partially wired.** The admin playground reads real
   prompt/cached/cost numbers (OpenRouter `usage.include`) — live-measured 2026-11-17:
   same-prefix turns hit 60% / 0% / 76% depending on which upstream serves the request —

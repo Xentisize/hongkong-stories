@@ -35,7 +35,7 @@
     "default": [8.5, 5.5],
     "from_market": [2.5, 5.5]
   },
-  "music": "audio/kln_1955.ogg",
+  "music": "audio/kln_1955.wav",
   "npcs": [
     { "npc": "npc_ch02_ho", "tile": [11, 8], "facing": "up" }
   ],

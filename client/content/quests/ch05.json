@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "id": "ch05",
+  "title": { "zh_HK": "第五章：未寄嘅信", "zh_CN": "第五章：未寄出的信", "en": "Chapter 5: The Unsent Letter" },
+  "entry_requires": null,
+  "nodes": [
+    {
+      "id": "n1",
+      "type": "cutscene",
+      "text": [
+        {
+          "zh_HK": "1996年，同一條街。倒數牌減到三位數，隔籬舖嘅閘門拉落咗。",
+          "zh_CN": "1996年，同一条街。倒数牌减到三位数，隔壁铺的闸门拉下来了。",
+          "en": "1996, the same street. The countdown is down to three digits and the next door's shutter is down for good."
+        },
+        {
+          "zh_HK": "樓上有盞燈亮住——有人寫緊一封寄唔出嘅信。",
+          "zh_CN": "楼上有盏灯亮着——有人在写一封寄不出的信。",
+          "en": "Upstairs a lamp is on. Someone is writing a letter that will not be sent."
+        }
+      ],
+      "next": "n2",
+      "on_complete": []
+    },
+    {
+      "id": "n2",
+      "type": "objective",
+      "text": { "zh_HK": "上樓搵阿彩。", "zh_CN": "上楼找阿彩。", "en": "Go up and find A-choi." },
+      "complete_when": { "talked": "npc_ch05_caai", "min": 1 },
+      "next": "n3",
+      "on_complete": []
+    },
+    {
+      "id": "n3",
+      "type": "objective",
+      "text": { "zh_HK": "聽阿彩講呢封信嘅故事。", "zh_CN": "听阿彩讲这封信的故事。", "en": "Hear the story of the letter." },
+      "complete_when": { "flag": "caai_told_letter" },
+      "next": "n4",
+      "on_complete": []
+    },
+    {
+      "id": "n4",
+      "type": "objective",
+      "text": { "zh_HK": "搵由溫哥華返嚟嘅阿雪。", "zh_CN": "找从温哥华回来的阿雪。", "en": "Find Suet, back from Vancouver." },
+      "complete_when": { "all": [ { "talked": "npc_ch05_suet", "min": 2 }, { "flag": "suet_took_letter" } ] },
+      "next": "n5",
+      "on_complete": []
+    },
+    {
+      "id": "n5",
+      "type": "cutscene",
+      "text": [
+        {
+          "zh_HK": "信封終於有郵票。阿雪話，阿媽見到妹妹嘅字，一定喊住笑。",
+          "zh_CN": "信封终于有邮票。阿雪说，妈妈见到妹妹的字，一定会哭着笑。",
+          "en": "The envelope finally has its stamp. Suet says her mother will cry and laugh at once when she sees her sister's hand."
+        },
+        {
+          "zh_HK": "你返到2027年。抽屜入面嗰封信，終於寄咗——二十幾年後，先寄到。",
+          "zh_CN": "你回到2027年。抽屉里的那封信，终于寄了——二十多年后，才寄到。",
+          "en": "You are back in 2027. The letter in the drawer has finally been sent — twenty-some years late, and on its way."
+        }
+      ],
+      "next": null,
+      "on_complete": [ { "type": "goto", "location": "loc_ssp_flat", "spawn": "default" } ]
+    }
+  ],
+  "_comment": "Chapter-5 arc (PLAN §12.1): the unsent letter is the door; the resolution is delivery, not repair — 阿雪 carries the letter to the address her mother left. The player's 2027 copy of the letter is what 阿彩 recognizes; no time travel is ever explained. Offline fallback lines carry every flag beat."
+}

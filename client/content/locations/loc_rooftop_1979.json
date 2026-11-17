@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "id": "loc_rooftop_1979",
+  "display_name": { "zh_HK": "天台，1979", "zh_CN": "天台，1979", "en": "The Rooftop, 1979" },
+  "era": "ch04_kai_tak_1979",
+  "tile_size": 24,
+  "atlas": "res://assets/tiles/p1_tiles.png",
+  "legend": {
+    ".": [0, 0],
+    ",": [1, 0],
+    "#": [2, 0],
+    "D": [3, 0]
+  },
+  "tilemap": [
+    "################",
+    "#..............#",
+    "#..............#",
+    "#..............#",
+    ",..............#",
+    ",..............#",
+    ",..............#",
+    "#..............#",
+    "#..............#",
+    "#..............#",
+    "################"
+  ],
+  "collision": [
+    [0, 0, 16, 1],
+    [0, 10, 16, 1],
+    [0, 1, 1, 3],
+    [0, 7, 1, 3],
+    [15, 1, 1, 9]
+  ],
+  "spawn_points": {
+    "default": [8.5, 5.5],
+    "from_shop": [2.5, 5.5]
+  },
+  "music": "audio/kln_1955.wav",
+  "npcs": [
+    { "npc": "npc_ch04_kwong", "tile": [11, 7], "facing": "left" }
+  ],
+  "doors": [],
+  "interactables": [
+    {
+      "id": "laundry_line",
+      "tile": [4, 3],
+      "prompt": { "zh_HK": "經過晾衫繩", "zh_CN": "经过晾衣绳", "en": "Pass the laundry line" },
+      "on_interact": [
+        {
+          "type": "say",
+          "text": {
+            "zh_HK": "校服、工衣、小孩的開襠褲，一條繩掛晒成層樓嘅日子。",
+            "zh_CN": "校服、工衣、小孩的开裆裤，一条绳挂着一层楼的日子。",
+            "en": "School shirts, work clothes, a toddler's split trousers — one line carries a whole floor's day."
+          }
+        }
+      ]
+    },
+    {
+      "id": "flight_path",
+      "tile": [8, 5],
+      "prompt": { "zh_HK": "望下飛機", "zh_CN": "望望飞机", "en": "Watch the planes" },
+      "on_interact": [
+        {
+          "type": "say",
+          "text": {
+            "zh_HK": "又一班機轉彎，機腹掠過天台，夠近讀到個機構名。所有人靜三秒，等佢過。",
+            "zh_CN": "又一班机转弯，机腹掠过天台，近到能读出航空公司的名字。所有人静三秒，等它过。",
+            "en": "Another airliner turns, belly passing so low you can read the airline. Everyone goes quiet for three seconds while it goes by."
+          }
+        }
+      ]
+    }
+  ],
+  "exits": [
+    {
+      "id": "to_shop",
+      "rect": [0, 4, 1, 3],
+      "to": "loc_ssp_shopfront_1979",
+      "spawn": "from_roof"
+    }
+  ],
+  "_comment": "Chapter 4 rooftop: Kai Tak's approach overhead, the era's balcony. Bird ambience stands in for the plane roar."
+}

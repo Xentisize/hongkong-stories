@@ -43,7 +43,7 @@
     "default": [11.5, 9.5],
     "from_lane": [1.5, 5.5]
   },
-  "music": "audio/kln_1963.ogg",
+  "music": "audio/kln_1963.wav",
   "npcs": [
     { "npc": "npc_ch03_rong", "tile": [19, 9], "facing": "left" },
     { "npc": "npc_ch03_luk", "tile": [5, 9], "facing": "right" }

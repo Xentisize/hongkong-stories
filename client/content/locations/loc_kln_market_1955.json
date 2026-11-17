@@ -41,7 +41,7 @@
     "default": [13.5, 7.5],
     "from_huts": [25.5, 7.5]
   },
-  "music": "audio/kln_1955.ogg",
+  "music": "audio/kln_1955.wav",
   "npcs": [
     { "npc": "npc_ch02_caai", "tile": [6, 3], "facing": "down" },
     { "npc": "npc_ch02_waah", "tile": [21, 4], "facing": "down" }

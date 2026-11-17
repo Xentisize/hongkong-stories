@@ -34,7 +34,7 @@
     "default": [8.5, 8.5],
     "from_street": [2.5, 5.5]
   },
-  "music": "audio/ssp_flat_2027.ogg",
+  "music": "audio/ssp_flat_2027.wav",
   "npcs": [],
   "doors": [],
   "interactables": [

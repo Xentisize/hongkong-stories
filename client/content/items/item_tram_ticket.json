@@ -9,8 +9,27 @@
   },
   "stack_max": 1,
   "category": "keepsake",
-  "usable": false,
-  "on_use": [],
+  "usable": true,
+  "use_requires": { "all": [ { "quest_done": "ch03" }, { "not": { "quest_state": "ch04" } } ] },
+  "use_locked": {
+    "zh_HK": "呢張票根而家幫唔到手。",
+    "zh_CN": "这张票根现在帮不上手。",
+    "en": "The ticket stub can't help right now."
+  },
+  "on_use": [
+    { "type": "set_flag", "flag": "ch04_opened" },
+    { "type": "quest", "quest": "ch04", "op": "start" },
+    {
+      "type": "say",
+      "text": {
+        "zh_HK": "票根一捏，頭頂傳來引擎聲。",
+        "zh_CN": "票根一捏，头顶传来引擎声。",
+        "en": "The stub crinkles, and an engine roars somewhere overhead."
+      }
+    },
+    { "type": "goto", "location": "loc_ssp_shopfront_1979", "spawn": "default" }
+  ],
   "on_acquire": [],
-  "lore_ref": "lore/ch01_hk_2027.md"
+  "lore_ref": "lore/ch01_hk_2027.md",
+  "_comment": "The chapter-4 door: usable once ch03 is complete (a last-tram stub opens the generation that moved up)."
 }

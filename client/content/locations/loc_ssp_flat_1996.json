@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "id": "loc_ssp_flat_1996",
+  "display_name": { "zh_HK": "舖頭樓上，1996", "zh_CN": "铺子楼上，1996", "en": "The Flat, 1996" },
+  "era": "ch05_hk_1996",
+  "tile_size": 24,
+  "atlas": "res://assets/tiles/p1_tiles.png",
+  "legend": {
+    ".": [0, 0],
+    ",": [1, 0],
+    "#": [2, 0],
+    "D": [3, 0]
+  },
+  "tilemap": [
+    "################",
+    "#..............#",
+    "#..............#",
+    "#..............#",
+    ",..............#",
+    ",....,,,.......#",
+    ",....,,,.......#",
+    "#..............#",
+    "#..............#",
+    "#..............#",
+    "################"
+  ],
+  "collision": [
+    [0, 0, 16, 1],
+    [0, 10, 16, 1],
+    [0, 1, 1, 3],
+    [0, 7, 1, 3],
+    [15, 1, 1, 9]
+  ],
+  "spawn_points": {
+    "default": [8.5, 8.5],
+    "from_street": [2.5, 5.5]
+  },
+  "music": "audio/ssp_flat_2027.wav",
+  "npcs": [
+    { "npc": "npc_ch05_caai", "tile": [8, 5], "facing": "down" },
+    { "npc": "npc_ch05_suet", "tile": [12, 3], "facing": "down" },
+    { "npc": "npc_ch05_wai", "tile": [4, 8], "facing": "right" }
+  ],
+  "doors": [],
+  "interactables": [
+    {
+      "id": "letter_on_table",
+      "tile": [9, 6],
+      "prompt": { "zh_HK": "望下枱面", "zh_CN": "看看桌面", "en": "Look at the table" },
+      "on_interact": [
+        {
+          "type": "say",
+          "text": {
+            "zh_HK": "信紙攤開又摺好摺好又攤開，筆擺正。信封寫好名，郵票位空住。",
+            "zh_CN": "信纸摊开又折好、折好又摊开，笔摆正。信封写好了名字，邮票位空着。",
+            "en": "The letter paper has been opened and refolded and opened again; the pen sits squared. The envelope has a name on it and an empty corner where a stamp should be."
+          }
+        }
+      ]
+    },
+    {
+      "id": "phone_card_bowl",
+      "tile": [12, 6],
+      "once": true,
+      "prompt": { "zh_HK": "執起電話卡", "zh_CN": "捡起电话卡", "en": "Pick up the phone cards" },
+      "on_interact": [
+        {
+          "type": "say",
+          "text": {
+            "zh_HK": "一碗長途電話卡，打去溫哥華嘅價錢用鉛筆寫喺牆上。",
+            "zh_CN": "一碗长途电话卡，打去温哥华的价钱用铅笔写在墙上。",
+            "en": "A bowl of long-distance phone cards; the Vancouver rate is pencilled on the wall."
+          }
+        }
+      ]
+    }
+  ],
+  "exits": [
+    {
+      "id": "to_street",
+      "rect": [0, 4, 1, 3],
+      "to": "loc_ssp_street_1996",
+      "spawn": "from_flat"
+    }
+  ],
+  "_comment": "Chapter 5 flat: where the letter is written and, finally, addressed. 阿雪 visits from Vancouver; 偉哥 (younger) carries boxes."
+}

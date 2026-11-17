@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "id": "loc_ssp_street_1996",
+  "display_name": { "zh_HK": "同一條街，1996", "zh_CN": "同一条街，1996", "en": "The Same Street, 1996" },
+  "era": "ch05_hk_1996",
+  "tile_size": 24,
+  "atlas": "res://assets/tiles/p1_tiles.png",
+  "legend": {
+    ".": [0, 0],
+    ",": [1, 0],
+    "#": [2, 0],
+    "D": [3, 0]
+  },
+  "tilemap": [
+    "############################",
+    "#..........................#",
+    "#..........................#",
+    "#..........................#",
+    "#..........................#",
+    "#..........................#",
+    ",..........................,",
+    ",..........................,",
+    ",..........................,",
+    "#..........................#",
+    "#.....##..........##.......#",
+    "#.....##..........##.......#",
+    "#..........................#",
+    "############################"
+  ],
+  "collision": [
+    [0, 0, 28, 1],
+    [0, 13, 28, 1],
+    [0, 1, 1, 5],
+    [0, 9, 1, 4],
+    [27, 1, 1, 5],
+    [27, 9, 1, 4],
+    [6, 10, 2, 2],
+    [18, 10, 2, 2]
+  ],
+  "spawn_points": {
+    "default": [13.5, 7.5],
+    "from_flat": [25.5, 6.5]
+  },
+  "music": "audio/ssp_2027.wav",
+  "npcs": [],
+  "doors": [],
+  "interactables": [
+    {
+      "id": "countdown_board",
+      "tile": [10, 3],
+      "prompt": { "zh_HK": "望下倒數牌", "zh_CN": "看看倒数牌", "en": "Read the countdown board" },
+      "on_interact": [
+        {
+          "type": "say",
+          "text": {
+            "zh_HK": "大廈外牆掛住倒數牌，減到三位數。有人行過抬頭望一眼，有人刻意唔望。",
+            "zh_CN": "大厦外墙上挂着倒数牌，减到三位数。有人走过抬头看一眼，有人刻意不看。",
+            "en": "A countdown board hangs on the building wall, down to three digits. Some look up as they pass; some make a point of not looking."
+          }
+        }
+      ]
+    },
+    {
+      "id": "closed_shutter",
+      "tile": [19, 9],
+      "prompt": { "zh_HK": "望下捲閘", "zh_CN": "看看卷闸", "en": "Look at the shutter" },
+      "on_interact": [
+        {
+          "type": "say",
+          "text": {
+            "zh_HK": "又一間舖拉咗閘，鐵閘上用粉筆寫住「旺舖招頂」。唔係唔旺，係人去咗遠處。",
+            "zh_CN": "又一间铺拉了闸，铁闸上用粉笔写着「旺铺招顶」。不是不旺，是人去了远处。",
+            "en": "Another shutter down, chalked with TO LET on the iron. It is not that business was bad — the people simply went somewhere far."
+          }
+        }
+      ]
+    }
+  ],
+  "exits": [
+    {
+      "id": "to_flat",
+      "rect": [27, 6, 1, 3],
+      "to": "loc_ssp_flat_1996",
+      "spawn": "default"
+    }
+  ],
+  "_comment": "Chapter 5 (PLAN §12.1): the street thinned by the emigration wave, the countdown public. Reuses the street-ambience loop."
+}

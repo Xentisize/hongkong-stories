@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "id": "ch04",
+  "title": { "zh_HK": "第四章：上樓", "zh_CN": "第四章：上楼", "en": "Chapter 4: Moving Up" },
+  "entry_requires": null,
+  "nodes": [
+    {
+      "id": "n1",
+      "type": "cutscene",
+      "text": [
+        {
+          "zh_HK": "1979年，深水埗。頭頂一架航機轉彎，成條街靜三秒——呢個年代，連時間都係靠飛機報時。",
+          "zh_CN": "1979年，深水埗。头顶一架航机转弯，整条街静三秒——这个年代，连时间都靠飞机报时。",
+          "en": "Sham Shui Po, 1979. An airliner turns overhead and the street goes quiet for three seconds — in these years even the time is announced by planes."
+        },
+        {
+          "zh_HK": "自家舖頭開咗十年，個招牌已經係街嘅傢俬。",
+          "zh_CN": "自家铺头开了十年，招牌已经是这条街的家具。",
+          "en": "The family shop has been open ten years; its sign is already part of the street's furniture."
+        }
+      ],
+      "next": "n2",
+      "on_complete": []
+    },
+    {
+      "id": "n2",
+      "type": "objective",
+      "text": { "zh_HK": "舖頭入面搵阿彩。", "zh_CN": "到铺子里找阿彩。", "en": "Find A-choi inside the shop." },
+      "complete_when": { "talked": "npc_ch04_caai", "min": 1 },
+      "next": "n3",
+      "on_complete": []
+    },
+    {
+      "id": "n3",
+      "type": "objective",
+      "text": { "zh_HK": "聽阿榮講佢嘅大計。", "zh_CN": "听阿荣讲他的大计。", "en": "Hear Rong's big plan." },
+      "complete_when": { "flag": "rong_moved_up" },
+      "next": "n4",
+      "on_complete": []
+    },
+    {
+      "id": "n4",
+      "type": "objective",
+      "text": { "zh_HK": "上天台搵光叔，聽啟德嘅故事。", "zh_CN": "上天台找光叔，听启德的故事。", "en": "Climb to the rooftop and hear Kwong's Kai Tak stories." },
+      "complete_when": { "flag": "kwong_told_kai_tak" },
+      "next": "n5",
+      "on_complete": []
+    },
+    {
+      "id": "n5",
+      "type": "cutscene",
+      "text": [
+        {
+          "zh_HK": "牆上嗰張相由1955年望到而家：木箱變貨架，茶壺變收音機，一條街由賭博變成事實。",
+          "zh_CN": "墙上那张相从1955年望到现在：木箱变货架，茶壶变收音机，一条街由赌博变成事实。",
+          "en": "The wall photograph runs from 1955 to now: crates became shelves, the teapot became a radio, and a street went from gamble to fact."
+        },
+        {
+          "zh_HK": "電車票喺你手度由舊變黃。你返到2027年——屋企嘅故事，仲有兩頁。",
+          "zh_CN": "电车票在你手里由旧变黄。你回到2027年——这个家的故事，还有两页。",
+          "en": "The tram ticket yellows in your hand. You are back in 2027 — two pages of this family's story remain."
+        }
+      ],
+      "next": null,
+      "on_complete": [ { "type": "goto", "location": "loc_ssp_flat", "spawn": "default" } ]
+    }
+  ],
+  "_comment": "Chapter-4 arc (PLAN §12.1): the generation that moved up — the shop as a fixture, the son's plan, Kai Tak overhead. The tram ticket is the door; offline fallback lines carry every flag beat."
+}

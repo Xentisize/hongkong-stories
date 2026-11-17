@@ -45,6 +45,7 @@ static func run(tree: SceneTree) -> int:
 	_test_touch(c, tree)
 	_test_save_round_trip(c)
 	_test_save_code(c)
+	_test_placement_writer(c)
 	await _test_door_gating(c, tree)
 
 	Settings.set_locale(original_locale)
@@ -233,6 +234,53 @@ static func _test_audio(c: Checker) -> void:
 	c.check("audio: missing name warned once, not per call", Audio.missing_count == before + 1)
 	Bus.sfx_requested.emit("")
 	c.check("audio: empty name is a no-op", Audio.missing_count == before + 1)
+	# The synthesized ambience is real now: a location with `music` must resolve to a
+	# looping stream, and switching locations must swap it.
+	Audio._on_location("loc_ssp_market_street")
+	c.check("audio: location music resolves to a stream", Audio.current_music_stream() != null)
+	c.check("audio: ambience loops for a seamless bed",
+		Audio.current_music_stream() is AudioStreamWAV
+		and (Audio.current_music_stream() as AudioStreamWAV).loop_mode == AudioStreamWAV.LOOP_FORWARD)
+	Audio._on_location("loc_ssp_flat")
+	c.check("audio: switching locations swaps the stream", Audio.current_music_stream() != null)
+
+
+## NPC-placement writer (PLAN §9.1): the plugin's write-back core must merge by npc id,
+## survive a JSON round trip, and refuse unreadable files — tested against a user:// copy so
+## the shipped content is never touched.
+static func _test_placement_writer(c: Checker) -> void:
+	DirAccess.make_dir_recursive_absolute("user://placement_test")
+	var src := "res://content/locations/loc_kln_market_1955.json"
+	var dst := "user://placement_test/loc_copy.json"
+	var out := FileAccess.open(dst, FileAccess.WRITE)
+	out.store_string(FileAccess.get_file_as_string(src))
+	out.close()
+
+	var result := NpcPlacementWriter.write_npc_placements(dst, [
+		{"npc": "npc_ch02_caai", "tile_x": 9, "tile_y": 2, "facing": "left"},
+		{"npc": "npc_ch02_new", "tile_x": 3, "tile_y": 8, "facing": "up"},
+	])
+	c.check("placement: moved one, added one",
+		int(result.get("written", 0)) == 1 and int(result.get("added", 0)) == 1)
+
+	var data: Variant = JSON.parse_string(FileAccess.get_file_as_string(dst))
+	c.check("placement: output re-parses", typeof(data) == TYPE_DICTIONARY)
+	var moved_ok := false
+	var added_ok := false
+	for p in (data as Dictionary).get("npcs", []):
+		if typeof(p) != TYPE_DICTIONARY:
+			continue
+		if String(p.get("npc", "")) == "npc_ch02_caai":
+			var tile: Array = p.get("tile", [])
+			moved_ok = int(tile[0]) == 9 and int(tile[1]) == 2 \
+				and String(p.get("facing", "")) == "left"
+		if String(p.get("npc", "")) == "npc_ch02_new":
+			added_ok = true
+	c.check("placement: move landed", moved_ok)
+	c.check("placement: addition landed", added_ok)
+	c.check("placement: missing file refuses",
+		NpcPlacementWriter.write_npc_placements(dst + ".missing", []).has("error"))
+	DirAccess.remove_absolute(dst)
 
 
 ## Touch controls (§12 P5): built only on touch devices — desktop and headless runs get an

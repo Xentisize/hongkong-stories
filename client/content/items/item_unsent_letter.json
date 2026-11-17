@@ -9,9 +9,27 @@
   },
   "stack_max": 1,
   "category": "keepsake",
-  "usable": false,
-  "on_use": [],
+  "usable": true,
+  "use_requires": { "all": [ { "quest_done": "ch04" }, { "not": { "quest_state": "ch05" } } ] },
+  "use_locked": {
+    "zh_HK": "呢封信而家幫唔到手。",
+    "zh_CN": "这封信现在帮不上手。",
+    "en": "The letter can't help right now."
+  },
+  "on_use": [
+    { "type": "set_flag", "flag": "ch05_opened" },
+    { "type": "quest", "quest": "ch05", "op": "start" },
+    {
+      "type": "say",
+      "text": {
+        "zh_HK": "信封喺手度輕咗——1996年，樓上有燈。",
+        "zh_CN": "信封在手里变轻了——1996年，楼上有灯。",
+        "en": "The envelope feels lighter in your hand. 1996 — a lamp burns upstairs."
+      }
+    },
+    { "type": "goto", "location": "loc_ssp_street_1996", "spawn": "default" }
+  ],
   "on_acquire": [],
   "lore_ref": "lore/ch01_hk_2027.md",
-  "_comment": "The chapter-5 door per PLAN §12.2; its moment arrives in P5 content."
+  "_comment": "The chapter-5 door: usable once ch04 is complete — the letter is finally carried by 阿雪 to the address her mother left."
 }

@@ -52,8 +52,19 @@ func _on_location(location_id: String) -> void:
 	_current_music = music
 	if stream is AudioStreamOggVorbis:
 		stream.loop = true
+	elif stream is AudioStreamWAV:
+		# Imported WAV ambience: loop the whole buffer so the bed never drops out.
+		stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
+		stream.loop_begin = 0
+		stream.loop_end = int(stream.get_length() * stream.mix_rate)
 	_music.stream = stream
 	_music.play()
+
+
+## The stream currently serving location music (null when nothing resolved) — the selftest
+## asserts real assets through this instead of poking privates.
+func current_music_stream() -> AudioStream:
+	return _music.stream if _music != null else null
 
 
 func _on_sfx(sfx_name: String) -> void:

@@ -41,7 +41,7 @@
     "from_cct": [25.5, 7.5],
     "from_flat": [2.5, 7.5]
   },
-  "music": "audio/ssp_2027.ogg",
+  "music": "audio/ssp_2027.wav",
   "npcs": [
     { "npc": "npc_ch01_ken", "tile": [7, 4], "facing": "down" },
     { "npc": "npc_ch01_ming", "tile": [20, 3], "facing": "down" },

@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "id": "item_luggage_tag",
+  "name": { "zh_HK": "行李牌", "zh_CN": "行李牌", "en": "Luggage Tag" },
+  "desc": {
+    "zh_HK": "啟德搬運工人送嘅行李牌，背面手寫住一個已經冇人用嘅地址。",
+    "zh_CN": "启德搬运工人送的行李牌，背面手写着一个已经无人使用的地址。",
+    "en": "A luggage tag from a Kai Tak loader; the back has a handwritten address nobody uses any more."
+  },
+  "stack_max": 1,
+  "category": "keepsake",
+  "usable": false,
+  "on_use": [],
+  "on_acquire": [],
+  "lore_ref": "lore/ch04_kai_tak_1979.md"
+}
