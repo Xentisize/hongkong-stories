@@ -51,8 +51,24 @@ Never use Cantonese particles or Cantonese-only characters.""",
 DEFAULT_REGISTER = REGISTER["en"]
 
 
-def _persona_block(npc: dict) -> str:
+def active_state(npc: dict, state: dict[str, Any]) -> dict:
+    """The NPC's active event page (RPG Maker's conditional pages, adapted in §5.1).
+
+    `states` is an ordered array; the FIRST entry whose `requires` passes wins, and no match
+    falls back to the base definition (page 0). The state may patch persona fields, extend
+    the lore, and override the offline fallback lines — so a character's knowledge and
+    willingness change with what the player has done.
+    """
+    for entry in npc.get("states", []) or []:
+        if isinstance(entry, dict) and evaluate(entry.get("requires"), state):
+            return entry
+    return {}
+
+
+def _persona_block(npc: dict, state: dict | None = None) -> str:
     persona = npc.get("persona", {}) if isinstance(npc.get("persona"), dict) else {}
+    patch = (state or {}).get("persona_patch", {})
+    patch = patch if isinstance(patch, dict) else {}
     name = npc.get("display_name", npc.get("id", "the character"))
     display = name if isinstance(name, str) else (name.get("en") or name.get("zh_HK") or npc.get("id", ""))
     lines = [f"CHARACTER: {display} ({npc.get('id', '')})"]
@@ -61,19 +77,26 @@ def _persona_block(npc: dict) -> str:
         ("voice", "How you speak"),
         ("wants", "What you want"),
     ):
-        value = persona.get(key)
+        # The active state's patch overrides the base persona field when present — the same
+        # character, changed by what the player has done (RPG Maker's event pages).
+        value = patch.get(key) if isinstance(patch.get(key), str) and patch[key].strip() else persona.get(key)
         if isinstance(value, str) and value.strip():
             lines.append(f"{label}: {value.strip()}")
-    taboos = persona.get("taboos")
+    taboos = patch.get("taboos") if isinstance(patch.get("taboos"), list) and patch.get("taboos") else persona.get("taboos")
     if isinstance(taboos, list) and taboos:
         lines.append("Never: " + "; ".join(str(t) for t in taboos))
     return "\n".join(lines)
 
 
-def _lore_block(npc: dict) -> str:
+def _lore_block(npc: dict, state: dict | None = None) -> str:
+    extra = (state or {}).get("lore_extra", "")
+    extra = extra.strip() if isinstance(extra, str) and extra.strip() else ""
     lore = npc.get("lore")
-    if isinstance(lore, str) and lore.strip():
-        return "LORE (your world — the only source of facts you may state):\n" + lore.strip()
+    if (isinstance(lore, str) and lore.strip()) or extra:
+        body = lore.strip() if isinstance(lore, str) else ""
+        if extra:
+            body = (body + "\n\n" if body else "") + "WHAT CHANGED RECENTLY (now true of your world):\n" + extra
+        return "LORE (your world — the only source of facts you may state):\n" + body
     tags = npc.get("persona", {}).get("knowledge_tags")
     tag_line = f"Your knowledge touches on: {', '.join(map(str, tags))}." if tags else ""
     return (
@@ -96,13 +119,15 @@ def _permitted_block(npc: dict) -> str:
     return "PERMITTED ACTIONS:\n" + body
 
 
-def stable_prefix(npc: dict, lang: str) -> str:
-    """The cacheable part. Must not depend on player state, history, or turn number."""
+def stable_prefix(npc: dict, lang: str, state: dict | None = None) -> str:
+    """The cacheable part. Must not depend on player state, history, or turn number —
+    EXCEPT through the NPC's active event page (§5.1 states): one cache prefix per
+    (npc, lang, page) triple, which is how a page's shifted persona stays cheap."""
     return "\n\n".join(
         [
-            _persona_block(npc),
+            _persona_block(npc, state),
             WORLD_RULES.strip(),
-            _lore_block(npc),
+            _lore_block(npc, state),
             OUTPUT_CONTRACT.strip(),
             _permitted_block(npc),
             REGISTER.get(lang, DEFAULT_REGISTER).strip(),
@@ -167,7 +192,8 @@ def build_messages(
     history: list[dict],
     player_input: str,
 ) -> list[dict]:
-    messages: list[dict] = [{"role": "system", "content": stable_prefix(npc, lang)}]
+    event_page = active_state(npc, state)
+    messages: list[dict] = [{"role": "system", "content": stable_prefix(npc, lang, event_page)}]
     for turn in history or []:
         role = str(turn.get("role", ""))
         content = str(turn.get("content", ""))

@@ -55,3 +55,29 @@ static func write_npc_placements(json_path: String, placements: Array) -> Dictio
 	out.store_string(JSON.stringify(data, "\t") + "\n")
 	out.close()
 	return {"written": written, "added": added, "path": json_path}
+
+
+## Full-location write-back for the map editor (RPG Maker lessons, #1): tiles, NPC
+## placements and interactable placements are replaced wholesale from the editor state —
+## the editor loaded the file first, so it is the source of truth for everything it shows.
+## Doors are preserved untouched: the grid editor cannot express rect doors faithfully yet.
+static func write_location(json_path: String, tilemap: Array, npcs: Array, interactables: Array) -> Dictionary:
+	var file := FileAccess.open(json_path, FileAccess.READ)
+	if file == null:
+		return {"error": "cannot read %s" % json_path}
+	var parsed: Variant = JSON.parse_string(file.get_as_text())
+	file.close()
+	if typeof(parsed) != TYPE_DICTIONARY:
+		return {"error": "not a JSON object: %s" % json_path}
+
+	var data: Dictionary = parsed
+	data["tilemap"] = tilemap
+	data["npcs"] = npcs
+	data["interactables"] = interactables
+
+	var out := FileAccess.open(json_path, FileAccess.WRITE)
+	if out == null:
+		return {"error": "cannot write %s" % json_path}
+	out.store_string(JSON.stringify(data, "\t") + "\n")
+	out.close()
+	return {"written": true, "path": json_path}

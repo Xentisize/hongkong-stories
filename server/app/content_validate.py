@@ -161,6 +161,27 @@ def validate_store(store: ContentStore) -> list[dict]:
                 continue
             check_localized(secret.get("text"), f"{at}.secrets/{secret_id}.text", required=False)
             walk_conditions(secret.get("reveal_if"), f"{at}.secrets/{secret_id}.reveal_if")
+        # Event pages (RPG Maker lessons, §5.1): ordered states with conditions; each may
+        # patch persona fields, extend lore, and override the offline ladder.
+        for index, page in enumerate(npc.get("states", []) or []):
+            page_at = f"{at}.states[{index}]"
+            if not isinstance(page, dict):
+                err(page_at, "state must be an object")
+                continue
+            walk_conditions(page.get("requires"), f"{page_at}.requires")
+            patch = page.get("persona_patch", {})
+            if patch and not isinstance(patch, dict):
+                err(f"{page_at}.persona_patch", "persona_patch must be an object")
+            if "lore_extra" in page and not str(page.get("lore_extra", "")).strip():
+                err(f"{page_at}.lore_extra", "lore_extra must be a non-empty string when present")
+            for line_index, line in enumerate(page.get("fallback_lines", []) or []):
+                line_at = f"{page_at}.fallback_lines[{line_index}]"
+                if isinstance(line, dict) and "text" in line:
+                    check_localized(line.get("text"), f"{line_at}.text")
+                    walk_conditions(line.get("requires"), f"{line_at}.requires")
+                    walk_effects(line.get("actions"), f"{line_at}.actions")
+                else:
+                    check_localized(line, line_at)
         fallback = npc.get("scripted_fallback", {})
         if not isinstance(fallback, dict):
             err(f"{at}.scripted_fallback", "scripted_fallback is required (§7.4)")

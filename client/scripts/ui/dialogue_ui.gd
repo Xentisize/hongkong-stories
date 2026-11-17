@@ -19,6 +19,7 @@ const UI_TEXT := {
 }
 
 var _panel: PanelContainer
+var _avatar: TextureRect
 var _name_label: Label
 var _text_label: Label
 var _input: LineEdit
@@ -70,9 +71,25 @@ func _build() -> void:
 	_panel.add_theme_stylebox_override("panel", style)
 	add_child(_panel)
 
+	# RPG Maker's classic framing (lessons, #3): the avatar sits LEFT of the text column.
+	# Portraits are generated per NPC (art/npcs/<id>_portrait.png); NPCs without one hide
+	# the slot and the layout collapses back to text-only.
+	var body := HBoxContainer.new()
+	body.add_theme_constant_override("separation", 6)
+	_panel.add_child(body)
+
+	_avatar = TextureRect.new()
+	_avatar.custom_minimum_size = Vector2(64, 88)
+	_avatar.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_avatar.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	_avatar.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_avatar.visible = false
+	body.add_child(_avatar)
+
 	var column := VBoxContainer.new()
+	column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	column.add_theme_constant_override("separation", 2)
-	_panel.add_child(column)
+	body.add_child(column)
 
 	_name_label = Label.new()
 	_name_label.add_theme_font_size_override("font_size", 12)
@@ -106,6 +123,8 @@ func _refresh_texts() -> void:
 
 func _on_opened(npc_id: String, display_name: String) -> void:
 	_name_label.text = display_name
+	_avatar.texture = ContentDB.art_texture("art/npcs/%s_portrait.png" % npc_id)
+	_avatar.visible = _avatar.texture != null
 	_text_label.text = _t("thinking")
 	_input.text = ""
 	_input.editable = false

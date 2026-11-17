@@ -196,6 +196,20 @@ func _notify_exhausted(code: String) -> void:
 	Bus.message_shown.emit(ContentDB.localize(EXHAUSTED_LINES[code], Settings.locale))
 
 
+## RPG Maker's event pages, offline side (§5.1): the active state's `fallback_lines`
+## replace the base ladder while its condition passes. The shared condition fixtures keep
+## this client-side choice in agreement with the server's prompt page.
+func _fallback_lines_for(npc: Dictionary) -> Array:
+	var lines: Array = npc.get("scripted_fallback", {}).get("lines", [])
+	for state in npc.get("states", []):
+		if typeof(state) != TYPE_DICTIONARY:
+			continue
+		if Conditions.evaluate(state.get("requires")) and typeof(state.get("fallback_lines")) == TYPE_ARRAY:
+			lines = state.get("fallback_lines")
+			break
+	return lines
+
+
 func _fallback_line() -> void:
 	using_fallback = true
 	var npc := ContentDB.get_entity("npcs", active_npc)
@@ -205,7 +219,7 @@ func _fallback_line() -> void:
 	if _pending_input.is_empty():
 		text = ContentDB.localize(fallback.get("greeting", ""), Settings.locale)
 	else:
-		var lines: Array = fallback.get("lines", [])
+		var lines: Array = _fallback_lines_for(npc)
 		if not lines.is_empty():
 			var line: Variant = lines[_scripted_index % lines.size()]
 			if typeof(line) == TYPE_DICTIONARY:

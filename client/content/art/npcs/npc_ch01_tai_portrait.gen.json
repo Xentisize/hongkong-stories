@@ -1,0 +1,24 @@
+{
+  "prompt_id": "gen_20261117_cfc6af",
+  "model": "bytedance-seed/seedream-5-0-flash",
+  "seed": 0,
+  "resolution": "1K",
+  "aspect_ratio": "3:4",
+  "background": "transparent",
+  "input_references": [
+    "art/stylebible.png"
+  ],
+  "post": {
+    "palette": "hk_palette_v1",
+    "target_px": [
+      96,
+      128
+    ],
+    "outline": true,
+    "pad": 0
+  },
+  "cost_usd": 0.018,
+  "accepted_by": "admin",
+  "ts": "2026-11-17T07:09:21.760201+00:00",
+  "prompt": "pixel art bust portrait of bust portrait of a warm cha chaan teng owner woman in her sixties, silver-grey hair in a neat bun, cream apron, holding an enamel teapot, kind smile with rosy cheeks, cozy storybook charm, facing viewer, transparent background, hk_palette_v1 palette, 96x128 framing, flat cel shading, no text"
+}

@@ -99,3 +99,41 @@ def test_content_store_matches_client_manifest(content_dir) -> None:
     assert store.counts()["npcs"] >= 1
     assert store.npc("npc_p2_shopkeeper")["id"] == "npc_p2_shopkeeper"
     assert store.content_hash
+
+
+def test_event_page_changes_the_prefix(npc: dict) -> None:
+    """RPG Maker's conditional pages (§5.1): a state's persona patch shifts the prefix, and
+    one prefix per (npc, lang, page) triple stays byte-stable within itself."""
+    base = prompts.stable_prefix(npc, "zh_HK")
+    paged = dict(npc)
+    paged["states"] = [
+        {
+            "requires": {"flag": "conspiracy_learned"},
+            "persona_patch": {"voice": "suspicious, guarded, measured"},
+            "lore_extra": "Rumours of a conspiracy reached you this morning.",
+        },
+    ]
+    plain = prompts.stable_prefix(paged, "zh_HK")
+    assert plain == base  # no page active -> the base prefix, byte-identical
+
+    active = prompts.active_state(paged, {"flags": {"conspiracy_learned": True}})
+    guarded = prompts.stable_prefix(paged, "zh_HK", active)
+    assert guarded != base
+    assert "suspicious, guarded" in guarded
+    assert "WHAT CHANGED RECENTLY" in guarded
+    assert "Rumours of a conspiracy" in guarded
+    assert prompts.stable_prefix(paged, "zh_HK", active) == guarded  # stable within the page
+
+    messages = prompts.build_messages(paged, {"flags": {"conspiracy_learned": True}}, "zh_HK", [], "hi")
+    assert messages[0]["content"] == guarded
+
+
+def test_active_state_first_match_wins(npc: dict) -> None:
+    paged = dict(npc)
+    paged["states"] = [
+        {"requires": {"flag": "a"}, "persona_patch": {"voice": "A"}},
+        {"requires": {"flag": "b"}, "persona_patch": {"voice": "B"}},
+    ]
+    both = prompts.active_state(paged, {"flags": {"a": True, "b": True}})
+    assert both["persona_patch"]["voice"] == "A"  # array order decides, like page numbers
+    assert prompts.active_state(paged, {"flags": {}}) == {}  # page 0 = the base definition

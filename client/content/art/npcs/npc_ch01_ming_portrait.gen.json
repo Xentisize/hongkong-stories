@@ -1,0 +1,24 @@
+{
+  "prompt_id": "gen_20261117_94d885",
+  "model": "bytedance-seed/seedream-5-0-flash",
+  "seed": 0,
+  "resolution": "1K",
+  "aspect_ratio": "3:4",
+  "background": "transparent",
+  "input_references": [
+    "art/stylebible.png"
+  ],
+  "post": {
+    "palette": "hk_palette_v1",
+    "target_px": [
+      96,
+      128
+    ],
+    "outline": true,
+    "pad": 0
+  },
+  "cost_usd": 0.018,
+  "accepted_by": "admin",
+  "ts": "2026-11-17T07:09:46.195239+00:00",
+  "prompt": "pixel art bust portrait of bust portrait of a cheerful young delivery rider in his twenties, black helmet under one arm, reflective vest over a red hoodie, big grin waving, cozy storybook charm, facing viewer, transparent background, hk_palette_v1 palette, 96x128 framing, flat cel shading, no text"
+}

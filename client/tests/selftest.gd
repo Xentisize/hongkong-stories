@@ -42,6 +42,7 @@ static func run(tree: SceneTree) -> int:
 	_test_font_coverage(c)
 	_test_dialogue_fallback(c)
 	_test_budget_ux(c)
+	_test_npc_states(c)
 	_test_audio(c)
 	_test_touch(c, tree)
 	_test_save_round_trip(c)
@@ -282,6 +283,12 @@ static func _test_placement_writer(c: Checker) -> void:
 	c.check("placement: addition landed", added_ok)
 	c.check("placement: missing file refuses",
 		NpcPlacementWriter.write_npc_placements(dst + ".missing", []).has("error"))
+	# The map editor's whole-file path: tiles + placements replaced wholesale, doors kept.
+	c.check("placement: whole-file write accepted",
+		not NpcPlacementWriter.write_location(dst, ["#####", "#...#", "#####"], [], []).has("error"))
+	var whole: Variant = JSON.parse_string(FileAccess.get_file_as_string(dst))
+	c.check("placement: tilemap replaced wholesale",
+		typeof(whole) == TYPE_DICTIONARY and (whole as Dictionary).get("tilemap", []).size() == 3)
 	DirAccess.remove_absolute(dst)
 
 
@@ -307,6 +314,25 @@ static func _test_interactable_gating(c: Checker, tree: SceneTree) -> void:
 	c.check("gating: prop appears when its condition passes",
 		prop.is_available() and prop.visible)
 	location.queue_free()
+
+
+## NPC event pages (RPG Maker lessons, §5.1): the offline ladder follows the active state —
+## base lines until a state's condition passes, that state's lines after.
+static func _test_npc_states(c: Checker) -> void:
+	var npc := {
+		"scripted_fallback": {"lines": [ {"text": {"en": "base line"}} ]},
+		"states": [
+			{"requires": {"flag": "selftest_state"}, "fallback_lines": [ {"text": {"en": "state line"}} ]},
+		],
+	}
+	var base: Array = Dialogue._fallback_lines_for(npc)
+	c.check("states: base ladder while no condition passes",
+		String((base[0] as Dictionary).get("text", {}).get("en", "")) == "base line")
+	Game.set_flag("selftest_state", true)
+	var paged: Array = Dialogue._fallback_lines_for(npc)
+	c.check("states: state ladder once its condition passes",
+		String((paged[0] as Dictionary).get("text", {}).get("en", "")) == "state line")
+	Game.set_flag("selftest_state", false)
 
 
 ## P6 budget UX: a spent budget (session or per-IP day) announces itself exactly once —

@@ -216,6 +216,28 @@ the scripted ladder keeps it playable. Error telemetry is counts-only, exposed a
 no accounts; saves stay in the browser (IndexedDB); only dialogue text is sent to the LLM
 provider; telemetry is counts only.
 
+## RPG Maker lessons, adapted
+
+A design pass borrowed four RPG Maker patterns (2026-11); where each landed:
+
+1. **The three-panel map & asset editor** — the **Map Editor** plugin (`addons/npc_placement`,
+   editor-only): a location tree grouped by era, a tile palette under it, a paintable map
+   canvas with the crucial **MAP/EVENT toggle**, an inspector for the selected event, and
+   write-back through `location_writer.gd` — the same core the headless selftest exercises
+   (tiles + placements wholesale; doors preserved; regenerate the manifest after writes).
+2. **The conditional state system** — **NPC event pages** (`states` in an NPC JSON): an
+   ordered array where the first `requires` that passes activates a page that patches the
+   persona, extends the lore ("WHAT CHANGED RECENTLY"), and overrides the offline ladder.
+   The server picks the page for the system prompt (one cache prefix per npc×lang×page);
+   the client mirrors the choice for scripted lines; the validator and both test suites
+   cover it.
+3. **The LLM dialogue window** — mostly pre-existing (streaming typewriter, the open
+   explore-input, lore-grounded prompts, action allowlists as the guardrail); the new piece
+   is the classic framing: a generated **avatar on the left** of the dialogue box
+   (`art/npcs/<id>_portrait.png`), with the name on top as before.
+4. **The database as flat JSON** — was already the architecture: flags/items/locations/NPCs
+   as plain content JSON, validated by `check_content.py`.
+
 ## Fonts and licensing (read before swapping fonts)
 
 Godot ships **no CJK glyphs**, so Chinese renders as a wall of boxes with the default theme font.
