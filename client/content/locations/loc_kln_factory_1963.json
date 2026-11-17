@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "id": "loc_kln_factory_1963",
+  "display_name": { "zh_HK": "紗廠車間，1963", "zh_CN": "纱厂车间，1963", "en": "The Mill Floor, 1963" },
+  "era": "ch03_kln_1963",
+  "tile_size": 24,
+  "atlas": "res://assets/tiles/p1_tiles.png",
+  "legend": {
+    ".": [0, 0],
+    ",": [1, 0],
+    "#": [2, 0],
+    "D": [3, 0]
+  },
+  "tilemap": [
+    "########################",
+    "#......................#",
+    "#..##..##..##..##......#",
+    "#..##..##..##..##......#",
+    "#......................#",
+    "#......................#",
+    "#..##..##..##..##......#",
+    "#..##..##..##..##......#",
+    "#......................#",
+    "#......................#",
+    "#......................#",
+    "########################"
+  ],
+  "collision": [
+    [0, 0, 24, 1],
+    [0, 11, 24, 1],
+    [0, 1, 1, 10],
+    [23, 1, 1, 10],
+    [3, 2, 2, 2],
+    [7, 2, 2, 2],
+    [11, 2, 2, 2],
+    [15, 2, 2, 2],
+    [3, 6, 2, 2],
+    [7, 6, 2, 2],
+    [11, 6, 2, 2],
+    [15, 6, 2, 2]
+  ],
+  "spawn_points": {
+    "default": [11.5, 9.5],
+    "from_lane": [1.5, 5.5]
+  },
+  "music": "audio/kln_1963.ogg",
+  "npcs": [
+    { "npc": "npc_ch03_rong", "tile": [19, 9], "facing": "left" },
+    { "npc": "npc_ch03_luk", "tile": [5, 9], "facing": "right" }
+  ],
+  "doors": [],
+  "interactables": [
+    {
+      "id": "loom_row",
+      "tile": [7, 4],
+      "prompt": { "zh_HK": "靠近織機", "zh_CN": "靠近织机", "en": "The looms" },
+      "on_interact": [
+        {
+          "type": "say",
+          "text": {
+            "zh_HK": "梭仔打成一片，棉絮喺光裡面浮。企得耐，連講嘢都要嗌。",
+            "zh_CN": "梭子打成一片，棉絮在光里浮。站久了，连说话都要喊。",
+            "en": "The shutters beat as one; cotton dust hangs in the light. Stand here long enough and even talking becomes shouting."
+          }
+        }
+      ]
+    },
+    {
+      "id": "piecework_bale",
+      "tile": [17, 4],
+      "prompt": { "zh_HK": "望下布捆", "zh_CN": "看看布捆", "en": "The cloth bale" },
+      "on_interact": [
+        {
+          "type": "say",
+          "text": {
+            "zh_HK": "一捆布等收貨，上面攤住未剪嘅線頭——屋企做嘅工，就係由呢度拎出去。",
+            "zh_CN": "一捆布等着收货，上面摊着未剪的线头——家里做的工，就是从这里领出去的。",
+            "en": "A bale waits for inspection, thread-ends trimmed and left — the piecework families took home starts from here."
+          }
+        }
+      ]
+    }
+  ],
+  "exits": [
+    {
+      "id": "to_lane",
+      "rect": [0, 5, 1, 3],
+      "to": "loc_kln_lane_1963",
+      "spawn": "from_factory"
+    }
+  ],
+  "_comment": "Chapter 3 mill floor (PLAN §12.1): the machines are the texture, the piecework bale is the economics. The boy 阿榮 waits here after school; Manager Luk keeps the counter at the far end."
+}

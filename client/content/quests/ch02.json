@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "id": "ch02",
+  "title": { "zh_HK": "第二章：開檔", "zh_CN": "第二章：开档", "en": "Chapter 2: Opening Day" },
+  "entry_requires": null,
+  "nodes": [
+    {
+      "id": "n1",
+      "type": "cutscene",
+      "text": [
+        {
+          "zh_HK": "1955年，九龍。相簿一揭開，人聲就湧上上嚟——魚腥、炭火、茶鑊氣。",
+          "zh_CN": "1955年，九龙。相簿一揭开，人声就涌了上来——鱼腥、炭火、茶镬气。",
+          "en": "Kowloon, 1955. The moment the album opens, the noise arrives — fish, charcoal, a wok of tea."
+        },
+        {
+          "zh_HK": "你揸住本相簿，條街嘅人當你係過路客。",
+          "zh_CN": "你拿着这本相簿，街上的人只当你是个过路客。",
+          "en": "You carry the album; the street takes you for a passer-by."
+        }
+      ],
+      "next": "n2",
+      "on_complete": []
+    },
+    {
+      "id": "n2",
+      "type": "objective",
+      "text": { "zh_HK": "同茶檔嘅阿彩傾偈。", "zh_CN": "跟茶档的阿彩聊聊。", "en": "Talk to A-choi at the tea stall." },
+      "complete_when": { "talked": "npc_ch02_caai", "min": 1 },
+      "next": "n3",
+      "on_complete": []
+    },
+    {
+      "id": "n3",
+      "type": "objective",
+      "text": { "zh_HK": "搵開舖嘅華叔，聽佢講開檔嗰年。", "zh_CN": "去找开店的华叔，听他讲开店那一年。", "en": "Find Wah, who opened the shop, and hear about that year." },
+      "complete_when": { "flag": "waah_told_founding" },
+      "next": "n4",
+      "on_complete": []
+    },
+    {
+      "id": "n4",
+      "type": "objective",
+      "text": { "zh_HK": "上山邊木屋區，聽阿好講火燭嗰晚。", "zh_CN": "上山边木屋区，听阿好讲火灾那晚。", "en": "Climb to the hut settlement and hear A-ho's fire night." },
+      "complete_when": { "flag": "ho_told_fire" },
+      "next": "n5",
+      "on_complete": []
+    },
+    {
+      "id": "n5",
+      "type": "cutscene",
+      "text": [
+        {
+          "zh_HK": "你翻到最後嗰頁：開檔嗰日，成檔人喺舖頭門前影相。阿彩捧住個茶壺，華叔笑得見牙唔見眼。",
+          "zh_CN": "你翻到最后一页：开档那天，全档人在铺子门前照相。阿彩捧着茶壶，华叔笑得见牙不见眼。",
+          "en": "You turn to the last page: opening day, everyone in front of the shop. A-choi holds the teapot; Wah grins wide enough to show every tooth."
+        },
+        {
+          "zh_HK": "相簿喺你手度合埋。木屋區嘅炊煙散去，你返到2027年嘅樓下。",
+          "zh_CN": "相簿在你手里合上。木屋区的炊烟散去，你回到2027年的楼下。",
+          "en": "The album closes in your hands. The settlement's smoke clears, and you are back under the flat in 2027."
+        }
+      ],
+      "next": null,
+      "on_complete": [ { "type": "goto", "location": "loc_ssp_flat", "spawn": "default" } ]
+    }
+  ],
+  "_comment": "Chapter-2 arc (PLAN §12.1): the memento door opens the era (album on_use starts this quest and travels), the street tells how the shop was founded and who the fire took, and the closing cutscene returns the player to 2027. Every flag beat has a deterministic offline fallback line."
+}

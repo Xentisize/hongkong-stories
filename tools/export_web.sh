@@ -21,7 +21,8 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT="$ROOT/build/web"
 
 if [ ! -d "$HOME/Library/Application Support/Godot/export_templates/4.7.2.stable" ] \
-	&& [ ! -d "${XDG_DATA_HOME:-$HOME/.local/share}/godot/export_templates/4.7.2.stable" ]; then
+	&& [ ! -d "${XDG_DATA_HOME:-$HOME/.local/share}/godot/export_templates/4.7.2.stable" ] \
+	&& ! ls /mnt/c/Users/*/AppData/Roaming/Godot/export_templates/4.7.2.stable >/dev/null 2>&1; then
 	echo "ERROR: export templates for 4.7.2.stable are not installed — see PLAN §10.1" >&2
 	exit 1
 fi
@@ -29,7 +30,13 @@ fi
 echo "==> exporting Web build to $OUT"
 rm -rf "$OUT"
 mkdir -p "$OUT"
-"$GODOT" --headless --path "$ROOT/client" --export-release "Web" "$OUT/index.html"
+# A Windows Godot binary needs Windows paths: WSL interop converts the cwd, but the export
+# target argument must be the UNC form itself (a POSIX path reads as inaccessible to it).
+if [[ "$GODOT" == *.exe ]]; then
+	"$GODOT" --headless --path "$(wslpath -w "$ROOT/client")" --export-release "Web" "$(wslpath -w "$OUT/index.html")"
+else
+	"$GODOT" --headless --path "$ROOT/client" --export-release "Web" "$OUT/index.html"
+fi
 
 # Pre-compress for transfer: brotli typically cuts the wasm/pck by 3-4x (§10.2).
 if command -v brotli >/dev/null 2>&1; then

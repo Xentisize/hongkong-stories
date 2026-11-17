@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "id": "loc_kln_huts_1955",
+  "display_name": { "zh_HK": "山邊木屋區，1955", "zh_CN": "山边木屋区，1955", "en": "The Hut Settlement, 1955" },
+  "era": "ch02_kln_1955",
+  "tile_size": 24,
+  "atlas": "res://assets/tiles/p1_tiles.png",
+  "legend": {
+    ".": [0, 0],
+    ",": [1, 0],
+    "#": [2, 0],
+    "D": [3, 0]
+  },
+  "tilemap": [
+    "################",
+    "#..............#",
+    "#..............#",
+    "#..............#",
+    ",..............#",
+    ",..............#",
+    ",..............#",
+    "#..............#",
+    "#..............#",
+    "#..............#",
+    "################"
+  ],
+  "collision": [
+    [0, 0, 16, 1],
+    [0, 10, 16, 1],
+    [0, 1, 1, 3],
+    [0, 7, 1, 3],
+    [15, 1, 1, 9]
+  ],
+  "spawn_points": {
+    "default": [8.5, 5.5],
+    "from_market": [2.5, 5.5]
+  },
+  "music": "audio/kln_1955.ogg",
+  "npcs": [
+    { "npc": "npc_ch02_ho", "tile": [11, 8], "facing": "up" }
+  ],
+  "doors": [],
+  "interactables": [
+    {
+      "id": "standpipe",
+      "tile": [4, 3],
+      "prompt": { "zh_HK": "睇下水龍頭", "zh_CN": "看看水龙头", "en": "The standpipe" },
+      "on_interact": [
+        {
+          "type": "say",
+          "text": {
+            "zh_HK": "成條村嘅水都由呢個龍頭嚟，木桶一隻跟一隻。輪到你，就係你嘅十五分鐘。",
+            "zh_CN": "全村的水都从这个龙头来，木桶一只接一只。轮到你，就是你的十五分钟。",
+            "en": "The whole settlement draws from this pipe, bucket after bucket. When it is your turn, it is your fifteen minutes."
+          }
+        }
+      ]
+    },
+    {
+      "id": "burnt_post",
+      "tile": [8, 9],
+      "once": true,
+      "prompt": { "zh_HK": "摸下燒焦嘅樁腳", "zh_CN": "摸摸烧焦的桩脚", "en": "Touch the burnt post" },
+      "on_interact": [
+        {
+          "type": "say",
+          "text": {
+            "zh_HK": "一截燒到變炭嘅木樁。有人喺上面綁過紅繩，冇人拆佢。",
+            "zh_CN": "一截烧成炭的木桩。有人在上面绑过红绳，没人去拆。",
+            "en": "A post burnt down to charcoal. Someone once tied red string around it; nobody takes it down."
+          }
+        }
+      ]
+    }
+  ],
+  "exits": [
+    {
+      "id": "to_market",
+      "rect": [0, 4, 1, 3],
+      "to": "loc_kln_market_1955",
+      "spawn": "from_huts"
+    }
+  ],
+  "_comment": "Chapter 2 hillside settlement: the fire-memory beat lives here. Placeholder art."
+}

@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "id": "ch03",
+  "title": { "zh_HK": "第三章：一吋水", "zh_CN": "第三章：一寸水", "en": "Chapter 3: An Inch of Water" },
+  "entry_requires": null,
+  "nodes": [
+    {
+      "id": "n1",
+      "type": "cutscene",
+      "text": [
+        {
+          "zh_HK": "1963年，九龍。卡式帶一轉，梭聲同木桶聲一齊埋嚟。",
+          "zh_CN": "1963年，九龙。卡带一转，梭子声和木桶声一起涌来。",
+          "en": "Kowloon, 1963. The cassette turns, and loom-noise and bucket-noise arrive together."
+        },
+        {
+          "zh_HK": "條街企滿等水嘅人，個個手裡都有一隻桶。",
+          "zh_CN": "街上站满了等水的人，每个人手里都有一只桶。",
+          "en": "The street stands full of people waiting for water, a bucket in every pair of hands."
+        }
+      ],
+      "next": "n2",
+      "on_complete": []
+    },
+    {
+      "id": "n2",
+      "type": "objective",
+      "text": { "zh_HK": "水喉巷搵麥嬸，聽佢講制水。", "zh_CN": "水龙头巷找麦婶，听她讲制水。", "en": "Find Aunt Mak in the lane and hear about the rationing." },
+      "complete_when": { "talked": "npc_ch03_mak", "min": 1 },
+      "next": "n3",
+      "on_complete": []
+    },
+    {
+      "id": "n3",
+      "type": "objective",
+      "text": { "zh_HK": "紗廠門口有個細路仔，聽佢講屋企做嘅工。", "zh_CN": "纱厂门口有个小孩子，听他讲家里做的工。", "en": "There is a boy at the mill steps; hear what his family does for work." },
+      "complete_when": { "flag": "rong_told_piecework" },
+      "next": "n4",
+      "on_complete": []
+    },
+    {
+      "id": "n4",
+      "type": "objective",
+      "text": { "zh_HK": "見陸經理，聽佢講個價係點計。", "zh_CN": "见陆经理，听他讲这个价是怎么算的。", "en": "Meet Manager Luk and hear how the rate is reckoned." },
+      "complete_when": { "flag": "luk_cost_seen" },
+      "next": "n5",
+      "on_complete": []
+    },
+    {
+      "id": "n5",
+      "type": "cutscene",
+      "text": [
+        {
+          "zh_HK": "收工鐘響。阿榮執好兩支筆，跟住阿媽個背影行——兩隻手都比線頭染到白。",
+          "zh_CN": "收工铃响。阿荣收好两支笔，跟着母亲的背影走——两只手都被线头染得发白。",
+          "en": "The end-of-shift bell rings. Rong gathers his two pencils and follows his mother's back — both hands stained white by thread-ends."
+        },
+        {
+          "zh_HK": "卡式帶一停，你返到2027年。原來一吋水、一毫子線頭，都係屋企嘅本。",
+          "zh_CN": "卡带一停，你回到2027年。原来一寸水、一毛钱线头，都是这个家的本。",
+          "en": "The cassette stops, and you are back in 2027. An inch of water, ten cents of thread — that was the family's foundation."
+        }
+      ],
+      "next": null,
+      "on_complete": [ { "type": "goto", "location": "loc_ssp_flat", "spawn": "default" } ]
+    }
+  ],
+  "_comment": "Chapter-3 arc (PLAN §12.1): the cassette door opens 1963 — who the family worked for and what it cost. Water rationing and the mills are the true record (lore file); 阿榮 is the father as a child and must never learn who the player is. Offline fallback lines carry every flag beat."
+}

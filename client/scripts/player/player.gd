@@ -85,7 +85,8 @@ func _find_target() -> Node2D:
 	return best
 
 
-func _advance_animation(delta: float) -> void:	_anim_time += delta
+func _advance_animation(delta: float) -> void:
+	_anim_time += delta
 	# 8 steps/second across a 4-frame cycle, and idle always rests on frame 0.
 	var next_frame := int(_anim_time * 8.0) % 4 if is_walking else 0
 	if next_frame != _frame:

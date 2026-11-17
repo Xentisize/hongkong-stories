@@ -6,6 +6,7 @@ extends Node2D
 
 const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
 const CUTSCENE_UI := preload("res://scripts/ui/cutscene_ui.gd")
+const TOUCH_UI := preload("res://scripts/ui/touch_controls.gd")
 const DEFAULT_LOCATION := "loc_ssp_market_street"
 
 @onready var world_host: Node2D = $WorldHost
@@ -13,6 +14,7 @@ const DEFAULT_LOCATION := "loc_ssp_market_street"
 var location: LocationRoot = null
 var player: CharacterBody2D = null
 var cutscene: CanvasLayer = null
+var touch: CanvasLayer = null
 
 var _restored_position: bool = false
 
@@ -24,6 +26,8 @@ func _ready() -> void:
 	Bus.goto_requested.connect(_on_goto_requested)
 	cutscene = CUTSCENE_UI.new()
 	add_child(cutscene)
+	touch = TOUCH_UI.new()
+	add_child(touch)
 	var version := Engine.get_version_info()
 	print("[Main] Godot %s | renderer=%s | viewport=%dx%d" % [
 		version.get("string", "?"),

@@ -91,14 +91,14 @@ effect verbs (`quest` / `goto` / `reveal_secret` / `open_shop` / `play_sfx` / `s
 may now be `{text, requires, actions}` — the offline path can hand over the flat key and
 identify the album, so the chapter never dead-ends with the backend down).
 
-Verified on this machine: all 22 content entities parse, carry three locales, and contain no
-Cantonese particles in `zh_CN` (§11 spot-check); the shared condition fixtures pass through
-the Python evaluator (30/30); the font-coverage gate passes — every authored character is
-renderable. **Not yet run** — needs a machine with the toolchain: the Godot `--selftest`
-suite (now covers the quest chain, the cutscene pause and the P3 effects) and the full
-backend `pytest` (uv cannot fetch CPython 3.15.2 here). The §12 exit criterion — a cold
-player finishing chapter 1 without a dead end — still needs a human playtest, backend up
-and down.
+Verified on this machine: all 36 content entities parse, carry three locales, and contain
+no Cantonese particles in `zh_CN` (§11 spot-check); the shared condition fixtures pass
+through the Python evaluator (30/30); the font-coverage gate passes — every authored
+character is renderable. The Godot `--selftest` suite now RUNS on this machine (a Windows
+4.7.2 build driven through WSL interop): **111 checks, 0 failures**. The full backend
+`pytest` still runs in the ephemeral 3.14 env (the pinned 3.15.2 is not downloadable here).
+The §12 exit criterion — a cold player finishing chapter 1 without a dead end — still needs
+a human playtest, backend up and down.
 
 ## Status: P4 — admin + art pipeline, first form
 
@@ -141,8 +141,41 @@ carries a 2px clear fringe; reference-less transparent subjects route to
 seedream-5-5). The sprite was wired into 根叔's definition through the real
 draft → validate → preview → publish loop — **content v2** (f50b1ae38348) is served and
 every booted client hot-packs it. Verified: 74 backend tests in the ephemeral 3.14 env.
-Still to come: the browser half of the exit criterion (reload the game and see the sprite —
-needs a machine with godot to export) and a pinned-3.15.2 pytest run.
+The browser half is verified (2026-11-17): the 4.7.2 templates were installed on the Windows
+side, the export produced `build/web` (`index.wasm` 38 MB · `index.pck` 5.0 MB), and the
+smoke ran three ways — boot, talk with the backend up (real model reply from Ken), talk with
+it stopped (scripted fallback, offline noise classified as expected) — all PASS with zero
+unexpected console errors. Headless WebGL2 needs software rendering: `web_smoke.mjs` now
+passes `--enable-unsafe-swiftshader`/`--use-angle=swiftshader` and takes `CHROME` (set it to
+Playwright's Chromium in WSL — the Windows-Chrome CDP path proved flaky over NAT). A
+pinned-3.15.2 pytest run remains the last unchecked box.
+
+## Status: P5 — chapters 2–3, systems, ongoing
+
+Chapters 2 and 3 are authored end to end: **1955 Kowloon market & hut settlement** (阿彩 the
+tea stall — the grandmother before she was anyone's 嫲嫲, 華叔 opening the shop, 阿好's fire
+night) and **1963 the mill floor & the standpipe lane** (the rationing is real history per
+the lore file; 阿榮 is the player's father as a child and never learns who the player is).
+Each chapter carries `lore/*.md` + 2 locations + 3 NPCs + a quest arc whose every flag beat
+has a deterministic offline fallback line. The memento doors now chain: the album opens 1955
+(quest start + travel), chapter 2's closing cutscene returns the player to 2027, and the
+cassette — usable once ch02 is done — opens 1963 the same way.
+
+Systems shipped: **save-code export/import** (§6.4 — base64+deflate with a length prefix,
+`savecode` / `code` dev commands, a selftest round-trip that also refuses mangled codes), the
+**Audio autoload** (location music loops + `play_sfx` consumers; graceful silence with a
+once-per-name missing counter — no OGG assets exist yet, so dropping files into
+`client/assets/audio/` and referencing them via content `music` fields makes them play), and
+**touch controls** (a virtual d-pad plus E/I, built only on touchscreen devices, with
+synthesized `InputEventAction` events so the keyboard paths are untouched).
+
+Verified on this machine: 36 entities validate with 0 errors, the font-coverage gate passes
+over every new 1955/1963 string, and three-locale parity holds with zero Cantonese particles
+in `zh_CN`. The expanded `--selftest` runs via the Windows Godot through WSL interop
+(**111 checks, 0 failures**), the web build exports (`index.wasm` 38 MB · `index.pck`
+5.0 MB), and the browser smokes pass with chapters 1–3 in the pack — backend up (real model
+reply) and down (scripted fallback). Still to come in P5: the NPC-placement editor plugin
+(§9.1), real audio assets, the 30-minute phone play, and chapters 4–5 content.
 
 ## Fonts and licensing (read before swapping fonts)
 
@@ -159,9 +192,10 @@ against the Cantonese particle set and every string in `client/content/`.
 
 ## Known gaps
 
-- **Admin mode + art pipeline exist in first form** (see "Status: P4"); the deeper §9.2
-  tooling (condition builder, persona playground, fact-check queue, usage dashboard) is still
-  to come. The P3 story engine and chapter-1 content exist (see "Status: P3").
+- **Admin + art + §9.2 authoring tools shipped** (see "Status: P4"); the remaining admin
+  depth is the 2027-chapter fact-check classifier hook-up (§7.6 optional hardening).
+  Chapters 1–3 content exists (see "Status: P3" / "Status: P5"); chapters 4–5 and the
+  2027 return are authored in later P5 passes.
 - **Cache-hit telemetry is only partially wired.** The admin playground reads real
   prompt/cached/cost numbers (OpenRouter `usage.include`) — live-measured 2026-11-17:
   same-prefix turns hit 60% / 0% / 76% depending on which upstream serves the request —

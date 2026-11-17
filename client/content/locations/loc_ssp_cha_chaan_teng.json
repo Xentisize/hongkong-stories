@@ -36,6 +36,7 @@
     "default": [13.5, 5.5],
     "from_street": [2.5, 6.5]
   },
+  "music": "audio/ssp_cct_2027.ogg",
   "npcs": [
     { "npc": "npc_ch01_tai", "tile": [4, 4], "facing": "down" },
     { "npc": "npc_ch01_shan", "tile": [13, 8], "facing": "up" }

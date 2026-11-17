@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "id": "item_tap_cap",
+  "name": { "zh_HK": "銅喉嘴", "zh_CN": "铜水管嘴", "en": "Brass Tap Cap" },
+  "desc": {
+    "zh_HK": "麥嬸送嘅銅喉嘴，話排隊嗰陣擰上自己個桶就唔使嗌交。",
+    "zh_CN": "麦婶送的铜水管嘴，说排队时拧上自己的桶就不用吵。",
+    "en": "A brass tap cap from Aunt Mak: screw it onto your own bucket and the queue stops arguing."
+  },
+  "stack_max": 1,
+  "category": "keepsake",
+  "usable": false,
+  "on_use": [],
+  "on_acquire": [],
+  "lore_ref": "lore/ch03_kln_1963.md"
+}

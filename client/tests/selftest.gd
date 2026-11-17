@@ -41,7 +41,10 @@ static func run(tree: SceneTree) -> int:
 	_test_shared_condition_fixtures(c)
 	_test_font_coverage(c)
 	_test_dialogue_fallback(c)
+	_test_audio(c)
+	_test_touch(c, tree)
 	_test_save_round_trip(c)
+	_test_save_code(c)
 	await _test_door_gating(c, tree)
 
 	Settings.set_locale(original_locale)
@@ -216,6 +219,55 @@ static func _test_save_round_trip(c: Checker) -> void:
 	c.check("save: player position survived the reload",
 		Game.player_position.is_equal_approx(Vector2(228, 228)))
 	Save.delete_save(SAVE_SLOT)
+
+
+## Audio (§5.3, §5.6): no assets exist yet, so the contract is graceful silence — a missing
+## name is counted once, never spammed, and nothing errors. When OGG files land this test
+## stays green and the game simply starts sounding.
+static func _test_audio(c: Checker) -> void:
+	c.check("audio: autoload carries music + sfx players", Audio.get_child_count() == 2)
+	var before := Audio.missing_count
+	Bus.sfx_requested.emit("selftest_no_such_sfx")
+	c.check("audio: missing sfx counted", Audio.missing_count == before + 1)
+	Bus.sfx_requested.emit("selftest_no_such_sfx")
+	c.check("audio: missing name warned once, not per call", Audio.missing_count == before + 1)
+	Bus.sfx_requested.emit("")
+	c.check("audio: empty name is a no-op", Audio.missing_count == before + 1)
+
+
+## Touch controls (§12 P5): built only on touch devices — desktop and headless runs get an
+## empty layer, so the assertion tracks whatever the running display reports.
+static func _test_touch(c: Checker, tree: SceneTree) -> void:
+	var scene := tree.current_scene
+	var controls := scene.find_child("TouchControls", true, false) if scene != null else null
+	c.check("touch: layer exists under Main", controls != null)
+	if controls != null:
+		var expected := 6 if DisplayServer.is_touchscreen_available() else 0
+		c.check("touch: buttons match the display type", controls.get_child_count() == expected)
+
+
+## Save-code round trip (§6.4): the copyable code must carry the FULL payload — flags,
+## items, quest records — and refuse mangled input without corrupting anything.
+static func _test_save_code(c: Checker) -> void:
+	Game.new_game()
+	Effects.apply([{"type": "give", "item": ITEM, "count": 1}])
+	Game.set_flag("code_flag", true)
+	Game.current_location = LOCATION
+	Game.quests["q_test_chain"] = {"node": "n2", "done": false}
+
+	var code := Save.export_code(1)
+	c.check("save code: produced", not code.is_empty())
+
+	Game.new_game()
+	c.check("save code: new_game cleared the flag", not Game.get_flag("code_flag"))
+	c.check("save code: import applies", Save.import_code(code))
+	c.check("save code: flag survived", Game.get_flag("code_flag"))
+	c.check("save code: item survived", Game.item_count(ITEM) == 1)
+	c.check("save code: quest record survived",
+		String(Game.quest_record("q_test_chain").get("node", "")) == "n2")
+	c.check("save code: location survived", Game.current_location == LOCATION)
+	c.check("save code: mangled text refuses", not Save.import_code("!!!not-base64!!!"))
+	c.check("save code: truncated code refuses", not Save.import_code(code.substr(0, 8)))
 
 
 static func _test_door_gating(c: Checker, tree: SceneTree) -> void:

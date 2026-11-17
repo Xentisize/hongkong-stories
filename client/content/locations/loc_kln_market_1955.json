@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "id": "loc_kln_market_1955",
+  "display_name": { "zh_HK": "九龍市集，1955", "zh_CN": "九龙市集，1955", "en": "Kowloon Market, 1955" },
+  "era": "ch02_kln_1955",
+  "tile_size": 24,
+  "atlas": "res://assets/tiles/p1_tiles.png",
+  "legend": {
+    ".": [0, 0],
+    ",": [1, 0],
+    "#": [2, 0],
+    "D": [3, 0]
+  },
+  "tilemap": [
+    "############################",
+    "#..........................#",
+    "#..........................#",
+    "#..........................#",
+    "#..........................#",
+    "#..........................#",
+    ",..........................,",
+    ",..........................,",
+    ",..........................,",
+    "#..........................#",
+    "#.....##..........##.......#",
+    "#.....##..........##.......#",
+    "#..........................#",
+    "############################"
+  ],
+  "collision": [
+    [0, 0, 28, 1],
+    [0, 13, 28, 1],
+    [0, 1, 1, 5],
+    [0, 9, 1, 4],
+    [27, 1, 1, 5],
+    [27, 9, 1, 4],
+    [6, 10, 2, 2],
+    [18, 10, 2, 2]
+  ],
+  "spawn_points": {
+    "default": [13.5, 7.5],
+    "from_huts": [25.5, 7.5]
+  },
+  "music": "audio/kln_1955.ogg",
+  "npcs": [
+    { "npc": "npc_ch02_caai", "tile": [6, 3], "facing": "down" },
+    { "npc": "npc_ch02_waah", "tile": [21, 4], "facing": "down" }
+  ],
+  "doors": [],
+  "interactables": [
+    {
+      "id": "rice_queue",
+      "tile": [11, 3],
+      "prompt": { "zh_HK": "排隊處", "zh_CN": "排队处", "en": "The queue" },
+      "on_interact": [
+        {
+          "type": "say",
+          "text": {
+            "zh_HK": "米舖門口排緊長龍，人手一張米票。阿伯話：下個月仲有冇得排，天先知。",
+            "zh_CN": "米铺门口排着长龙，人手一张米票。老人家说：下个月还有没有得排，天知道。",
+            "en": "A line outside the rice shop, a ticket in every hand. An old man shrugs: whether there is a next month, heaven knows."
+          }
+        }
+      ]
+    },
+    {
+      "id": "hawker_baskets",
+      "tile": [19, 9],
+      "prompt": { "zh_HK": "望下啲擔挑", "zh_CN": "看看扁担", "en": "Look at the baskets" },
+      "on_interact": [
+        {
+          "type": "say",
+          "text": {
+            "zh_HK": "擔挑兩邊掛住竹籃，雞籠同菜頭一齊震。呢度乜都擔得起。",
+            "zh_CN": "扁担两头挂着竹篮，鸡笼和菜头一起晃。这里什么都挑得起。",
+            "en": "Baskets hang off a bamboo pole, chicken cage and greens swaying together. Everything here can be carried."
+          }
+        }
+      ]
+    }
+  ],
+  "exits": [
+    {
+      "id": "to_huts",
+      "rect": [27, 6, 1, 3],
+      "to": "loc_kln_huts_1955",
+      "spawn": "default"
+    }
+  ],
+  "_comment": "Chapter 2, 1955 Kowloon market (PLAN §12.1). No exit back to 2027: the era is the chapter; the return happens in the ch02 closing cutscene. Placeholder art until the pipeline covers the era."
+}

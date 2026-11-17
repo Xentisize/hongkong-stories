@@ -36,21 +36,30 @@ const EXPECTED_OFFLINE = [
 ];
 const BOOT_PREFIXES = ["Godot Engine", "OpenGL API", "Build configuration", "[Main]", "[ContentDB]"];
 
-const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+const CHROME = process.env.CHROME || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const port = 9333;
-const profile = mkdtempSync(join(tmpdir(), "hk-chrome-"));
+// When Chrome runs on the Windows side (WSL interop) its CDP socket lives on the Windows
+// loopback, which WSL2/NAT cannot reach on 127.0.0.1 — set CDP_HOST to the Windows host IP
+// and the script additionally asks Chrome to bind 0.0.0.0.
+const CDP_HOST = process.env.CDP_HOST || "127.0.0.1";
+// A Windows Chrome needs a Windows-style profile path (C:\...), which mkdtempSync cannot
+// produce from WSL — PROFILE_DIR supplies one verbatim when the browser runs on the host.
+const profile = process.env.PROFILE_DIR || mkdtempSync(join(tmpdir(), "hk-chrome-"));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-const chrome = spawn(CHROME, [
+const chromeArgs = [
   "--headless=new", "--no-first-run", "--no-default-browser-check", "--hide-scrollbars",
+  "--enable-unsafe-swiftshader", "--use-angle=swiftshader", "--ignore-gpu-blocklist",
   `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`,
   "--window-size=1152,648", url,
-], { stdio: "ignore" });
+];
+if (CDP_HOST !== "127.0.0.1") chromeArgs.push("--remote-debugging-address=0.0.0.0");
+const chrome = spawn(CHROME, chromeArgs, { stdio: "ignore" });
 
 async function pageTarget() {
   for (let i = 0; i < 120; i++) {
     try {
-      const list = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
+      const list = await (await fetch(`http://${CDP_HOST}:${port}/json/list`)).json();
       const page = list.find((t) => t.type === "page" && t.webSocketDebuggerUrl);
       if (page) return page;
     } catch { /* chrome not listening yet */ }
@@ -60,7 +69,9 @@ async function pageTarget() {
 }
 
 const external = await pageTarget();
-const ws = new WebSocket(external.webSocketDebuggerUrl);
+// Chrome reports its debugger URL with the host it thinks it is on; rewrite to CDP_HOST.
+const wsUrl = external.webSocketDebuggerUrl.replace(/127\.0\.0\.1|localhost/g, CDP_HOST);
+const ws = new WebSocket(wsUrl);
 let nextId = 0;
 const pending = new Map();
 const messages = []; // every console line, tagged with its level
@@ -101,10 +112,10 @@ await send("Page.enable");
 await sleep(waitMs);
 
 if (mode === "talk") {
-  // Spawn is tile (9.5, 9.5); the shopkeeper stands at (15, 6). 72 px/s over 24px tiles, so
-  // these holds are generous on purpose.
-  await holdKey("ArrowRight", "ArrowRight", 39, 2100);
-  await holdKey("ArrowUp", "ArrowUp", 38, 850);
+  // Market street (the P3 default): spawn tile (13.5, 6.5); Uncle Ken stands at (7, 4).
+  // 72 px/s over 24px tiles, so these holds are generous on purpose.
+  await holdKey("ArrowLeft", "ArrowLeft", 37, 2200);
+  await holdKey("ArrowUp", "ArrowUp", 38, 900);
   await holdKey("e", "KeyE", 69, 90);
   await sleep(14000); // first token measured ~3s; allows a cold start
 }

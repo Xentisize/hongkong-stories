@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "id": "item_tea_tin",
+  "name": { "zh_HK": "鐵皮茶葉罐", "zh_CN": "铁皮茶叶罐", "en": "Tin of Tea Leaves" },
+  "desc": {
+    "zh_HK": "阿彩送嘅茶葉罐，罐身印花已經磨到模糊，掂手仲有茶香。",
+    "zh_CN": "阿彩送的茶叶罐，罐身印花已经磨得模糊，摸上去还有茶香。",
+    "en": "A tin of tea from A-choi; the print on the lid is worn soft, and it still smells of leaves."
+  },
+  "stack_max": 1,
+  "category": "keepsake",
+  "usable": false,
+  "on_use": [],
+  "on_acquire": [],
+  "lore_ref": "lore/ch02_kln_1955.md"
+}

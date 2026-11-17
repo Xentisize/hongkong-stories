@@ -116,7 +116,7 @@ func _run(command: String, args: PackedStringArray) -> void:
 		"help":
 			_print("flag <name> [0|1] · give <item> [n] · take <item> [n] · var <name> <v> · " +
 				"tp <x> <y> · loc <id> · save [slot] · load [slot] · newgame · " +
-				"locale <zh_HK|zh_CN|en> · dump")
+				"locale <zh_HK|zh_CN|en> · savecode [slot] · code <b64> · dump")
 
 		"flag":
 			if args.is_empty():
@@ -166,6 +166,24 @@ func _run(command: String, args: PackedStringArray) -> void:
 		"load":
 			var load_slot := int(args[0]) if not args.is_empty() else 1
 			_print("load slot %d: %s" % [load_slot, "ok" if Save.load_game(load_slot) else "failed"])
+
+		"savecode":
+			# §6.4 save code: the whole payload as copyable text (free cloud-less backup,
+			# and how a playtester sends you a broken state).
+			var code_slot := int(args[0]) if not args.is_empty() else 1
+			_print("save code (slot %d):\n%s" % [code_slot, Save.export_code(code_slot)])
+
+		"code":
+			if args.is_empty():
+				_print("usage: code <base64 save code>")
+				return
+			if Save.import_code(" ".join(args)):
+				get_tree().call_group("main", "load_location", Game.current_location)
+				get_tree().call_group(
+					"main", "dev_teleport", Game.player_position.x, Game.player_position.y)
+				_print("save code applied — location reloaded")
+			else:
+				_print("invalid save code")
 
 		"newgame":
 			Game.new_game()

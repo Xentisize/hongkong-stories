@@ -9,8 +9,27 @@
   },
   "stack_max": 1,
   "category": "keepsake",
-  "usable": false,
-  "on_use": [],
+  "usable": true,
+  "use_requires": { "all": [ { "quest_done": "ch02" }, { "not": { "quest_state": "ch03" } } ] },
+  "use_locked": {
+    "zh_HK": "呢卷卡式帶而家幫唔到手。",
+    "zh_CN": "这卷卡带现在帮不上手。",
+    "en": "The cassette can't help right now."
+  },
+  "on_use": [
+    { "type": "set_flag", "flag": "ch03_opened" },
+    { "type": "quest", "quest": "ch03", "op": "start" },
+    {
+      "type": "say",
+      "text": {
+        "zh_HK": "卡式帶一轉，機器聲蓋過一切。",
+        "zh_CN": "卡带一转，机器声盖过一切。",
+        "en": "The cassette turns, and the sound of machines swallows everything."
+      }
+    },
+    { "type": "goto", "location": "loc_kln_factory_1963", "spawn": "default" }
+  ],
   "on_acquire": [],
-  "lore_ref": "lore/ch01_hk_2027.md"
+  "lore_ref": "lore/ch01_hk_2027.md",
+  "_comment": "The chapter-3 door: usable once ch02 is complete (the cassette is the family's voice, and it opens the mother's era). Chapter-5's door is the unsent letter, per PLAN §12.2."
 }

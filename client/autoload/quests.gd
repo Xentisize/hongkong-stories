@@ -98,7 +98,12 @@ func _complete_node(quest_id: String, node: Dictionary) -> void:
 	var record := Game.quest_record(quest_id)
 	if record.is_empty() or bool(record.get("done", false)):
 		return
-	var next := String(node.get("next", ""))
+	# JSON writes "next": null on terminal nodes — get() returns that null (the default only
+	# covers an ABSENT key), and String(null) has no constructor. Treat null as no-next.
+	var next_value: Variant = node.get("next")
+	var next := ""
+	if typeof(next_value) == TYPE_STRING:
+		next = String(next_value)
 	if next.is_empty():
 		record["done"] = true
 		Bus.quest_completed.emit(quest_id)

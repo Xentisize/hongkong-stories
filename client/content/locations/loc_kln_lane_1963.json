@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "id": "loc_kln_lane_1963",
+  "display_name": { "zh_HK": "水喉巷，1963", "zh_CN": "水龙头巷，1963", "en": "The Standpipe Lane, 1963" },
+  "era": "ch03_kln_1963",
+  "tile_size": 24,
+  "atlas": "res://assets/tiles/p1_tiles.png",
+  "legend": {
+    ".": [0, 0],
+    ",": [1, 0],
+    "#": [2, 0],
+    "D": [3, 0]
+  },
+  "tilemap": [
+    "##################",
+    "#................#",
+    "#................#",
+    "#................#",
+    ",.......#........#",
+    ",.......#........#",
+    ",.......#........#",
+    "#.......#........#",
+    "#................#",
+    "#................#",
+    "##################"
+  ],
+  "collision": [
+    [0, 0, 18, 1],
+    [0, 10, 18, 1],
+    [0, 1, 1, 3],
+    [0, 7, 1, 3],
+    [17, 1, 1, 9],
+    [8, 4, 1, 3]
+  ],
+  "spawn_points": {
+    "default": [12.5, 5.5],
+    "from_factory": [2.5, 5.5]
+  },
+  "music": "audio/kln_1963.ogg",
+  "npcs": [
+    { "npc": "npc_ch03_mak", "tile": [5, 8], "facing": "down" }
+  ],
+  "doors": [],
+  "interactables": [
+    {
+      "id": "standpipe_1963",
+      "tile": [5, 5],
+      "prompt": { "zh_HK": "望下水喉", "zh_CN": "看看水龙头", "en": "The standpipe" },
+      "on_interact": [
+        {
+          "type": "say",
+          "text": {
+            "zh_HK": "鐵喉加咗一把新鎖，開幾個鐘就閂。木桶隊由街頭排到巷尾，桶上全部寫名。",
+            "zh_CN": "铁管加了一把新锁，开几个小时就关。木桶队从街头排到巷尾，桶上都写着名字。",
+            "en": "The iron pipe wears a new lock — opened a few hours, then shut. The bucket line runs the length of the lane, every bucket named."
+          }
+        }
+      ]
+    },
+    {
+      "id": "soap_shelf",
+      "tile": [14, 8],
+      "prompt": { "zh_HK": "睇下啲番梘", "zh_CN": "看看肥皂", "en": "The soap shelf" },
+      "on_interact": [
+        {
+          "type": "say",
+          "text": {
+            "zh_HK": "洗衫水唔准倒，因為要用第二次。番梘切到只剩一片，仲要傳落隔籬。",
+            "zh_CN": "洗衫水不准倒，因为还要用第二次。肥皂切到只剩一片，还要传给隔壁。",
+            "en": "Washing water may not be poured away — it serves twice. The soap is cut down to a sliver, and the sliver is passed next door."
+          }
+        }
+      ]
+    }
+  ],
+  "exits": [
+    {
+      "id": "to_factory",
+      "rect": [0, 4, 1, 3],
+      "to": "loc_kln_factory_1963",
+      "spawn": "from_lane"
+    }
+  ],
+  "_comment": "Chapter 3 lane: the rationing queue is the chapter's cost made visible. Placeholder art."
+}

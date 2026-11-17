@@ -10,14 +10,15 @@
   "stack_max": 1,
   "category": "keepsake",
   "usable": true,
-  "use_requires": { "flag": "album_identified" },
+  "use_requires": { "all": [ { "quest_done": "ch01" }, { "not": { "quest_state": "ch02" } } ] },
   "use_locked": {
-    "zh_HK": "呢本相簿，仲未有人講得出係邊度影嘅。",
-    "zh_CN": "这本相簿，还没人说得出是在哪里拍的。",
-    "en": "Nobody can yet say where these photographs were taken."
+    "zh_HK": "呢本相簿而家幫唔到手。",
+    "zh_CN": "这本相簿现在帮不上手。",
+    "en": "The album can't help right now."
   },
   "on_use": [
     { "type": "set_flag", "flag": "ch02_opened" },
+    { "type": "quest", "quest": "ch02", "op": "start" },
     {
       "type": "say",
       "text": {
@@ -25,7 +26,8 @@
         "zh_CN": "相簿一揭开，这条街的声音就变了。",
         "en": "The moment the album opens, the sound of the street changes."
       }
-    }
+    },
+    { "type": "goto", "location": "loc_kln_market_1955", "spawn": "default" }
   ],
   "on_acquire": [],
   "lore_ref": "lore/ch01_hk_2027.md",

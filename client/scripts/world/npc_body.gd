@@ -32,7 +32,7 @@ func configure(placement: Dictionary, tile_size: int) -> void:
 	if _requires == null:
 		var trigger: Dictionary = definition.get("trigger", {})
 		_requires = trigger.get("requires")
-	_refresh_availability()
+	refresh_availability()
 	queue_redraw()
 
 

@@ -87,3 +87,33 @@ func is_persistence_durable() -> bool:
 	if OS.has_method("is_userfs_persisted"):
 		return bool(OS.call("is_userfs_persisted"))
 	return true
+
+
+## Save-code export (§6.4): base64+zlib of the save payload — free cloud-less backup, and the
+## cheapest way for a playtester to send you a broken state. The zlib stream does not carry
+## its decompressed length, so the code prefixes it: 4 bytes little-endian size + deflate body.
+func export_code(slot: int = AUTOSAVE_SLOT) -> String:
+	var text := JSON.stringify(Game.to_dict())
+	var raw := text.to_utf8_buffer()
+	var packed := raw.compress(FileAccess.COMPRESSION_DEFLATE)
+	var sized := PackedByteArray()
+	sized.resize(4)
+	sized.encode_u32(0, raw.size())
+	sized.append_array(packed)
+	return Marshalls.raw_to_base64(sized)
+
+
+## Applies a save code to the CURRENT session (callers then reload the location). Returns
+## false for a mangled code or a schema this build cannot read — never corrupts the slot.
+func import_code(code: String) -> bool:
+	var sized := Marshalls.base64_to_raw(code.strip_edges())
+	if sized.size() < 4:
+		return false
+	var size := sized.decode_u32(0)
+	if size == 0 or size > 8_000_000:  # a sane ceiling: a save is a few KiB
+		return false
+	var raw := sized.slice(4).decompress(size, FileAccess.COMPRESSION_DEFLATE)
+	var parsed: Variant = JSON.parse_string(raw.get_string_from_utf8())
+	if typeof(parsed) != TYPE_DICTIONARY:
+		return false
+	return Game.from_dict(parsed)

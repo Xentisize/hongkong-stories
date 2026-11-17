@@ -63,8 +63,10 @@ func evaluate(condition: Variant, _context: Dictionary = {}) -> bool:
 
 	if cond.has("quest_state"):
 		# `{"quest_state": "ch01", "node": "n2"}` — started, not done, and sitting on n2.
-		# Without `node`, it just asks whether the quest is active.
-		var qs_raw: Variant = Game.quests.get(String(cond["quest_state"]), {})
+		# Without `node`, it just asks whether the quest is active. NOTE: get() WITHOUT a
+		# default — an unknown quest must be null, never an empty record that reads as
+		# "active" (the shared fixture caught exactly that divergence).
+		var qs_raw: Variant = Game.quests.get(String(cond["quest_state"]))
 		if typeof(qs_raw) != TYPE_DICTIONARY:
 			return false
 		var qs_record: Dictionary = qs_raw
@@ -74,7 +76,7 @@ func evaluate(condition: Variant, _context: Dictionary = {}) -> bool:
 		return wanted_node.is_empty() or String(qs_record.get("node", "")) == wanted_node
 
 	if cond.has("quest_done"):
-		var qd_raw: Variant = Game.quests.get(String(cond["quest_done"]), {})
+		var qd_raw: Variant = Game.quests.get(String(cond["quest_done"]))
 		if typeof(qd_raw) != TYPE_DICTIONARY:
 			return false
 		return bool((qd_raw as Dictionary).get("done", false))
