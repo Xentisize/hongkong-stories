@@ -27,7 +27,7 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	# Input polling bypasses GUI focus, so a focused console LineEdit or dialogue box would
 	# still walk the player around behind the text without this gate.
-	if Dev.console_open or Dialogue.is_active():
+	if Dev.console_open or Dialogue.is_active() or _cutscene_showing():
 		velocity = Vector2.ZERO
 		current_target = null
 		return
@@ -85,13 +85,18 @@ func _find_target() -> Node2D:
 	return best
 
 
-func _advance_animation(delta: float) -> void:
-	_anim_time += delta
+func _advance_animation(delta: float) -> void:	_anim_time += delta
 	# 8 steps/second across a 4-frame cycle, and idle always rests on frame 0.
 	var next_frame := int(_anim_time * 8.0) % 4 if is_walking else 0
 	if next_frame != _frame:
 		_frame = next_frame
 		queue_redraw()
+
+
+## The cutscene overlay handles its own input; movement and targeting stop while it is up.
+func _cutscene_showing() -> bool:
+	var cutscene := get_tree().get_first_node_in_group("cutscene")
+	return cutscene != null and bool(cutscene.call("is_showing"))
 
 
 func _draw() -> void:

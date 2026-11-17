@@ -7,7 +7,7 @@ extends Node
 ## progression, so anything added here needs a matching fixture.
 ##
 ## Implemented in P1: all / any / not / flag / has_item / var / visited / talked.
-## TODO(P3): quest_state / quest_done / time_of_day.
+## Added in P3: quest_state / quest_done / time_of_day.
 
 const COMPARISONS := ["==", "!=", ">", ">=", "<", "<="]
 
@@ -61,9 +61,26 @@ func evaluate(condition: Variant, _context: Dictionary = {}) -> bool:
 		var count := int(Game.talk_counts.get(String(cond["talked"]), 0))
 		return count >= int(cond.get("min", 1))
 
-	if cond.has("quest_state") or cond.has("quest_done") or cond.has("time_of_day"):
-		push_warning("Conditions: verb not implemented until P3: %s" % [cond.keys()])
-		return false
+	if cond.has("quest_state"):
+		# `{"quest_state": "ch01", "node": "n2"}` — started, not done, and sitting on n2.
+		# Without `node`, it just asks whether the quest is active.
+		var qs_raw: Variant = Game.quests.get(String(cond["quest_state"]), {})
+		if typeof(qs_raw) != TYPE_DICTIONARY:
+			return false
+		var qs_record: Dictionary = qs_raw
+		if bool(qs_record.get("done", false)):
+			return false
+		var wanted_node := String(cond.get("node", ""))
+		return wanted_node.is_empty() or String(qs_record.get("node", "")) == wanted_node
+
+	if cond.has("quest_done"):
+		var qd_raw: Variant = Game.quests.get(String(cond["quest_done"]), {})
+		if typeof(qd_raw) != TYPE_DICTIONARY:
+			return false
+		return bool((qd_raw as Dictionary).get("done", false))
+
+	if cond.has("time_of_day"):
+		return Game.time_of_day == String(cond["time_of_day"])
 
 	push_warning("Conditions: unknown condition %s" % [cond.keys()])
 	return false

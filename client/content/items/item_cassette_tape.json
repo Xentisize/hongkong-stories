@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "id": "item_cassette_tape",
+  "name": { "zh_HK": "卡式帶", "zh_CN": "卡式磁带", "en": "Cassette Tape" },
+  "desc": {
+    "zh_HK": "卡式帶，標籤褪晒色，淨返一個「壽」字。",
+    "zh_CN": "卡式磁带，标签褪了色，只剩一个「寿」字。",
+    "en": "A cassette; the label has faded until only one character is left."
+  },
+  "stack_max": 1,
+  "category": "keepsake",
+  "usable": false,
+  "on_use": [],
+  "on_acquire": [],
+  "lore_ref": "lore/ch01_hk_2027.md"
+}

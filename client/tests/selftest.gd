@@ -36,6 +36,8 @@ static func run(tree: SceneTree) -> int:
 	_test_content(c)
 	_test_localization(c, original_locale)
 	_test_effects_and_conditions(c)
+	_test_p3_effects(c)
+	_test_quest_machine(c)
 	_test_shared_condition_fixtures(c)
 	_test_font_coverage(c)
 	_test_dialogue_fallback(c)
@@ -110,6 +112,92 @@ static func _test_effects_and_conditions(c: Checker) -> void:
 	Game.talk_counts["npc_x"] = 2
 	c.check("cond: talked min 2", Conditions.evaluate({"talked": "npc_x", "min": 2}))
 	c.check("cond: talked min 3 is false", not Conditions.evaluate({"talked": "npc_x", "min": 3}))
+
+
+## P3 effects: navigation, secrets, shop, presentation. The bus signals prove the §5.6
+## contract (every applied effect is observable); nobody is listening in headless mode,
+## which is exactly what makes these assertions possible.
+static func _test_p3_effects(c: Checker) -> void:
+	Game.new_game()
+
+	var gotos: Array = []
+	Bus.goto_requested.connect(func(location: String, spawn: String) -> void:
+		gotos.append([location, spawn]))
+	c.check("effects: goto emits a navigation request",
+		Effects.apply([{"type": "goto", "location": "loc_somewhere", "spawn": "south"}]) == 1
+			and gotos.size() == 1 and gotos[0][0] == "loc_somewhere" and gotos[0][1] == "south")
+
+	var secrets: Array = []
+	Bus.secret_revealed.connect(func(_npc: String, secret_id: String, _text: String) -> void:
+		secrets.append(secret_id))
+	c.check("effects: reveal_secret applies with npc context",
+		Effects.apply([{"type": "reveal_secret", "secret": "s_crate"}],
+			{"npc": "npc_p2_shopkeeper"}) == 1
+			and secrets.size() == 1 and Game.get_flag("secret_s_crate"))
+	c.check("effects: reveal_secret without an npc is refused",
+		Effects.apply([{"type": "reveal_secret", "secret": "s_crate"}]) == 0)
+
+	c.check("effects: open_shop / play_sfx / shake / fade apply",
+		Effects.apply([
+			{"type": "open_shop", "npc": "npc_x"},
+			{"type": "play_sfx", "name": "chime"},
+			{"type": "shake"},
+			{"type": "fade", "to": "out"},
+		]) == 4)
+	c.check("effects: fade rejects a bogus direction",
+		Effects.apply([{"type": "fade", "to": "sideways"}]) == 0)
+
+
+## The P3 exit criterion in miniature: start -> condition-gated advance -> cutscene pause ->
+## dismissal -> completion, plus entry_requirements gating a second quest (§5.4). The node
+## machine re-evaluates synchronously on the signals that change state, so no frame awaits.
+static func _test_quest_machine(c: Checker) -> void:
+	Game.new_game()
+
+	var cutscenes: Array = []
+	Bus.cutscene_started.connect(func(quest_id: String, node_id: String) -> void:
+		cutscenes.append([quest_id, node_id]))
+	var completions: Array = []
+	Bus.quest_completed.connect(func(quest_id: String) -> void: completions.append(quest_id))
+
+	c.check("quest: advance on an unstarted quest is refused",
+		Effects.apply([{"type": "quest", "quest": "q_test_nope", "op": "advance", "node": "n2"}]) == 0)
+	c.check("quest: the gated quest refuses to start early",
+		Effects.apply([{"type": "quest", "quest": "q_test_gated", "op": "start"}]) == 0)
+
+	c.check("quest: the chain starts on its first node",
+		Effects.apply([{"type": "quest", "quest": "q_test_chain", "op": "start"}]) == 1
+			and String(Game.quest_record("q_test_chain").get("node", "")) == "n1")
+	c.check("quest: starting a started quest is a no-op",
+		Effects.apply([{"type": "quest", "quest": "q_test_chain", "op": "start"}]) == 1)
+
+	Game.set_flag("test_gate", true)
+	c.check("quest: passing n1's condition advances to n2",
+		String(Game.quest_record("q_test_chain").get("node", "")) == "n2")
+
+	Effects.apply([{"type": "give", "item": ITEM, "count": 1}])
+	c.check("quest: the item condition completes n2 and runs its effects",
+		String(Game.quest_record("q_test_chain").get("node", "")) == "n3"
+			and Game.get_flag("test_n2_done"))
+	c.check("quest: the cutscene node opened the overlay request",
+		cutscenes.size() == 1 and cutscenes[0][0] == "q_test_chain" and cutscenes[0][1] == "n3")
+	c.check("quest: a cutscene node does not auto-advance",
+		String(Game.quest_record("q_test_chain").get("node", "")) == "n3")
+
+	Quests.cutscene_dismissed()
+	c.check("quest: dismissal applies on_complete and moves to n4",
+		String(Game.quest_record("q_test_chain").get("node", "")) == "n4"
+			and Game.get_flag("test_n3_done"))
+
+	Game.set_flag("test_final", true)
+	c.check("quest: the last node completes the quest",
+		bool(Game.quest_record("q_test_chain").get("done", false)) and completions.size() == 1)
+
+	c.check("quest: the gated quest starts once its requirement is done",
+		Effects.apply([{"type": "quest", "quest": "q_test_gated", "op": "start"}]) == 1)
+	Game.set_flag("test_gate2", true)
+	c.check("quest: the gated quest completes",
+		bool(Game.quest_record("q_test_gated").get("done", false)))
 
 
 static func _test_save_round_trip(c: Checker) -> void:
@@ -188,6 +276,8 @@ static func _test_shared_condition_fixtures(c: Checker) -> void:
 		Game.vars = state.get("vars", {})
 		Game.visited = state.get("visited", {})
 		Game.talk_counts = state.get("talk_counts", {})
+		Game.quests = state.get("quests", {})
+		Game.time_of_day = String(state.get("time_of_day", "day"))
 
 		var got := Conditions.evaluate(case.get("condition"), {})
 		c.check("fixture: %s" % String(case.get("label", "?")), got == bool(case.get("expected", false)))

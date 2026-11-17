@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "id": "ch01",
+  "title": { "zh_HK": "第一章：執嘢", "zh_CN": "第一章：收拾", "en": "Chapter 1: Clearing Out" },
+  "entry_requires": null,
+  "nodes": [
+    {
+      "id": "n1",
+      "type": "objective",
+      "text": { "zh_HK": "去茶餐廳搵陳太傾偈。", "zh_CN": "去茶餐厅找陈太聊聊。", "en": "Find Mrs Chan at the cha chaan teng and talk to her." },
+      "complete_when": { "talked": "npc_ch01_tai", "min": 1 },
+      "next": "n2",
+      "on_complete": [ { "type": "set_flag", "flag": "ch01_met_tai" } ]
+    },
+    {
+      "id": "n2",
+      "type": "objective",
+      "text": { "zh_HK": "聽阿珊講唐樓，攞返單位鎖匙。", "zh_CN": "听阿珊讲唐楼，拿回单元钥匙。", "en": "Hear Shan on the tong lau, then get the flat key from Mrs Chan." },
+      "complete_when": { "has_item": "item_flat_key" },
+      "next": "n3",
+      "on_complete": []
+    },
+    {
+      "id": "n3",
+      "type": "objective",
+      "text": { "zh_HK": "入樓上單位，喺木箱搵返本相簿。", "zh_CN": "上楼进房间，在木箱里找回相簿。", "en": "Go up to the flat and find the album in the wooden box." },
+      "complete_when": { "has_item": "item_photo_album" },
+      "next": "n4",
+      "on_complete": []
+    },
+    {
+      "id": "n4",
+      "type": "objective",
+      "text": { "zh_HK": "帶相簿去問根叔，呢張相係邊度影嘅。", "zh_CN": "带相簿去问根叔，这张相是在哪里拍的。", "en": "Take the album to Uncle Ken and ask where the photograph was taken." },
+      "complete_when": { "all": [ { "has_item": "item_photo_album" }, { "flag": "album_identified" } ] },
+      "next": "n5",
+      "on_complete": []
+    },
+    {
+      "id": "n5",
+      "type": "cutscene",
+      "text": [
+        {
+          "zh_HK": "根叔一睇就認得：呢張相係你屋企間舖頭，未搭棚嗰陣。",
+          "zh_CN": "根叔一看就认得：这张相是你家的铺子，还没搭棚的时候。",
+          "en": "Uncle Ken knows the photograph at once: your family's shop, before the scaffolding went up."
+        },
+        {
+          "zh_HK": "相簿喺你手度開始發燙——條街喺等你打開佢。",
+          "zh_CN": "相簿在你手里开始发烫——这条街在等你打开它。",
+          "en": "The album grows warm in your hands. The street is waiting for you to open it."
+        }
+      ],
+      "next": null,
+      "on_complete": [ { "type": "set_flag", "flag": "ch01_complete" } ]
+    }
+  ],
+  "_comment": "Chapter-1 arc (PLAN §12.2 quest flow): NPC-gated item via the favour chain, a condition-gated exit, an LLM-driven give with a deterministic offline fallback at every step, a secret with a reveal_if, and one item whose on_use opens what comes next. Who starts it: talking to Mrs Chan (n1); nothing needs the backend to finish."
+}

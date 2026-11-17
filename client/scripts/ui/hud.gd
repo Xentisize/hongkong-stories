@@ -12,6 +12,7 @@ const UI_TEXT := {
 	"inventory_title": { "zh_HK": "物品", "zh_CN": "物品", "en": "Inventory" },
 	"inventory_empty": { "zh_HK": "（袋裡面冇嘢）", "zh_CN": "（袋子是空的）", "en": "(nothing yet)" },
 	"fps": { "zh_HK": "幀/秒", "zh_CN": "帧/秒", "en": "FPS" },
+	"use": { "zh_HK": "用", "zh_CN": "使用", "en": "Use" },
 }
 
 var _fps_label: Label
@@ -152,6 +153,22 @@ func _on_message(text: String) -> void:
 	_message_timer = maxf(2.0, float(text.length()) / 15.0) + 1.0
 
 
+## A usable item's on_use applies its effects, gated by `use_requires` when the definition
+## declares one; a locked use explains itself through the item's `use_locked` text.
+func _use_item(item_id: String) -> void:
+	var definition := ContentDB.get_entity("items", item_id)
+	var gate: Variant = definition.get("use_requires")
+	if gate != null and not Conditions.evaluate(gate):
+		var locked := ContentDB.localize(definition.get("use_locked", ""), Settings.locale)
+		if not locked.is_empty():
+			Bus.message_shown.emit(locked)
+		return
+	var effects: Variant = definition.get("on_use", [])
+	if effects != null and typeof(effects) == TYPE_ARRAY:
+		Effects.apply(effects)
+		_refresh_inventory()
+
+
 func _refresh_texts() -> void:
 	_title_label.text = _t("inventory_title")
 	_refresh_inventory()
@@ -192,4 +209,13 @@ func _make_row(item_id: String, count: int) -> Control:
 	var item_name := ContentDB.localize(definition.get("name", item_id), Settings.locale)
 	label.text = "%s  x%d" % [item_name if not item_name.is_empty() else item_id, count]
 	row.add_child(label)
+
+	# Mementos are chapter doors (§12.1): a usable item carries on_use effects, gated by
+	# `use_requires` when the definition declares one.
+	if bool(definition.get("usable", false)):
+		var use := Button.new()
+		use.text = _t("use")
+		use.focus_mode = Control.FOCUS_NONE
+		use.pressed.connect(_use_item.bind(item_id))
+		row.add_child(use)
 	return row

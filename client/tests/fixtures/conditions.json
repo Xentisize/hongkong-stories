@@ -19,6 +19,17 @@
     { "label": "visited false", "condition": { "visited": "loc_elsewhere" }, "state": { "visited": { "loc_p1_shop": true } }, "expected": false },
     { "label": "talked min reached", "condition": { "talked": "npc", "min": 2 }, "state": { "talk_counts": { "npc": 2 } }, "expected": true },
     { "label": "talked min not reached", "condition": { "talked": "npc", "min": 3 }, "state": { "talk_counts": { "npc": 2 } }, "expected": false },
-    { "label": "nested any inside all", "condition": { "all": [ { "flag": "a" }, { "any": [ { "flag": "b" }, { "has_item": "k" } ] } ] }, "state": { "flags": { "a": true }, "inventory": { "k": 1 } }, "expected": true }
+    { "label": "nested any inside all", "condition": { "all": [ { "flag": "a" }, { "any": [ { "flag": "b" }, { "has_item": "k" } ] } ] }, "state": { "flags": { "a": true }, "inventory": { "k": 1 } }, "expected": true },
+    { "label": "quest_state at node", "condition": { "quest_state": "ch01", "node": "n2" }, "state": { "quests": { "ch01": { "node": "n2", "done": false } } }, "expected": true },
+    { "label": "quest_state wrong node", "condition": { "quest_state": "ch01", "node": "n3" }, "state": { "quests": { "ch01": { "node": "n2", "done": false } } }, "expected": false },
+    { "label": "quest_state started, no node asked", "condition": { "quest_state": "ch01" }, "state": { "quests": { "ch01": { "node": "n1", "done": false } } }, "expected": true },
+    { "label": "quest_state is false when done", "condition": { "quest_state": "ch01" }, "state": { "quests": { "ch01": { "node": "n5", "done": true } } }, "expected": false },
+    { "label": "quest_state unknown quest", "condition": { "quest_state": "ch09" }, "state": {}, "expected": false },
+    { "label": "quest_done true", "condition": { "quest_done": "ch01" }, "state": { "quests": { "ch01": { "node": "n5", "done": true } } }, "expected": true },
+    { "label": "quest_done false while active", "condition": { "quest_done": "ch01" }, "state": { "quests": { "ch01": { "node": "n2", "done": false } } }, "expected": false },
+    { "label": "quest_done unknown quest", "condition": { "quest_done": "ch09" }, "state": {}, "expected": false },
+    { "label": "time_of_day matches the default", "condition": { "time_of_day": "day" }, "state": {}, "expected": true },
+    { "label": "time_of_day mismatch", "condition": { "time_of_day": "night" }, "state": { "time_of_day": "day" }, "expected": false },
+    { "label": "quest_state inside all", "condition": { "all": [ { "flag": "a" }, { "quest_state": "ch01", "node": "n2" } ] }, "state": { "flags": { "a": true }, "quests": { "ch01": { "node": "n2", "done": false } } }, "expected": true }
   ]
 }

@@ -2,7 +2,7 @@
 
 Two evaluators exist because two runtimes need it: GDScript gates doors and quests, Python
 filters which NPC secrets may be revealed. They must agree, so both are checked against the
-same fixture table (client/content/tests/conditions_fixtures.json) by `pytest` and by the
+same fixture table (client/tests/fixtures/conditions.json) by `pytest` and by the
 Godot `--selftest` harness.
 """
 
@@ -61,9 +61,21 @@ def evaluate(condition: Any, state: State) -> bool:
         counts = _state_bucket(state, "talk_counts")
         return int(counts.get(str(condition["talked"]), 0)) >= int(condition.get("min", 1))
 
-    if {"quest_state", "quest_done", "time_of_day"} & set(condition):
-        warnings.warn(f"condition verb not implemented until P3: {condition!r}", stacklevel=2)
-        return False
+    if "quest_state" in condition:
+        # {"quest_state": "ch01", "node": "n2"} — started, not done, and sitting on n2.
+        # Without "node", it just asks whether the quest is active.
+        record = _state_bucket(state, "quests").get(str(condition["quest_state"]))
+        if not isinstance(record, dict) or bool(record.get("done", False)):
+            return False
+        wanted = str(condition.get("node", ""))
+        return not wanted or str(record.get("node", "")) == wanted
+
+    if "quest_done" in condition:
+        record = _state_bucket(state, "quests").get(str(condition["quest_done"]))
+        return isinstance(record, dict) and bool(record.get("done", False))
+
+    if "time_of_day" in condition:
+        return str(state.get("time_of_day", "day")) == str(condition["time_of_day"])
 
     warnings.warn(f"unknown condition: {condition!r}", stacklevel=2)
     return False

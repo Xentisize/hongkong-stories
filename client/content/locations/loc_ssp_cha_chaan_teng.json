@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "id": "loc_ssp_cha_chaan_teng",
+  "display_name": { "zh_HK": "茶餐廳", "zh_CN": "茶餐厅", "en": "Cha Chaan Teng" },
+  "tile_size": 24,
+  "atlas": "res://assets/tiles/p1_tiles.png",
+  "legend": {
+    ".": [0, 0],
+    ",": [1, 0],
+    "#": [2, 0],
+    "D": [3, 0]
+  },
+  "tilemap": [
+    "##################",
+    "#................#",
+    "#................#",
+    "#....######......#",
+    "#................#",
+    ",................#",
+    ",................#",
+    ",................#",
+    "#................#",
+    "#................#",
+    "#................#",
+    "##################"
+  ],
+  "collision": [
+    [0, 0, 18, 1],
+    [0, 11, 18, 1],
+    [0, 1, 1, 4],
+    [0, 8, 1, 3],
+    [17, 1, 1, 10],
+    [5, 3, 6, 1]
+  ],
+  "spawn_points": {
+    "default": [13.5, 5.5],
+    "from_street": [2.5, 6.5]
+  },
+  "npcs": [
+    { "npc": "npc_ch01_tai", "tile": [4, 4], "facing": "down" },
+    { "npc": "npc_ch01_shan", "tile": [13, 8], "facing": "up" }
+  ],
+  "doors": [],
+  "interactables": [
+    {
+      "id": "menu_board",
+      "tile": [9, 3],
+      "prompt": { "zh_HK": "睇餐牌", "zh_CN": "看餐牌", "en": "Read the menu" },
+      "on_interact": [
+        {
+          "type": "say",
+          "text": {
+            "zh_HK": "粉筆字寫住：奶茶、多士、蛋撻。價錢仲係手寫嘅。",
+            "zh_CN": "粉笔字写着：奶茶、多士、蛋挞。价钱还是手写的。",
+            "en": "Chalk on the board: milk tea, toast, egg tarts. The prices are still written by hand."
+          }
+        }
+      ]
+    }
+  ],
+  "exits": [
+    {
+      "id": "to_street",
+      "rect": [0, 5, 1, 3],
+      "to": "loc_ssp_market_street",
+      "spawn": "from_cct"
+    }
+  ],
+  "_comment": "Chapter 1 information-exchange hub (PLAN §12.2): Mrs Chan and Shan. Placeholder art."
+}

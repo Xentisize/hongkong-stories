@@ -1,0 +1,105 @@
+{
+  "schema_version": 1,
+  "id": "loc_ssp_market_street",
+  "display_name": { "zh_HK": "北河街街市", "zh_CN": "北河街街市", "en": "Pei Ho Street Market" },
+  "tile_size": 24,
+  "atlas": "res://assets/tiles/p1_tiles.png",
+  "legend": {
+    ".": [0, 0],
+    ",": [1, 0],
+    "#": [2, 0],
+    "D": [3, 0]
+  },
+  "tilemap": [
+    "############################",
+    "#..........................#",
+    "#..........................#",
+    "#..........................#",
+    "#..........................#",
+    "#..........................#",
+    ",..........................,",
+    ",..........................,",
+    ",..........................,",
+    "#..........................#",
+    "#.....##..........##.......#",
+    "#.....##..........##.......#",
+    "#..........................#",
+    "############################"
+  ],
+  "collision": [
+    [0, 0, 28, 1],
+    [0, 13, 28, 1],
+    [0, 1, 1, 5],
+    [0, 9, 1, 4],
+    [27, 1, 1, 5],
+    [27, 9, 1, 4],
+    [6, 10, 2, 2],
+    [18, 10, 2, 2]
+  ],
+  "spawn_points": {
+    "default": [13.5, 6.5],
+    "from_cct": [25.5, 7.5],
+    "from_flat": [2.5, 7.5]
+  },
+  "npcs": [
+    { "npc": "npc_ch01_ken", "tile": [7, 4], "facing": "down" },
+    { "npc": "npc_ch01_ming", "tile": [20, 3], "facing": "down" },
+    { "npc": "npc_ch01_wai", "tile": [11, 12], "facing": "up" }
+  ],
+  "doors": [],
+  "interactables": [
+    {
+      "id": "shop_sign",
+      "tile": [16, 12],
+      "once": true,
+      "prompt": { "zh_HK": "執起塊招牌", "zh_CN": "捡起招牌", "en": "Pick up the sign" },
+      "on_interact": [
+        { "type": "give", "item": "item_shop_sign_plate", "count": 1 },
+        {
+          "type": "say",
+          "text": {
+            "zh_HK": "招牌放咗喺牆邊。店名嗰部分，已經畀人磨走咗。",
+            "zh_CN": "招牌靠在墙边。店名的那一部分，已经被人磨掉了。",
+            "en": "The sign leans against the wall. The part with the shop's name has been sanded away."
+          }
+        }
+      ]
+    },
+    {
+      "id": "fish_tank",
+      "tile": [19, 9],
+      "prompt": { "zh_HK": "望下個水箱", "zh_CN": "看看水箱", "en": "Look at the tank" },
+      "on_interact": [
+        {
+          "type": "say",
+          "text": {
+            "zh_HK": "魚檔收咗舖，得返個空水箱。",
+            "zh_CN": "鱼摊收了铺，只剩一个空水箱。",
+            "en": "The fish stall is gone; only an empty tank remains."
+          }
+        }
+      ]
+    }
+  ],
+  "exits": [
+    {
+      "id": "to_flat",
+      "rect": [0, 6, 1, 3],
+      "to": "loc_ssp_flat",
+      "spawn": "default",
+      "requires": { "has_item": "item_flat_key" },
+      "blocked": {
+        "zh_HK": "樓梯口鎖咗，要有鎖匙先入到。",
+        "zh_CN": "楼梯口锁着，要有钥匙才进得去。",
+        "en": "The stairwell is locked; it opens to a key."
+      }
+    },
+    {
+      "id": "to_cct",
+      "rect": [27, 6, 1, 3],
+      "to": "loc_ssp_cha_chaan_teng",
+      "spawn": "default"
+    }
+  ],
+  "_comment": "Chapter 1 hub (PLAN §12.2). Placeholder art: the P1 four-tile atlas stands in until the Seedream pipeline (P4) delivers the modern urban tileset. The flat entrance is the chapter's condition-gated exit."
+}

@@ -5,18 +5,25 @@ extends Node2D
 ## destroys the player or its camera — the reason this indirection exists at all (§6.3).
 
 const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
-const DEFAULT_LOCATION := "loc_p1_shop"
+const CUTSCENE_UI := preload("res://scripts/ui/cutscene_ui.gd")
+const DEFAULT_LOCATION := "loc_ssp_market_street"
 
 @onready var world_host: Node2D = $WorldHost
 
 var location: LocationRoot = null
 var player: CharacterBody2D = null
+var cutscene: CanvasLayer = null
 
 var _restored_position: bool = false
 
 
 func _ready() -> void:
 	add_to_group("main")
+	# P3: the `goto` effect and location exits both funnel through the bus; the swap is
+	# deferred because the emitter may be mid-effects-loop or inside the exiting tree.
+	Bus.goto_requested.connect(_on_goto_requested)
+	cutscene = CUTSCENE_UI.new()
+	add_child(cutscene)
 	var version := Engine.get_version_info()
 	print("[Main] Godot %s | renderer=%s | viewport=%dx%d" % [
 		version.get("string", "?"),
@@ -40,7 +47,7 @@ func _ready() -> void:
 
 
 ## Rebuilds the world for a location id. Safe to call at runtime (dev console `loc` command).
-func load_location(location_id: String) -> void:
+func load_location(location_id: String, spawn_id: String = "default") -> void:
 	var definition := ContentDB.get_entity("locations", location_id)
 	if definition.is_empty():
 		push_error("Main: unknown location '%s'" % location_id)
@@ -64,11 +71,17 @@ func load_location(location_id: String) -> void:
 		player.global_position = Game.player_position
 		_restored_position = false
 	else:
-		player.global_position = location.get_spawn("default")
+		player.global_position = location.get_spawn(spawn_id)
 	Game.player_position = player.global_position
 
 	_apply_camera_limits()
 	Bus.location_entered.emit(location_id)
+
+
+## Called via Bus.goto_requested (Effects `goto`, location exits). Deferred so the swap never
+## happens inside the effects loop or the exiting location's own signal handlers.
+func _on_goto_requested(location_id: String, spawn_id: String) -> void:
+	load_location.call_deferred(location_id, spawn_id)
 
 
 func _apply_camera_limits() -> void:

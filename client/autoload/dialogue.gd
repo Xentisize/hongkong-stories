@@ -119,6 +119,8 @@ func state_projection() -> Dictionary:
 		"inventory": Game.inventory,
 		"talk_counts": Game.talk_counts,
 		"visited": Game.visited,
+		"quests": Game.quests,
+		"time_of_day": Game.time_of_day,
 	}
 
 
@@ -142,10 +144,11 @@ func _on_done(frame: Dictionary) -> void:
 	_remember("assistant", say)
 
 	# The server has already validated these against the NPC's declared allowlist (§5.1);
-	# Effects is still the single funnel that mutates state (§5.6).
+	# Effects is still the single funnel that mutates state (§5.6). The npc context tells
+	# `reveal_secret` which character is speaking — the model's action carries only the id.
 	var actions: Array = frame.get("actions", [])
 	if not actions.is_empty():
-		Effects.apply(actions)
+		Effects.apply(actions, {"npc": active_npc})
 
 	var rejected: Array = frame.get("rejected", [])
 	if not rejected.is_empty():
@@ -178,8 +181,23 @@ func _fallback_line() -> void:
 	else:
 		var lines: Array = fallback.get("lines", [])
 		if not lines.is_empty():
-			text = ContentDB.localize(lines[_scripted_index % lines.size()], Settings.locale)
-			_scripted_index += 1
+			var line: Variant = lines[_scripted_index % lines.size()]
+			if typeof(line) == TYPE_DICTIONARY:
+				# A structured line is { text, requires?, actions? }: the offline path can drive
+				# the quest, not just talk (§7.4 — the game never dead-ends). A gated line stays
+				# put and shows "…" until its condition passes, so a reward cannot be handed
+				# out on the wrong turn.
+				var structured: Dictionary = line
+				var gate: Variant = structured.get("requires")
+				if gate == null or Conditions.evaluate(gate):
+					text = ContentDB.localize(structured.get("text", ""), Settings.locale)
+					_scripted_index += 1
+					var line_actions: Array = structured.get("actions", [])
+					if not line_actions.is_empty():
+						Effects.apply(line_actions, {"npc": active_npc})
+			else:
+				text = ContentDB.localize(line, Settings.locale)
+				_scripted_index += 1
 
 	if text.is_empty():
 		text = "…"

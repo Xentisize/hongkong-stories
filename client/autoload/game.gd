@@ -15,6 +15,10 @@ var talk_counts: Dictionary = {}    ## npc_id -> int
 var visited: Dictionary = {}        ## location_id -> true
 var npc_memory: Dictionary = {}     ## npc_id -> {"summary": String, "turns": Array}
 
+## Read by the `time_of_day` condition verb (§5.5). There is no day/night cycle (§13.1) —
+## content or the dev console may set it; conditions only read it. Defaults to "day".
+var time_of_day: String = "day"
+
 var content_version: int = 0
 var current_location: String = ""
 var player_position: Vector2 = Vector2.ZERO
@@ -29,6 +33,7 @@ func new_game() -> void:
 	talk_counts.clear()
 	visited.clear()
 	npc_memory.clear()
+	time_of_day = "day"
 	content_version = 0
 	current_location = ""
 	player_position = Vector2.ZERO
@@ -47,6 +52,13 @@ func set_flag(flag: String, value: bool) -> void:
 
 func get_var(var_name: String, fallback: float = 0.0) -> float:
 	return float(vars.get(var_name, fallback))
+
+
+## Typed accessor for one quest's save record; {} when the quest is unknown or corrupt.
+## Effects and the Quests machine both go through here so a malformed save cannot crash them.
+func quest_record(quest_id: String) -> Dictionary:
+	var raw: Variant = quests.get(quest_id, {})
+	return raw if typeof(raw) == TYPE_DICTIONARY else {}
 
 
 func has_item(item_id: String, count: int = 1) -> bool:
@@ -112,6 +124,7 @@ func to_dict() -> Dictionary:
 		"talk_counts": talk_counts.duplicate(true),
 		"visited": visited.duplicate(true),
 		"npc_memory": npc_memory.duplicate(true),
+		"time_of_day": time_of_day,
 		"current_location": current_location,
 		"player_position": [player_position.x, player_position.y],
 		"playtime_sec": playtime_sec,
@@ -133,6 +146,7 @@ func from_dict(data: Dictionary) -> bool:
 	talk_counts = data.get("talk_counts", {})
 	visited = data.get("visited", {})
 	npc_memory = data.get("npc_memory", {})
+	time_of_day = String(data.get("time_of_day", "day"))
 	current_location = String(data.get("current_location", ""))
 	playtime_sec = float(data.get("playtime_sec", 0.0))
 

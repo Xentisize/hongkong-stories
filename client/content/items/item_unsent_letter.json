@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "id": "item_unsent_letter",
+  "name": { "zh_HK": "未寄嘅信", "zh_CN": "未寄出的信", "en": "Unsent Letter" },
+  "desc": {
+    "zh_HK": "封咗口但冇貼郵票嘅信，字跡係女性嘅。",
+    "zh_CN": "封了口却没有贴邮票的信，字迹出自女性之手。",
+    "en": "A sealed letter that never got a stamp; a woman's handwriting."
+  },
+  "stack_max": 1,
+  "category": "keepsake",
+  "usable": false,
+  "on_use": [],
+  "on_acquire": [],
+  "lore_ref": "lore/ch01_hk_2027.md",
+  "_comment": "The chapter-5 door per PLAN §12.2; its moment arrives in P5 content."
+}

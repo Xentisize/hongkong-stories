@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "id": "item_tea_receipt",
+  "name": { "zh_HK": "茶樓收據", "zh_CN": "茶楼收据", "en": "Tea-house Receipt" },
+  "desc": {
+    "zh_HK": "一張外賣收據，日期被人用鉛筆圈起咗。",
+    "zh_CN": "一张外卖收据，日期被人用铅笔圈了起来。",
+    "en": "A takeaway receipt; someone circled the date in pencil."
+  },
+  "stack_max": 1,
+  "category": "keepsake",
+  "usable": false,
+  "on_use": [],
+  "on_acquire": [],
+  "lore_ref": "lore/ch01_hk_2027.md"
+}

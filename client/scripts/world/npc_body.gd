@@ -10,6 +10,8 @@ var npc_id: String = ""
 var display_name: String = ""
 
 var _tile_size: int = 24
+var _requires: Variant = null
+var _requires_pass: bool = true
 
 
 func configure(placement: Dictionary, tile_size: int) -> void:
@@ -23,6 +25,14 @@ func configure(placement: Dictionary, tile_size: int) -> void:
 	var definition := ContentDB.get_entity("npcs", npc_id)
 	display_name = ContentDB.localize(definition.get("display_name", npc_id), Settings.locale)
 	name = "Npc_%s" % npc_id
+	# Presence gating (§5.1 trigger block): the placement may carry `requires`, else the NPC
+	# definition's own trigger does. Auto-started trigger conversations (once_per_session)
+	# are not built yet — this only gates whether the character is here at all.
+	_requires = placement.get("requires")
+	if _requires == null:
+		var trigger: Dictionary = definition.get("trigger", {})
+		_requires = trigger.get("requires")
+	_refresh_availability()
 	queue_redraw()
 
 
@@ -31,8 +41,15 @@ func get_prompt() -> String:
 
 
 func is_available() -> bool:
-	# While a conversation is open the player should be typing, not re-targeting.
-	return not Dialogue.is_active()
+	# While a conversation is open the player should be typing, not re-targeting; a gated
+	# NPC is simply not there until its condition passes.
+	return not Dialogue.is_active() and _requires_pass
+
+
+## Re-evaluated on state changes; LocationRoot fans the bus signals out to every placed NPC.
+func refresh_availability() -> void:
+	_requires_pass = _requires == null or Conditions.evaluate(_requires)
+	visible = _requires_pass
 
 
 func interact() -> void:

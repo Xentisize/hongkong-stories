@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "id": "item_photo_album",
+  "name": { "zh_HK": "舊相簿", "zh_CN": "旧相簿", "en": "Photo Album" },
+  "desc": {
+    "zh_HK": "黑皮相簿，繩結已經鬆開，入面全係黑白相。",
+    "zh_CN": "黑皮相簿，绳结已经松开，里面全是黑白照片。",
+    "en": "A black album, its tie-string loose; black-and-white photographs inside."
+  },
+  "stack_max": 1,
+  "category": "keepsake",
+  "usable": true,
+  "use_requires": { "flag": "album_identified" },
+  "use_locked": {
+    "zh_HK": "呢本相簿，仲未有人講得出係邊度影嘅。",
+    "zh_CN": "这本相簿，还没人说得出是在哪里拍的。",
+    "en": "Nobody can yet say where these photographs were taken."
+  },
+  "on_use": [
+    { "type": "set_flag", "flag": "ch02_opened" },
+    {
+      "type": "say",
+      "text": {
+        "zh_HK": "相簿一揭開，條街嘅聲音就變咗。",
+        "zh_CN": "相簿一揭开，这条街的声音就变了。",
+        "en": "The moment the album opens, the sound of the street changes."
+      }
+    }
+  ],
+  "on_acquire": [],
+  "lore_ref": "lore/ch01_hk_2027.md",
+  "_comment": "The chapter-2 door (PLAN §12.1: a memento is an item whose on_use starts what comes next). Chapter 2 content is a P5 deliverable; for now the use records ch02_opened. `use_requires` is a P3 schema extension: usability is gated by the condition DSL like everything else."
+}

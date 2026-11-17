@@ -15,6 +15,16 @@ signal quest_completed(quest_id: String)
 signal location_entered(location_id: String)
 signal player_interacted(target_name: String)
 
+## P3 (§5.6): navigation and presentation-only effects. `goto_requested` is emitted by the
+## `goto` effect and by location exits; Main owns the actual location swap and defers it.
+signal goto_requested(location_id: String, spawn_id: String)
+signal cutscene_started(quest_id: String, node_id: String)
+signal secret_revealed(npc_id: String, secret_id: String, text: String)
+signal shop_opened(npc_id: String)
+signal sfx_requested(sfx_name: String)
+signal shake_requested(strength: float, time: float)
+signal fade_requested(direction: String, time: float)
+
 signal dialogue_started(npc_id: String)
 signal npc_spoke(npc_id: String, text: String)
 signal dialogue_finished(npc_id: String)

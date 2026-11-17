@@ -1,10 +1,29 @@
 {
   "manifest_schema": 1,
   "version": 1,
-  "content_hash": "1d493073088a",
+  "content_hash": "abd1790f2570",
   "files": [
+    "npcs/npc_ch01_ken.json",
+    "npcs/npc_ch01_ming.json",
+    "npcs/npc_ch01_shan.json",
+    "npcs/npc_ch01_tai.json",
+    "npcs/npc_ch01_wai.json",
     "npcs/npc_p2_shopkeeper.json",
+    "items/item_cassette_tape.json",
+    "items/item_flat_key.json",
+    "items/item_octopus_card.json",
+    "items/item_photo_album.json",
     "items/item_rusty_key.json",
-    "locations/loc_p1_shop.json"
+    "items/item_shop_sign_plate.json",
+    "items/item_tea_receipt.json",
+    "items/item_tram_ticket.json",
+    "items/item_unsent_letter.json",
+    "locations/loc_p1_shop.json",
+    "locations/loc_ssp_cha_chaan_teng.json",
+    "locations/loc_ssp_flat.json",
+    "locations/loc_ssp_market_street.json",
+    "quests/ch01.json",
+    "quests/q_test_chain.json",
+    "quests/q_test_gated.json"
   ]
 }

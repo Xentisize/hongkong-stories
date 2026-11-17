@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "id": "item_octopus_card",
+  "name": { "zh_HK": "八達通", "zh_CN": "八达通", "en": "Octopus Card" },
+  "desc": {
+    "zh_HK": "舊款八達通，卡面已經刮花，入面仲有尾數。",
+    "zh_CN": "一张旧款八达通，卡面已经刮花，里面还有余额。",
+    "en": "An old Octopus card, the print scratched dull; there is still a little on it."
+  },
+  "stack_max": 1,
+  "category": "keepsake",
+  "usable": false,
+  "on_use": [],
+  "on_acquire": [],
+  "lore_ref": "lore/ch01_hk_2027.md"
+}

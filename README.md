@@ -51,6 +51,22 @@ reports the game's `[Dialogue]` line — so it distinguishes *the model answered
 fallback answered*, and exits non-zero on any unexpected console error. Run it once with the
 backend up and once with it stopped.
 
+### On a real phone (the open P0 criterion)
+
+The HUD's top-left readout prints live FPS, so the check is a measurement, not an eyeball:
+
+1. `tools/export_web.sh` (`.br` sidecars appear when the `brotli` CLI is on PATH) then
+   `python3 tools/serve_web.py 8099 build/web 0.0.0.0` — the third argument binds the LAN;
+   omit it to stay on 127.0.0.1.
+2. Phone on the same Wi-Fi: open `http://<machine-LAN-IP>:8099/`. Android over USB instead:
+   keep 127.0.0.1 and run `adb reverse tcp:8099 tcp:8099`, then open `http://127.0.0.1:8099/`.
+3. Walk, open a dialogue, open the inventory — read the HUD FPS in each state. Target: ≥60
+   throughout (§10.4 budgets 16.6 ms per frame on a mid-tier phone).
+4. If a reading dips: Android `chrome://inspect` over USB shows exact frame timings; iOS via
+   Safari → Develop → the phone.
+5. Finish with Wi-Fi off — the session must keep running on baseline content + scripted
+   fallback (§11's "the one test that will actually save the project").
+
 ## Verified in P2
 
 | Check | Result |
@@ -63,6 +79,25 @@ backend up and once with it stopped.
 | Browser, backend **up** | walked + talked → `咁靜嘅？淨係望住我，係咪想買嘢又唔知點開口呀？`, 0 errors |
 | Browser, backend **down** | same run → `後生仔，隨便睇。 (fallback)`, 0 unexpected errors |
 | Build | `index.wasm` 38 MB · `index.pck` 4.8 MB (fonts included) |
+
+## Status: P3 — story engine built, suite runs pending
+
+Chapter 1 plays end to end on the engine side: the quest node machine (`Quests` autoload,
+signal-driven, no polling), a minimal cutscene overlay, NPC presence gating, walk-in exits
+(§5.3), three new condition verbs (`quest_state` / `quest_done` / `time_of_day`), seven new
+effect verbs (`quest` / `goto` / `reveal_secret` / `open_shop` / `play_sfx` / `shake` /
+`fade`), and offline-safe fallback lines that can drive the quest (`scripted_fallback` lines
+may now be `{text, requires, actions}` — the offline path can hand over the flat key and
+identify the album, so the chapter never dead-ends with the backend down).
+
+Verified on this machine: all 22 content entities parse, carry three locales, and contain no
+Cantonese particles in `zh_CN` (§11 spot-check); the shared condition fixtures pass through
+the Python evaluator (30/30); the font-coverage gate passes — every authored character is
+renderable. **Not yet run** — needs a machine with the toolchain: the Godot `--selftest`
+suite (now covers the quest chain, the cutscene pause and the P3 effects) and the full
+backend `pytest` (uv cannot fetch CPython 3.15.2 here). The §12 exit criterion — a cold
+player finishing chapter 1 without a dead end — still needs a human playtest, backend up
+and down.
 
 ## Fonts and licensing (read before swapping fonts)
 
@@ -79,18 +114,25 @@ against the Cantonese particle set and every string in `client/content/`.
 
 ## Known gaps
 
-- **No admin mode yet** (P4), no quests or secret reveals (P3), no art pipeline (P4).
+- **No admin mode yet** (P4), no art pipeline (P4). The P3 story engine and chapter-1 content
+  now exist (see "Status: P3").
 - **Cache-hit telemetry is not wired.** Prefix stability is *asserted* by test, but the actual hit
   rate is unmeasured — PLAN §7.5's cost model assumes it works.
 - **Token counts are estimated** (CJK ≈ 1 token/char), not read from the provider, so budgets are
   conservative rather than exact.
 - **Content changes need a re-export** until P4's hot-pack endpoint exists.
-- **Placeholder content only**: the shop, the shopkeeper and the item are `"placeholder": true`,
-  because chapter-1 framing and the canonical authoring locale are still open (PLAN §14).
+- **Chapter 1 content is authored, zh_HK-canonical** (both §14 decisions settled): 3 locations,
+  5 NPCs, 8 mementos, the ch01 arc, and `lore/ch01_hk_2027.md`. The P1/P2 fixtures
+  (`loc_p1_shop`, `npc_p2_shopkeeper`) remain as engine test content. Art is still the P1
+  placeholder atlas until the P4 pipeline.
 - **The build stamp** (`p2-font-2` in the HUD corner) is a development aid — remove it before
   shipping, along with the dev console's unconditional dialogue logging.
-- No brotli pre-compression (`brew install brotli` enables it); 60 fps on a physical phone is
-  still an eyeball test.
+- **Brotli pre-compression is wired but unmeasured**: `tools/export_web.sh` writes `.br`
+  sidecars when the `brotli` CLI is installed, and `tools/serve_web.py` serves them with
+  `Content-Encoding: br` — sizes stay unmeasured until the next real export (the machine that
+  runs the export needs godot + brotli; the script prints the artifact list).
+- **60 fps on a physical phone is still unmeasured.** The HUD already prints live FPS; follow
+  the checklist under "Tests".
 
 ## Read this first
 

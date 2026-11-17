@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "id": "q_test_gated",
+  "placeholder": true,
+  "_comment": "P3 engine fixture: entry_requirements must refuse to start until q_test_chain is done (PLAN 5.4 entry_requires).",
+  "title": {
+    "zh_HK": "測試門",
+    "zh_CN": "测试门",
+    "en": "Test Gate"
+  },
+  "entry_requires": { "quest_done": "q_test_chain" },
+  "nodes": [
+    {
+      "id": "n1",
+      "type": "objective",
+      "text": { "zh_HK": "再設一個旗標。", "zh_CN": "再设一个旗标。", "en": "Set another flag." },
+      "complete_when": { "flag": "test_gate2" },
+      "next": null,
+      "on_complete": []
+    }
+  ]
+}

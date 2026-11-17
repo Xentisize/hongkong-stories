@@ -21,6 +21,7 @@ var _floor_atlas: Vector2i = Vector2i.ZERO
 var doors: Array[Node2D] = []
 var interactables: Array[Node2D] = []
 var npcs: Array[Node2D] = []
+var exits: Array[Node2D] = []
 
 
 func build(location: Dictionary) -> void:
@@ -33,6 +34,7 @@ func build(location: Dictionary) -> void:
 	_build_doors()
 	_build_interactables()
 	_build_npcs()
+	_build_exits()
 
 
 func _build_tiles() -> void:
@@ -120,6 +122,25 @@ func _build_npcs() -> void:
 		add_child(node)
 		node.configure(placement, tile_size)
 		npcs.append(node)
+
+	# NPC presence is condition-gated (§5.1); re-evaluate whenever state changes or a
+	# conversation ends (talk counts). The connections die with this node on a location swap.
+	Bus.effect_applied.connect(func(_effect: Dictionary) -> void: _refresh_npcs())
+	Bus.dialogue_finished.connect(func(_npc_id: String) -> void: _refresh_npcs())
+
+
+func _refresh_npcs() -> void:
+	for npc in npcs:
+		npc.call("refresh_availability")
+
+
+func _build_exits() -> void:
+	for raw in data.get("exits", []):
+		var definition: Dictionary = raw
+		var node := LocationExit.new()
+		add_child(node)
+		node.configure(definition, tile_size)
+		exits.append(node)
 
 
 ## World position for a spawn point id ("default" if unknown/missing).

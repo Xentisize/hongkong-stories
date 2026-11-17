@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "id": "q_test_chain",
+  "placeholder": true,
+  "_comment": "P3 engine fixture for the quest node machine (PLAN 5.4). Deliberately not chapter content: it drives start -> condition-gated advance -> cutscene pause -> dismissal -> completion through the shared effects pipeline in the headless selftest.",
+  "title": {
+    "zh_HK": "測試鏈",
+    "zh_CN": "测试链",
+    "en": "Test Chain"
+  },
+  "entry_requires": null,
+  "nodes": [
+    {
+      "id": "n1",
+      "type": "objective",
+      "text": { "zh_HK": "設一個旗標。", "zh_CN": "设一个旗标。", "en": "Set a flag." },
+      "complete_when": { "flag": "test_gate" },
+      "next": "n2",
+      "on_complete": []
+    },
+    {
+      "id": "n2",
+      "type": "objective",
+      "complete_when": { "has_item": "item_rusty_key" },
+      "next": "n3",
+      "on_complete": [ { "type": "set_flag", "flag": "test_n2_done" } ]
+    },
+    {
+      "id": "n3",
+      "type": "cutscene",
+      "text": [
+        { "zh_HK": "過場第一段。", "zh_CN": "过场第一段。", "en": "Cutscene part one." },
+        { "zh_HK": "過場第二段。", "zh_CN": "过场第二段。", "en": "Cutscene part two." }
+      ],
+      "next": "n4",
+      "on_complete": [ { "type": "set_flag", "flag": "test_n3_done" } ]
+    },
+    {
+      "id": "n4",
+      "type": "objective",
+      "complete_when": { "flag": "test_final" },
+      "next": null,
+      "on_complete": []
+    }
+  ]
+}

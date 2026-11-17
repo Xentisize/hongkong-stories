@@ -169,7 +169,7 @@ func _run(command: String, args: PackedStringArray) -> void:
 
 		"newgame":
 			Game.new_game()
-			get_tree().call_group("main", "load_location", "loc_p1_shop")
+			get_tree().call_group("main", "load_location", "loc_ssp_market_street")
 			_print("new game")
 
 		"locale":
