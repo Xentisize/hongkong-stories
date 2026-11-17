@@ -1,0 +1,28 @@
+[project]
+name = "hk-stories-server"
+version = "0.1.0"
+description = "LLM proxy and admin API for Hong Kong Stories"
+requires-python = "==3.15.2"
+dependencies = [
+    # WebSocket support is served by uvicorn + websockets; the [standard] extra is avoided
+    # deliberately because uvloop/httptools wheels lag new interpreters (PLAN 10.6).
+    "fastapi>=0.118,<1",
+    "uvicorn>=0.34,<1",
+    "websockets>=13",
+    "httpx>=0.28,<1",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3,<9",
+    "pytest-asyncio>=0.25,<1",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py315"

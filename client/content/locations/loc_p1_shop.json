@@ -41,6 +41,13 @@
   "spawn_points": {
     "default": [9.5, 9.5]
   },
+  "npcs": [
+    {
+      "npc": "npc_p2_shopkeeper",
+      "tile": [15, 6],
+      "facing": "down"
+    }
+  ],
   "doors": [
     {
       "id": "shop_door",

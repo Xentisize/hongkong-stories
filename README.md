@@ -7,102 +7,111 @@ Godot 4.7 · browser-deployed · LLM-driven NPCs.
 Ships in three locales: **written Cantonese (Traditional)**, **Simplified Chinese**, and
 **English** — three real versions of every string, not glyph conversion (PLAN §5.8).
 
-**Status: P1 complete — the core loop runs.** Walk a tiled location, search a crate, take an
-item, use it on a locked door, quit, reload, and your inventory is still there. There are no
-NPCs and no dialogue yet: that is P2. Architecture and plan: [`docs/PLAN.md`](docs/PLAN.md).
+**Status: P2 complete — you can hold a conversation with an NPC.** Walk to the shopkeeper, press
+E, and talk: replies stream token by token in the player's language, respect a per-NPC action
+allowlist, and fall back to authored scripted lines when the backend is unreachable.
 
 ## Quick start
 
+Two processes. The backend owns the OpenRouter key; the game never sees it (PLAN §3).
+
 ```bash
-python3 tools/gen_content_manifest.py                 # after ANY content JSON change
-tools/export_web.sh                                   # → build/web/
-python3 -m http.server 8099 --directory build/web     # → http://127.0.0.1:8099/
+# terminal 1 — backend (reads OPENROUTER_API_KEY from .env)
+cd server && uv sync && uv run uvicorn app.main:app --host 127.0.0.1 --port 8000
+
+# terminal 2 — game
+python3 tools/gen_content_manifest.py                # after ANY content JSON change
+tools/export_web.sh                                  # → build/web/
+python3 tools/serve_web.py 8099                      # → http://127.0.0.1:8099/ (no-store)
 ```
 
-Or open `client/project.godot` in Godot 4.7.2 and press F5.
+Use `tools/serve_web.py`, not `python3 -m http.server`: the latter sends no `Cache-Control`, so
+Chrome will keep serving a stale `index.pck` after a re-export — which looks exactly like a
+broken build. That cost a debugging detour once already. The HUD also prints a small build stamp
+(`p2-font-2`) in the bottom-right corner, so "which build am I looking at?" is answerable on sight.
 
-**Controls:** WASD / arrows to walk · **E** interact · **I** inventory · **F1** dev console.
+Or open `client/project.godot` in Godot 4.7.2 and press F5 (it talks to `127.0.0.1:8000` by
+default; `HK_STORIES_API` overrides it for a desktop run).
 
-## Dev console (F1)
-
-```
-flag <name> [0|1]     give <item> [n]      take <item> [n]    var <name> <value>
-tp <x> <y>            loc <location_id>    save [slot]        load [slot]
-newgame               locale <zh_HK|zh_CN|en>                 dump
-```
-
-`flag door_open 1` then walking to the door and pressing **E** opens it — the same code path a
-key item uses, so there is no special-case debug door.
+**Controls:** WASD / arrows to walk · **E** interact or talk · type in the box and **Enter** to
+speak · **Esc** leave the conversation · **I** inventory · **F1** dev console.
 
 ## Tests
 
 ```bash
-godot --headless --path client -- --selftest     # 36 assertions, exit code = failures
+cd server && uv run pytest                                  # 44 backend tests
+godot --headless --path client -- --selftest                # 65 client checks (offline)
+godot --headless --path client -- --live-chat               # 6 checks (needs the backend)
+python3 tools/check_font_coverage.py                        # CJK glyph coverage gate
+node tools/web_smoke.mjs http://127.0.0.1:8099/ /tmp/s.png 12000 talk   # browser E2E
 ```
 
-Covers content loading, three-locale resolution, effects (including `stack_max` clamping),
-every condition verb, the save round-trip, and door gating across a location rebuild.
+`web_smoke` in `talk` mode injects real key events over CDP, walks to the NPC, presses E, and
+reports the game's `[Dialogue]` line — so it distinguishes *the model answered* from *the
+fallback answered*, and exits non-zero on any unexpected console error. Run it once with the
+backend up and once with it stopped.
 
-```bash
-python3 -m http.server 8099 --directory build/web &
-node tools/web_smoke.mjs http://127.0.0.1:8099/ /tmp/shot.png 12000
-```
-
-Drives real Chrome over CDP, waits for the wasm to compile (a `--virtual-time-budget`
-screenshot only ever catches Godot's loading screen), and reports canvas size, page logs,
-console errors, and a screenshot.
-
-## Verified in P1
+## Verified in P2
 
 | Check | Result |
 |-------|--------|
-| `--selftest` | **36 checks, 0 failures**, exit 0 |
-| `tools/export_web.sh` | exit 0 → `index.wasm` 38 MB · `index.pck` 59 KB · `index.js` 273 KB |
-| Real browser boot | canvas live, loader finished, **0 console errors** |
-| Content in wasm | page log `[ContentDB] loaded 2 entities \| locale=zh_HK` — manifest-driven loading works in the exported build |
-| Rendering | 152 distinct colours; floor 30%, wall 6%, door + player present (generated atlas, not drawn primitives) |
+| `pytest` | **44 passed** — prefix stability, extractors, allowlist, budget, every error frame |
+| `--selftest` | **65 checks, 0 failures** — includes the shared conditions table and font coverage |
+| Live backend turn (zh_HK) | first token **3.11 s**, reply `幾耐？我都冇認真數過喇。淨係知貨架越賣越空…` |
+| Live backend turn (en) | first token **1.30 s**, proper English voice |
+| In-engine `--live-chat` | 6/6 — session, streaming, budget charged, no fallback |
+| Browser, backend **up** | walked + talked → `咁靜嘅？淨係望住我，係咪想買嘢又唔知點開口呀？`, 0 errors |
+| Browser, backend **down** | same run → `後生仔，隨便睇。 (fallback)`, 0 unexpected errors |
+| Build | `index.wasm` 38 MB · `index.pck` 4.8 MB (fonts included) |
 
-**Content iteration loop:** edit JSON → `python3 tools/gen_content_manifest.py` →
-`tools/export_web.sh`. Until P4's hot-pack endpoint exists, content changes require a re-export.
+## Fonts and licensing (read before swapping fonts)
 
-## Known gaps (deliberate)
+Godot ships **no CJK glyphs**, so Chinese renders as a wall of boxes with the default theme font.
+The game bundles **Fusion Pixel 12px monospaced** (`zh_hk` default, `zh_hans` fallback) —
+**OFL 1.1**, licence files in `client/assets/fonts/`, installed at runtime in
+`Settings._install_theme()` with antialiasing and subpixel positioning disabled so 12 px stays
+crisp at 5× scale.
 
-- **Placeholder art.** Tiles and the item icon come from `tools/gen_placeholder_art.py`;
-  the player is still drawn in code. Seedream generation is P4.
-- **Maps are JSON, not editor scenes.** `LocationRoot` builds the `TileMapLayer` + `TileSet` at
-  runtime from `tilemap`/`legend` rows (PLAN §5.3 explains why and the migration path).
-- **No brotli pre-compression** — `brew install brotli` and the export script picks it up;
-  38 MB raw wasm is what PLAN §10.4 budgets against.
-- **One location, so exits are coded but unexercised.** No NPCs, dialogue, or backend (P2).
-- **60 fps on a physical phone** is still an eyeball test.
-- **gdUnit4 not adopted yet** — `client/tests/selftest.gd` carries the assertions until P2.
+**Zpix was evaluated and rejected**: it covers Cantonese in a single 4.5 MB file, but its licence
+is **USD $1000 per commercial product** (free for education only). Do not reintroduce it without
+paying. Any replacement font must pass `tools/check_font_coverage.py`, which reads the real cmap
+against the Cantonese particle set and every string in `client/content/`.
+
+## Known gaps
+
+- **No admin mode yet** (P4), no quests or secret reveals (P3), no art pipeline (P4).
+- **Cache-hit telemetry is not wired.** Prefix stability is *asserted* by test, but the actual hit
+  rate is unmeasured — PLAN §7.5's cost model assumes it works.
+- **Token counts are estimated** (CJK ≈ 1 token/char), not read from the provider, so budgets are
+  conservative rather than exact.
+- **Content changes need a re-export** until P4's hot-pack endpoint exists.
+- **Placeholder content only**: the shop, the shopkeeper and the item are `"placeholder": true`,
+  because chapter-1 framing and the canonical authoring locale are still open (PLAN §14).
+- **The build stamp** (`p2-font-2` in the HUD corner) is a development aid — remove it before
+  shipping, along with the dev console's unconditional dialogue logging.
+- No brotli pre-compression (`brew install brotli` enables it); 60 fps on a physical phone is
+  still an eyeball test.
 
 ## Read this first
 
 | Section | What it settles |
 |---------|-----------------|
-| [§2](docs/PLAN.md#2-verified-environment-checked-not-assumed) | Verified environment + model prices/capabilities |
 | [§3](docs/PLAN.md#3-architecture-and-trust-boundary) | Architecture, and why the API key can never be in the client |
 | [§5](docs/PLAN.md#5-content-data-model) | NPC/item/location/quest schemas, condition & effect languages, three locales |
-| [§6](docs/PLAN.md#6-runtime-client-design-godot-47) | Godot settings, autoloads, scenes, saves, fonts |
+| [§6](docs/PLAN.md#65-localization-and-fonts-the-part-that-can-break-the-web-build) | Godot settings, autoloads, fonts and the CJK trap |
 | [§7](docs/PLAN.md#7-llm-conversation-design) | Chat protocol, prompt-cache strategy, action allowlists, cost model |
-| [§8](docs/PLAN.md#8-pixel-art-asset-pipeline-seedream--game-ready-sprites) | Seedream → game-ready pixel art pipeline |
 | [§9](docs/PLAN.md#9-admin-mode) | Admin mode design and why it's a browser SPA |
-| [§10](docs/PLAN.md#10-web-deployment) | Web export, hosting split, budgets, CI, toolchain pins |
 | [§12](docs/PLAN.md#12-milestones) | Phases P0–P6 with observable exit criteria |
-| [§14](docs/PLAN.md#14-open-decisions-before-scaffolding) | The four decisions still open |
+| [§14](docs/PLAN.md#14-open-decisions-before-scaffolding) | The decisions still open |
 
 ## Prerequisites
 
-- Godot **4.7.2** — installed at `/Applications/Godot.app`; web export templates installed for
-  `4.7.2.stable` (see [§10.1](docs/PLAN.md#101-export-templates-installed-in-p0)).
-- **Python 3.15.2**, locked exactly — managed by `uv` (`uv python pin 3.15.2`, then `uv sync`).
-  The system `python3` is 3.9.6 and is only used for the stdlib tooling scripts under `tools/`.
-  See [§10.6](docs/PLAN.md#106-toolchains-python-3152-and-bun-144).
-- **bun 1.4.4** for the admin SPA (`~/.bun/bin/bun`) — the only package manager; no npm, pnpm
-  or yarn lockfiles in the repo. See [§10.6](docs/PLAN.md#106-toolchains-python-3152-and-bun-144).
+- Godot **4.7.2** with web export templates for `4.7.2.stable` (PLAN §10.1).
+- **Python 3.15.2**, locked exactly — `uv` manages it (`uv python pin 3.15.2`). The system
+  `python3` is 3.9.6 and is used only for the stdlib tools in `tools/`.
+- **bun 1.4.4** for the admin SPA when it lands — the only package manager.
 
 ## Secrets
 
-`OPENROUTER_API_KEY` lives in the backend environment only. It must never appear in
-`client/`, in `export_presets.cfg`, or in any file that ships to a browser.
+`OPENROUTER_API_KEY` lives in `.env` (git-ignored) and is read by the backend only. It must never
+appear in `client/`, in `export_presets.cfg`, or in any file that ships to a browser.

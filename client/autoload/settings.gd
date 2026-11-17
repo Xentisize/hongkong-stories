@@ -5,6 +5,14 @@ const SUPPORTED_LOCALES: PackedStringArray = ["zh_HK", "zh_CN", "en"]
 const DEFAULT_LOCALE := "zh_HK"
 const SETTINGS_PATH := "user://settings.cfg"
 
+## Godot ships no CJK glyphs at all, so Chinese rendered with the default theme font is a wall
+## of boxes. These are the OFL-1.1 Fusion Pixel faces (PLAN §6.5): zh_HK is default because
+## written Cantonese needs Traditional + HKSCS, with zh_Hans as the fallback for Simplified.
+## (Zpix was rejected: its licence is USD 1000 per commercial product.)
+const FONT_HK := "res://assets/fonts/fusion-pixel-12px-monospaced-zh_hk.ttf"
+const FONT_HANS := "res://assets/fonts/fusion-pixel-12px-monospaced-zh_hans.ttf"
+const BASE_FONT_SIZE := 12
+
 ## Order matters: readable Chinese first, English last (§6.5).
 const FALLBACK_ORDER: PackedStringArray = ["zh_HK", "zh_CN", "en"]
 
@@ -16,9 +24,40 @@ var _config := ConfigFile.new()
 
 
 func _ready() -> void:
+	_install_theme()
 	_load()
 	register_input_actions()
 	_apply_locale(resolve_locale(locale))
+
+
+## Applies the CJK font chain to the whole UI at runtime, which is more explicit than a project
+## setting and lets the pixel-specific TextServer flags be set in one place.
+func _install_theme() -> void:
+	var traditional := load(FONT_HK) as FontFile
+	if traditional == null:
+		push_error("Settings: CJK font missing at %s" % FONT_HK)
+		return
+	_harden_for_pixels(traditional)
+
+	var simplified := load(FONT_HANS) as FontFile
+	if simplified != null:
+		_harden_for_pixels(simplified)
+		# zh_HK first for Traditional/HKSCS, zh_Hans behind it for Simplified characters.
+		traditional.fallbacks = [simplified]
+
+	var theme := Theme.new()
+	theme.default_font = traditional
+	theme.default_font_size = BASE_FONT_SIZE
+	get_tree().root.theme = theme
+
+
+## A pixel font must not be smoothed: antialiasing and subpixel positioning turn 12px glyph
+## edges into grey mush at 5x integer scale.
+func _harden_for_pixels(font: FontFile) -> void:
+	font.antialiasing = TextServer.FONT_ANTIALIASING_NONE
+	font.hinting = TextServer.HINTING_NONE
+	font.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_DISABLED
+	font.multichannel_signed_distance_field = false
 
 
 ## Maps the OS/browser locale onto one of the three shipping locales (§6.5).

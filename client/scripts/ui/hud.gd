@@ -20,8 +20,13 @@ var _message_label: Label
 var _panel: PanelContainer
 var _title_label: Label
 var _list: VBoxContainer
+var _stamp_label: Label
 
 var _message_timer: float = 0.0
+
+## Bumped whenever the presentation changes, so "am I looking at the new build?" is answerable
+## by looking at the screen instead of guessing at browser caches. TODO: hide before shipping.
+const BUILD_STAMP := "p2-font-2"
 
 
 func _ready() -> void:
@@ -61,7 +66,7 @@ func _build() -> void:
 	_fps_label.offset_bottom = 14
 	add_child(_fps_label)
 
-	_message_label = _make_label(10)
+	_message_label = _make_label(12)
 	_message_label.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
 	_message_label.offset_left = 10
 	_message_label.offset_right = -10
@@ -73,7 +78,7 @@ func _build() -> void:
 	_message_label.visible = false
 	add_child(_message_label)
 
-	_prompt_label = _make_label(10)
+	_prompt_label = _make_label(12)
 	_prompt_label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
 	_prompt_label.offset_left = 8
 	_prompt_label.offset_right = -8
@@ -101,12 +106,25 @@ func _build() -> void:
 	column.add_theme_constant_override("separation", 3)
 	_panel.add_child(column)
 
-	_title_label = _make_label(10)
+	_title_label = _make_label(12)
 	column.add_child(_title_label)
 
 	_list = VBoxContainer.new()
 	_list.add_theme_constant_override("separation", 2)
 	column.add_child(_list)
+
+	# Build stamp: tells a human at a glance which build is on screen, which is the difference
+	# between "rendering is broken" and "your browser is showing a cached pck".
+	_stamp_label = _make_label(10)
+	_stamp_label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
+	_stamp_label.offset_left = -90
+	_stamp_label.offset_top = -16
+	_stamp_label.offset_right = -2
+	_stamp_label.offset_bottom = -2
+	_stamp_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_stamp_label.add_theme_color_override("font_color", Color(0.55, 0.55, 0.5, 0.9))
+	_stamp_label.text = BUILD_STAMP
+	add_child(_stamp_label)
 
 
 func _make_label(font_size: int) -> Label:
@@ -116,6 +134,9 @@ func _make_label(font_size: int) -> Label:
 
 
 func _update_prompt() -> void:
+	if Dialogue.is_active():
+		_prompt_label.visible = false
+		return
 	var player := get_tree().get_first_node_in_group("player")
 	var text := ""
 	if player != null and player.has_method("get_prompt_text"):

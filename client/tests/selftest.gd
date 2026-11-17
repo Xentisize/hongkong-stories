@@ -36,6 +36,9 @@ static func run(tree: SceneTree) -> int:
 	_test_content(c)
 	_test_localization(c, original_locale)
 	_test_effects_and_conditions(c)
+	_test_shared_condition_fixtures(c)
+	_test_font_coverage(c)
+	_test_dialogue_fallback(c)
 	_test_save_round_trip(c)
 	await _test_door_gating(c, tree)
 
@@ -166,3 +169,189 @@ static func _test_door_gating(c: Checker, tree: SceneTree) -> void:
 
 	location.queue_free()
 	rebuilt.queue_free()
+
+
+## Runs the SAME fixture table as server/tests/test_conditions.py (§5.5, §11). The two
+## evaluators are only trustworthy while they agree, so this table is the contract.
+static func _test_shared_condition_fixtures(c: Checker) -> void:
+	var fixture := _read_json("res://tests/fixtures/conditions.json")
+	var cases: Array = fixture.get("cases", [])
+	c.check("fixtures: table loaded", not cases.is_empty())
+
+	for entry in cases:
+		var case: Dictionary = entry
+		var state: Dictionary = case.get("state", {})
+
+		Game.new_game()
+		Game.flags = state.get("flags", {})
+		Game.inventory = state.get("inventory", {})
+		Game.vars = state.get("vars", {})
+		Game.visited = state.get("visited", {})
+		Game.talk_counts = state.get("talk_counts", {})
+
+		var got := Conditions.evaluate(case.get("condition"), {})
+		c.check("fixture: %s" % String(case.get("label", "?")), got == bool(case.get("expected", false)))
+
+
+## Font coverage (§6.5, §11), the GDScript twin of tools/check_font_coverage.py. Without this a
+## missing glyph ships as a blank box, the game looks broken, and nobody notices until a player
+## screenshots it.
+static func _test_font_coverage(c: Checker) -> void:
+	var fonts: Array[Font] = []
+	for path in [Settings.FONT_HK, Settings.FONT_HANS]:
+		var font := load(path) as Font
+		if font != null:
+			fonts.append(font)
+	c.check("font: both CJK faces load", fonts.size() == 2)
+	if fonts.is_empty():
+		return
+
+	# A font that loads but is never applied is exactly the bug the player saw: every Chinese
+	# string rendered as boxes. So assert the theme is on the root window too.
+	var root_theme: Theme = (Engine.get_main_loop() as SceneTree).root.theme
+	c.check("font: theme installed on the root window",
+		root_theme != null and root_theme.default_font != null)
+	if root_theme != null and root_theme.default_font != null:
+		c.check("font: active theme face is the CJK font",
+			root_theme.default_font.resource_path.contains("fusion-pixel"))
+		c.check("font: active size is the 12px design grid",
+			root_theme.default_font_size >= 12)
+
+	var missing: Dictionary = {}
+	for text in _content_strings():
+		for index in text.length():
+			var code := text.unicode_at(index)
+			if code < 0x80:
+				continue
+			var found := false
+			for font in fonts:
+				if font.has_char(code):
+					found = true
+					break
+			if not found:
+				missing[code] = text[index]
+
+	c.check("font: every authored character is renderable", missing.is_empty())
+	if not missing.is_empty():
+		print("  missing codepoints: ", missing.keys())
+
+	# Generated dialogue is open-vocabulary, so the Cantonese particle set matters most.
+	var probe := "嘅咗喺哋嗰冇嘢嚟咁佢哋唔係"
+	var probe_missing := ""
+	for index in probe.length():
+		var code := probe.unicode_at(index)
+		var found := false
+		for font in fonts:
+			if font.has_char(code):
+				found = true
+				break
+		if not found:
+			probe_missing += probe[index]
+	c.check("font: cantonese particles covered", probe_missing.is_empty())
+	if not probe_missing.is_empty():
+		print("  probe missing: ", probe_missing)
+
+
+static func _content_strings() -> Array[String]:
+	var out: Array[String] = []
+	for kind in ["npcs", "items", "locations", "quests"]:
+		for entity in ContentDB.all_of(kind):
+			_collect_strings(entity, out)
+	return out
+
+
+static func _collect_strings(node: Variant, out: Array[String]) -> void:
+	match typeof(node):
+		TYPE_DICTIONARY:
+			var dictionary: Dictionary = node
+			for key in dictionary.keys():
+				_collect_strings(dictionary[key], out)
+		TYPE_ARRAY:
+			for item in node:
+				_collect_strings(item, out)
+		TYPE_STRING:
+			out.append(String(node))
+		_:
+			pass
+
+
+## The offline path (§7.4): with the backend unreachable the game must still talk. This drives
+## the ladder directly rather than through a socket, so it cannot go green by accident when a
+## local server happens to be running.
+static func _test_dialogue_fallback(c: Checker) -> void:
+	var spoken: Array[String] = []
+	Bus.npc_spoke.connect(func(_npc: String, text: String) -> void: spoken.append(text))
+
+	Dialogue.active_npc = "npc_p2_shopkeeper"
+	Dialogue._pending_input = ""
+	Dialogue._fallback_line()
+	c.check("fallback: greeting is used before any input",
+		spoken.size() == 1 and not spoken[0].is_empty())
+
+	Dialogue._pending_input = "你好"
+	Dialogue._fallback_line()
+	c.check("fallback: a later turn moves to the next scripted line",
+		spoken.size() == 2 and spoken[1] != spoken[0])
+	c.check("fallback: is flagged as fallback", Dialogue.using_fallback)
+
+	# Every locale must produce text, or a player switching language loses the NPC entirely.
+	for locale in ["zh_HK", "zh_CN", "en"]:
+		Settings.set_locale(locale)
+		var before := spoken.size()
+		Dialogue._pending_input = ""
+		Dialogue._fallback_line()
+		c.check("fallback: greeting exists in %s" % locale,
+			spoken.size() == before + 1 and not spoken[before].is_empty())
+
+	Settings.set_locale("zh_HK")
+	Dialogue.close()
+	Dialogue.using_fallback = false
+
+
+## Live mode: `--live-chat`. Needs the backend; excluded from the default run so the suite
+## stays hermetic.
+static func run_live_chat(tree: SceneTree) -> int:
+	print("[selftest] live chat against %s" % Net.base_url)
+	var c := Checker.new()
+
+	var chunks: Array[String] = []
+	var finished := {"text": ""}
+	Dialogue.line_chunk.connect(func(text: String) -> void: chunks.append(text))
+	Dialogue.line_finished.connect(func(text: String) -> void: finished["text"] = text)
+
+	await Net.start_session()
+	c.check("live: session acquired", not Net.session_token.is_empty())
+	c.check("live: budget granted", Net.budget > 0)
+
+	var started := Time.get_ticks_msec()
+	Dialogue.open("npc_p2_shopkeeper")
+
+	while finished["text"].is_empty() and Time.get_ticks_msec() - started < 20000:
+		await tree.process_frame
+
+	var elapsed := float(Time.get_ticks_msec() - started) / 1000.0
+	c.check("live: reply received", not finished["text"].is_empty())
+	c.check("live: arrived as chunks, not one blob", chunks.size() >= 1)
+	c.check("live: used the model, not the scripted fallback", not Dialogue.using_fallback)
+	c.check("live: budget was charged", Net.remaining < Net.budget or Net.remaining == 0)
+
+	print("  reply in %.2fs: %s" % [elapsed, finished["text"]])
+	Dialogue.close()
+	print("[selftest] live chat: %d checks, %d failures" % [c.count, c.failures])
+	return c.failures
+
+
+## Dual-path JSON read, matching ContentDB: an exported build may keep `.json` as an imported
+## resource rather than a raw file.
+static func _read_json(path: String) -> Dictionary:
+	if ResourceLoader.exists(path):
+		var resource := ResourceLoader.load(path)
+		if resource is JSON:
+			var data: Variant = (resource as JSON).data
+			if typeof(data) == TYPE_DICTIONARY:
+				return data
+	var text := FileAccess.get_file_as_string(path)
+	if text.is_empty():
+		return {}
+	var parsed: Variant = JSON.parse_string(text)
+	return parsed if typeof(parsed) == TYPE_DICTIONARY else {}

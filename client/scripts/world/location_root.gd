@@ -20,6 +20,7 @@ var _tiles: TileMapLayer
 var _floor_atlas: Vector2i = Vector2i.ZERO
 var doors: Array[Node2D] = []
 var interactables: Array[Node2D] = []
+var npcs: Array[Node2D] = []
 
 
 func build(location: Dictionary) -> void:
@@ -31,6 +32,7 @@ func build(location: Dictionary) -> void:
 	_build_collision()
 	_build_doors()
 	_build_interactables()
+	_build_npcs()
 
 
 func _build_tiles() -> void:
@@ -109,6 +111,15 @@ func _build_interactables() -> void:
 		add_child(node)
 		node.configure(definition, tile_size)
 		interactables.append(node)
+
+
+func _build_npcs() -> void:
+	for raw in data.get("npcs", []):
+		var placement: Dictionary = raw
+		var node := LocationNpc.new()
+		add_child(node)
+		node.configure(placement, tile_size)
+		npcs.append(node)
 
 
 ## World position for a spawn point id ("default" if unknown/missing).

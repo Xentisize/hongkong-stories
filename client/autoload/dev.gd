@@ -27,6 +27,9 @@ func _ready() -> void:
 	if OS.get_cmdline_user_args().has("--selftest"):
 		_run_selftest.call_deferred()
 		return
+	if OS.get_cmdline_user_args().has("--live-chat"):
+		_run_live_chat.call_deferred()
+		return
 
 	_build()
 	_layer.visible = false
@@ -36,6 +39,11 @@ func _ready() -> void:
 
 func _run_selftest() -> void:
 	var failures: int = await SELFTEST.run(get_tree())
+	get_tree().quit(failures)
+
+
+func _run_live_chat() -> void:
+	var failures: int = await SELFTEST.run_live_chat(get_tree())
 	get_tree().quit(failures)
 
 
@@ -64,7 +72,7 @@ func _build() -> void:
 	panel.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
 	panel.offset_left = 4
 	panel.offset_right = -4
-	panel.offset_top = -84
+	panel.offset_top = -96
 	panel.offset_bottom = -4
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.02, 0.02, 0.03, 0.94)
@@ -79,14 +87,14 @@ func _build() -> void:
 	panel.add_child(column)
 
 	_output = Label.new()
-	_output.add_theme_font_size_override("font_size", 8)
+	_output.add_theme_font_size_override("font_size", 12)
 	_output.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_output.custom_minimum_size = Vector2(0, 58)
+	_output.custom_minimum_size = Vector2(0, 64)
 	_output.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
 	column.add_child(_output)
 
 	_input = LineEdit.new()
-	_input.add_theme_font_size_override("font_size", 9)
+	_input.add_theme_font_size_override("font_size", 12)
 	_input.placeholder_text = "help"
 	_input.text_submitted.connect(_on_submit)
 	column.add_child(_input)

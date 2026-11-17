@@ -1,0 +1,24 @@
+{
+  "_comment": "Shared condition fixtures (PLAN 5.5, 11). Read by BOTH server/tests/test_conditions.py and the Godot client selftest, so the two evaluators cannot silently diverge. State shape matches the client's Game state keys exactly.",
+  "cases": [
+    { "label": "empty condition is true", "condition": {}, "state": {}, "expected": true },
+    { "label": "null condition is true", "condition": null, "state": {}, "expected": true },
+    { "label": "flag set", "condition": { "flag": "a" }, "state": { "flags": { "a": true } }, "expected": true },
+    { "label": "flag unset", "condition": { "flag": "a" }, "state": { "flags": { "a": false } }, "expected": false },
+    { "label": "flag expected false", "condition": { "flag": "a", "value": false }, "state": { "flags": { "a": false } }, "expected": true },
+    { "label": "has_item 1 of 1", "condition": { "has_item": "k" }, "state": { "inventory": { "k": 1 } }, "expected": true },
+    { "label": "has_item 2 of 1", "condition": { "has_item": "k", "count": 2 }, "state": { "inventory": { "k": 1 } }, "expected": false },
+    { "label": "all passes", "condition": { "all": [ { "flag": "a" }, { "has_item": "k" } ] }, "state": { "flags": { "a": true }, "inventory": { "k": 1 } }, "expected": true },
+    { "label": "all fails on one branch", "condition": { "all": [ { "flag": "a" }, { "flag": "b" } ] }, "state": { "flags": { "a": true, "b": false } }, "expected": false },
+    { "label": "any passes on one branch", "condition": { "any": [ { "flag": "b" }, { "flag": "a" } ] }, "state": { "flags": { "a": true, "b": false } }, "expected": true },
+    { "label": "any fails", "condition": { "any": [ { "flag": "b" }, { "flag": "c" } ] }, "state": { "flags": { "a": true } }, "expected": false },
+    { "label": "not inverts", "condition": { "not": { "flag": "b" } }, "state": { "flags": { "a": true } }, "expected": true },
+    { "label": "var greater-equal", "condition": { "var": "trust", "op": ">=", "value": 2 }, "state": { "vars": { "trust": 2 } }, "expected": true },
+    { "label": "var less-than false", "condition": { "var": "trust", "op": "<", "value": 2 }, "state": { "vars": { "trust": 2 } }, "expected": false },
+    { "label": "visited true", "condition": { "visited": "loc_p1_shop" }, "state": { "visited": { "loc_p1_shop": true } }, "expected": true },
+    { "label": "visited false", "condition": { "visited": "loc_elsewhere" }, "state": { "visited": { "loc_p1_shop": true } }, "expected": false },
+    { "label": "talked min reached", "condition": { "talked": "npc", "min": 2 }, "state": { "talk_counts": { "npc": 2 } }, "expected": true },
+    { "label": "talked min not reached", "condition": { "talked": "npc", "min": 3 }, "state": { "talk_counts": { "npc": 2 } }, "expected": false },
+    { "label": "nested any inside all", "condition": { "all": [ { "flag": "a" }, { "any": [ { "flag": "b" }, { "has_item": "k" } ] } ] }, "state": { "flags": { "a": true }, "inventory": { "k": 1 } }, "expected": true }
+  ]
+}

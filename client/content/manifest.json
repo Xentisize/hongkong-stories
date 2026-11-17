@@ -1,8 +1,9 @@
 {
   "manifest_schema": 1,
   "version": 1,
-  "content_hash": "4cd88db77703",
+  "content_hash": "1d493073088a",
   "files": [
+    "npcs/npc_p2_shopkeeper.json",
     "items/item_rusty_key.json",
     "locations/loc_p1_shop.json"
   ]

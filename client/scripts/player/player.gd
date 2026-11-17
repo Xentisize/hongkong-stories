@@ -25,9 +25,9 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
-	# Input polling bypasses GUI focus, so a focused console LineEdit would still walk the
-	# player around behind the command bar without this gate.
-	if Dev.console_open:
+	# Input polling bypasses GUI focus, so a focused console LineEdit or dialogue box would
+	# still walk the player around behind the text without this gate.
+	if Dev.console_open or Dialogue.is_active():
 		velocity = Vector2.ZERO
 		current_target = null
 		return

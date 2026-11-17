@@ -418,8 +418,24 @@ the player provokes. So:
 
 | Need | Choice | Budget |
 |------|--------|--------|
-| Latin UI + English body | small pixel TTF (8–12 px) | ~50 KB |
-| **CJK body + all dialogue** | a **12 px pixel CJK font** with GB2312 + Big5/HKSCS coverage | **≤ 4 MB** (compressed in build) |
+| Latin UI + English body | covered by the CJK faces themselves (they include ASCII) | — |
+| **CJK body + all dialogue** | **Fusion Pixel 12px monospaced**, `zh_hk` + `zh_hans` as a fallback chain | **~13.8 MB raw → 4.8 MB pck** (see deviation below) |
+
+**As built (P2):** `fusion-pixel-12px-monospaced-zh_hk.ttf` is the default font and
+`-zh_hans.ttf` is its fallback, installed at runtime in `Settings._install_theme()` with
+antialiasing/hinting/subpixel positioning disabled so 12 px stays crisp at 5× scale.
+
+**Licensing is a real trap here.** Zpix (最像素) was the obvious candidate — 4.5 MB, one file, and
+it covers Cantonese — but its licence is **USD $1000 per commercial product** (free for
+education only), so shipping it would have been unlicensed use. It was removed. Fusion Pixel is
+**OFL 1.1** with licence files bundled in `client/assets/fonts/`. Check the licence before
+swapping in any pixel CJK face.
+
+**Deviation from the 4 MB line above:** two faces were needed (Traditional/HKSCS for `zh_HK`,
+Simplified for `zh_CN`) and the union is 13.8 MB raw. The budget was optimistic because this row
+assumed one all-CJK file; the real options were a single-face font with incomplete coverage or
+two faces with complete coverage. Two faces won, `index.pck` is 4.8 MB, and the pck is compressed
+over the wire anyway (§10.2). Verify coverage with `python3 tools/check_font_coverage.py`.
 
 Evaluate in P1, on coverage first and legibility at 12 px second: Zpix, Fusion Pixel 12px,
 Cubic 11. **Gate the choice on a test string of Cantonese-specific characters** — 嘅 咗 喺 哋 嗰
@@ -461,6 +477,12 @@ S→C {"type":"error","code":"upstream_timeout"}   ← client falls back to scri
 
 The client sends a **sanitized projection** of state (flags relevant to that NPC's
 knowledge, current quest node title, inventory names) — never the whole save.
+
+**Gotcha worth knowing (found in P2 testing):** the server sends the `done` frame and closes the
+socket in the same tick, so a client that inspects `WebSocketPeer.get_ready_state()` *before*
+draining buffered packets discards a perfectly good reply and falls back. Drain first, then judge
+the state (`Net._process`). This turned every successful turn into a fallback until it was fixed,
+and it fails silently — the player just sees scripted lines.
 
 ### 7.2 Prompt assembly (order = cache strategy)
 
@@ -509,8 +531,11 @@ before display. Decide this with a spike in phase 2, not up front.
 - **Greeting prefetch**: when the player enters an NPC's interact radius, fire a
   `start` with `prefetch: true` so the first line is already streaming by the time the
   dialogue box opens. Removes the single worst perceived-latency moment.
-- **Fallback ladder**: WS timeout 2.5 s → one retry → `scripted_fallback.lines`. The game
-  is always playable offline; the LLM is an amplifier, not a dependency.
+- **Fallback ladder (as built)**: connect deadline 4 s → first-token deadline 9 s → turn
+  deadline 30 s → `scripted_fallback.lines`. The 2.5 s figure this plan originally assumed was
+  wrong: a real cold turn measured **3.11 s to first token** (zh_HK), so a 2.5 s budget would
+  have fired the fallback on a healthy start. Warm turns measured 1.30 s. The game is always
+  playable offline; the LLM is an amplifier, not a dependency.
 - **`stop`-token discipline**: `max_tokens: 320`, `stop: ["\n\n\n"]`, temperature 0.85, and
   a hard server-side cap; long-winded NPCs are the main cost/latency risk.
 
@@ -874,7 +899,9 @@ bun lockfile — add a CI check that fails if `package-lock.json`, `yarn.lock`, 
 | Admin SPA | `bun test` | The condition builder emits exactly the §5.5 JSON the GDScript and Python evaluators both accept; locale tabs refuse a field missing a locale |
 | Chat protocol | pytest + `respx` mock of OpenRouter | Timeout → fallback; malformed JSON → scripted; action outside allowlist → rejected and logged; budget exhaustion → scripted |
 | Client loop | `client/tests/selftest.gd` (`godot --headless --path client -- --selftest`, exit code = failures) | 36 assertions: content loading, three-locale resolution, effects + stack_max, every condition verb, save round-trip, and door gating across a location rebuild. **gdUnit4 deferred to P2** — these assertions port over directly. |
-| E2E smoke | `tools/web_smoke.mjs` (Chrome + CDP, no dependencies) | Boots the real wasm build, waits for compile, and reports canvas size + console errors + a screenshot. **P0 passes** (canvas up, 0 errors, scene colours present). Grows into Boot → walk → talk → collect → save → reload. |
+| E2E smoke | `tools/web_smoke.mjs` (Chrome + CDP, no dependencies) | `talk` mode injects real key events, walks to an NPC and presses E, then reports the game's `[Dialogue]` log line plus a screenshot — so it distinguishes "the model answered" from "the fallback answered". Exits non-zero on any unexpected console error. Verified both online and with the backend killed. |
+| Backend | `pytest` (44 tests) | Prompt-prefix stability, streaming extractors (split escapes, `\uXXXX`, partial fence), allowlist rejections, budget refusal **before** spend, every WS error frame, health payload never containing the key. |
+| Conditions parity | `client/tests/fixtures/conditions.json` read by **both** suites | The GDScript and Python evaluators are checked against one table, which is the contract that keeps them from diverging. |
 | Manual | checklist per chapter | 60 fps on a real phone, readable text at 384×216, offline mode (kill wifi → game still plays) |
 
 The one test that will actually save the project: **kill the backend and play a full
@@ -891,7 +918,7 @@ Sized for one developer. Each phase has an exit criterion that is *observable*, 
 |-------|-------------|----------------|
 | **P0 — Skeleton** ✅ *(done)* | git repo, `client/` project with the §6.1 settings, 10 autoloads, asset-free test room + walkable player, `tools/export_web.sh`, `tools/web_smoke.mjs`, web templates installed, `build/web` produced | ✅ boots in a real browser (headless Chrome + CDP): canvas live, **0 console errors**, scene colours rendered. ⏳ 60 fps on a physical phone is still an eyeball-test; ⏳ brotli pre-compression not yet active (see §10.4) |
 | **P1 — Core loop** ✅ *(done)* | Walkable player with animation state, JSON-built `TileMapLayer` location + collision, interactables, condition-gated door, inventory UI with three-locale item names, flag/item/variable effects, autosaved slots with boot restore, F1 command console, `--selftest` harness | ✅ `--selftest` 36/36, exit 0. ✅ In-browser: 0 console errors, `[ContentDB] loaded 2 entities` in the wasm logs, tiled room renders from the generated atlas. ⏳ Only one location exists, so exits/location-switching is coded but unexercised; ⏳ no NPCs or dialogue until P2 |
-| **P2 — Conversation** *(2–3 d)* | FastAPI backend, `/v1/session` + `/v1/chat` WS streaming, prompt assembly with stable prefix, DialogueUI typewriter, scripted fallback, greeting prefetch, budget counters | Talk to one LLM NPC with < 1.5 s to first token; unplug the network mid-conversation and the game continues on scripted lines; cache-hit rate visible and > 70% |
+| **P2 — Conversation** ✅ *(done)* | FastAPI backend on CPython 3.15.2, `/v1/session` + `/v1/chat` WS streaming with json_schema mode, prompt assembly with a byte-stable cache prefix, per-NPC action allowlist, per-session budget, three-locale NPC content, client `Net`/`Dialogue`/DialogueUI/NPC node, greeting prefetch, scripted fallback ladder | ✅ 44 pytest + 65 client checks pass. ✅ Live: two real turns (zh_HK and en) through the backend. ✅ In-engine: `--live-chat` 6/6. ✅ In-browser (CDP key injection): walked to the NPC, pressed E, got a model reply; with the backend killed, the same run used scripted lines — **0 unexpected console errors in both**. ⏳ Cache-hit *telemetry* is not wired (prefix stability is asserted by test instead); ⏳ first token measured 3.11 s cold vs the 1.5 s this row hoped for |
 | **P3 — Story engine** *(2–3 d)* | Condition/Effect interpreters (both languages, shared fixtures), quest nodes, triggers, chapter 1 content: 5 NPCs, 8 items, 3 locations, 1 complete arc | A player who has never seen the game can finish chapter 1 and cannot break it: every objective reachable, no dead end when any single NPC is talked to out of order |
 | **P4 — Admin + art** *(3–4 d)* | Admin SPA (CRUD, condition builder, persona playground, art studio), validation/publish pipeline, Seedream post-processor, provenance | Author a new NPC end-to-end **without opening Godot** — generate sprite, set persona, wire a trigger, publish — and it appears in the running web build after a reload |
 | **P5 — Chapters & polish** *(1–2 w, ongoing)* | Chapters 2–3 content, audio, zh_HK/en parity, touch controls, editor plugin for NPC placement, save-code export, fact-check queue | 30 minutes of play on a real phone without a crash; both languages complete for shipped chapters |
@@ -987,7 +1014,7 @@ so P5+ is almost pure content — which is exactly why the admin mode deserves P
 | Risk | Impact | Mitigation |
 |------|--------|------------|
 | **API key leak** | Financial, unrecoverable | Key exists only in backend env. Client calls only your proxy. Add a pre-commit/CI grep for `sk-or-` in `client/` and fail the build. |
-| Upstream latency / outage | Game unplayable | Scripted fallback for every NPC (§7.4); timeout 2.5 s; offline mode tested in CI-adjacent manual pass |
+| Upstream latency / outage | Game unplayable | Scripted fallback for every NPC (§7.4); deadlines measured rather than guessed (4 s connect / 9 s first token / 30 s turn); the browser E2E is run both online **and** with the backend killed |
 | LLM invents facts (past or present) | Credibility damage on a story about real streets | Facts live in authored lore; prompt forbids invention; "real streets, fictional people" for 2027 (§7.6); fact-check queue |
 | LLM drift in actions | Broken quest state | Server-side allowlist validation + reject logging + content-schema reachability tests |
 | Cost surprise | Real money | Per-session token budget, per-IP daily cap, usage dashboard, `cost_usd` logged per call, alerts at thresholds |

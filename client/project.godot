@@ -41,6 +41,19 @@ window/stretch/scale_mode="integer"
 ; Fallback chain zh_HK -> zh_CN -> en is handled in Settings (§6.5); this is the engine floor.
 locale/fallback="en"
 
+[gui]
+
+; Godot ships no CJK glyphs: without this, every Chinese string is a wall of boxes (§6.5).
+; This is the engine-level default so the font applies even to controls created before the
+; runtime theme in Settings is installed. The zh_Hans fallback chain is added at runtime
+; because a project setting cannot express font fallbacks.
+theme/custom_font="res://assets/fonts/fusion-pixel-12px-monospaced-zh_hk.ttf"
+theme/default_font_size=12
+theme/default_font_antialiasing=0
+theme/default_font_hinting=0
+theme/default_font_subpixel_positioning=0
+theme/default_font_multichannel_signed_distance_field=false
+
 [physics]
 
 common/physics_ticks_per_second=60
