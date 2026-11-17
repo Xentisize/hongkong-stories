@@ -151,6 +151,41 @@ class ProseExtractor:
         return delta
 
 
+def parse_output(raw: str, output_mode: str) -> tuple[str, str, list[dict]]:
+    """Turn a complete model reply into (say, mood, actions).
+
+    Shared by the streaming path (after the stream closes) and the non-streaming
+    `complete_chat`; the two output modes must agree on one parser.
+    """
+    if output_mode == "json":
+        try:
+            parsed = json.loads(raw)
+        except json.JSONDecodeError:
+            raise UpstreamError("malformed_json", raw[:300]) from None
+        say = str(parsed.get("say", "")).strip()
+        mood = str(parsed.get("mood", "neutral")) or "neutral"
+        raw_actions = parsed.get("actions", [])
+        actions = (
+            [a for a in raw_actions if isinstance(a, dict)]
+            if isinstance(raw_actions, list)
+            else []
+        )
+        return say, mood, actions
+
+    match = ACTION_BLOCK_RE.search(raw)
+    prose = raw
+    actions: list[dict] = []
+    if match:
+        prose = raw[: match.start()]
+        try:
+            parsed_actions = json.loads(match.group(1))
+            if isinstance(parsed_actions, list):
+                actions = [a for a in parsed_actions if isinstance(a, dict)]
+        except json.JSONDecodeError:
+            actions = []
+    return prose.strip(), "neutral", actions
+
+
 async def stream_chat(
     *,
     settings: Settings,
@@ -216,30 +251,96 @@ async def stream_chat(
                         result.truncated = True
 
     result.raw = "".join(raw_parts)
-    if output_mode == "json":
-        try:
-            parsed = json.loads(result.raw)
-        except json.JSONDecodeError:
-            raise UpstreamError("malformed_json", result.raw[:300]) from None
-        result.say = str(parsed.get("say", "")).strip()
-        result.mood = str(parsed.get("mood", "neutral")) or "neutral"
-        raw_actions = parsed.get("actions", [])
-        result.actions = [a for a in raw_actions if isinstance(a, dict)] if isinstance(raw_actions, list) else []
-    else:
-        match = ACTION_BLOCK_RE.search(result.raw)
-        prose = result.raw
-        if match:
-            prose = prose[: match.start()]
-            try:
-                parsed_actions = json.loads(match.group(1))
-                if isinstance(parsed_actions, list):
-                    result.actions = [a for a in parsed_actions if isinstance(a, dict)]
-            except json.JSONDecodeError:
-                result.actions = []
-        result.say = prose.strip()
-        result.mood = "neutral"
+    result.say, result.mood, result.actions = parse_output(result.raw, output_mode)
 
     if not result.say:
         raise UpstreamError("empty_response", result.raw[:300])
 
     yield ("final", result)
+
+
+@dataclass
+class PlaygroundResult:
+    """A complete non-streaming turn with REAL usage (PLAN 9.2 playground, 7.5 telemetry)."""
+
+    say: str
+    mood: str
+    actions: list[dict]
+    raw: str
+    truncated: bool
+    prompt_tokens: int
+    completion_tokens: int
+    cached_tokens: int
+    cost_usd: float
+
+
+async def complete_chat(
+    *,
+    settings: Settings,
+    messages: list[dict],
+    mode: str | None = None,
+    max_tokens: int | None = None,
+    temperature: float | None = None,
+) -> PlaygroundResult:
+    """One non-streaming turn with real usage numbers.
+
+    `usage: {include: true}` is OpenRouter's switch for cost + cache detail in the response —
+    the real cache-hit telemetry PLAN 7.5 wanted (the in-game streaming path still estimates:
+    streaming usage needs a request parameter providers may reject). The admin playground and
+    the fact-checker use this; a bare estimate would make the playground lie about cost.
+    """
+    output_mode = (mode or settings.chat_output_mode).lower()
+    payload: dict = {
+        "model": settings.chat_model,
+        "messages": messages,
+        "stream": False,
+        "max_tokens": max_tokens or settings.max_tokens,
+        "temperature": settings.temperature if temperature is None else temperature,
+        "usage": {"include": True},
+    }
+    if output_mode == "json":
+        payload["response_format"] = NPC_REPLY_RESPONSE_FORMAT
+
+    headers = {
+        "Authorization": f"Bearer {settings.openrouter_api_key}",
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://github.com/hongkong-stories",
+        "X-Title": "Hong Kong Stories",
+    }
+
+    timeout = httpx.Timeout(settings.upstream_timeout_sec, connect=10.0)
+    try:
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            response = await client.post(ENDPOINT, headers=headers, json=payload)
+    except httpx.HTTPError as exc:
+        raise UpstreamError("upstream_unreachable", str(exc)[:300]) from exc
+
+    if response.status_code != httpx.codes.OK:
+        raise UpstreamError(f"upstream_http_{response.status_code}", response.text[:300])
+
+    data = response.json()
+    if isinstance(data.get("error"), dict):
+        raise UpstreamError("upstream_error", str(data["error"])[:300])
+
+    choices = data.get("choices") or []
+    if not choices:
+        raise UpstreamError("empty_response", "")
+    choice = choices[0]
+    raw = str((choice.get("message") or {}).get("content", ""))
+    say, mood, actions = parse_output(raw, output_mode)
+    if not say:
+        raise UpstreamError("empty_response", raw[:300])
+
+    usage = data.get("usage") or {}
+    details = usage.get("prompt_tokens_details") or {}
+    return PlaygroundResult(
+        say=say,
+        mood=str(mood),
+        actions=actions,
+        raw=raw,
+        truncated=choice.get("finish_reason") == "length",
+        prompt_tokens=int(usage.get("prompt_tokens", 0) or 0),
+        completion_tokens=int(usage.get("completion_tokens", 0) or 0),
+        cached_tokens=int(details.get("cached_tokens", 0) or 0),
+        cost_usd=float(usage.get("cost", 0.0) or 0.0),
+    )

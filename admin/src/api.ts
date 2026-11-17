@@ -59,7 +59,53 @@ export const api = {
   validate: () => request("POST", "/v1/admin/validate"),
   publish: () => request("POST", "/v1/admin/publish"),
   generateArt: (body: unknown) => request("POST", "/v1/admin/art/generate", body),
+  evaluateCondition: (body: unknown) => request("POST", "/v1/admin/evaluate_condition", body),
+  publishPreview: () => request("GET", "/v1/admin/publish_preview"),
+  playground: (body: unknown) => request("POST", "/v1/admin/playground", body),
+  factcheckList: () => request("GET", "/v1/admin/factcheck"),
+  factcheckCheck: (body: unknown) => request("POST", "/v1/admin/factcheck/check", body),
+  factcheckResolve: (id: string, status: string) =>
+    request("POST", `/v1/admin/factcheck/${id}/resolve`, { status }),
+  usage: () => request("GET", "/v1/admin/usage"),
 };
 
 export type DraftSummary = { kind: string; id: string; updated: number };
 export type Issue = { level: string; path: string; message: string };
+export type UsageSummary = {
+  month: string;
+  chat_cost_usd: number;
+  image_cost_usd: number;
+  factcheck_cost_usd?: number;
+  turns: number;
+  tokens: number;
+  p95_latency_ms: number;
+  top_rejected: Array<{ reason: string; count: number }>;
+  sessions: Array<{ session: string; turns: number; cost_usd: number }>;
+};
+export type FactEntry = {
+  id: string;
+  ts: string;
+  npc_id: string;
+  player_input: string;
+  reply: string;
+  verdict: string;
+  reason: string;
+  status: string;
+  cost_usd: number;
+};
+export type PlaygroundTurn = {
+  say: string;
+  mood: string;
+  actions: unknown[];
+  rejected: Array<{ action: unknown; reason: string }>;
+  truncated: boolean;
+  usage: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    cached_tokens: number;
+    cache_ratio: number;
+    cost_usd: number;
+  };
+  latency_ms: number;
+  model: string;
+};

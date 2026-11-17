@@ -73,8 +73,8 @@ def test_generate_endpoint_writes_pack_and_provenance(
 
     pack, data = _minimal_pack(tmp_path)
 
-    async def fake_generate(settings, *, prompt, aspect_ratio, seed=None):
-        assert "test caretaker" in prompt
+    async def fake_generate(settings, **kwargs):
+        assert "test caretaker" in kwargs["prompt"]
         return seedream.GeneratedImage(png=_blob_png(), seed=424242, cost_usd=0.018)
 
     monkeypatch.setattr(admin_mod.seedream, "generate_image", fake_generate)

@@ -117,11 +117,32 @@ into the pack with a `.gen.json` provenance sidecar (model/seed/palette/cost —
 this sprite exactly" stays possible). Pillow lives in the optional `art` dependency group
 (`uv sync --group art`) so chat still runs where fresh-interpreter wheels lag (§10.6).
 
-Verified: 67 backend tests pass in an ephemeral CPython 3.14 environment (the pinned 3.15.2
-is not downloadable on this machine — run `uv run pytest` on a toolchain machine for the
-pinned interpreter). Still to come from §9.2: condition builder, persona playground,
-fact-check queue, usage dashboard, and style-bible `input_references` in the generate flow;
-plus the live exit-criterion run — author an NPC, publish, reload the game, see it.
+The §9.2 authoring tools are in too, as the SPA's four views (Editor / Playground / Builder /
+Review): a **condition builder** — rule rows that emit §5.5 JSON, with a live "would this
+pass?" evaluated by the server's Python evaluator (never a drifting TS copy) against an
+editable state mock; a **persona playground** — chat with the unsaved draft through the real
+pipeline, per-turn REAL tokens/cost/latency via OpenRouter's `usage.include` (the cache-hit
+telemetry §7.5 wanted), rejected actions surfaced in red, one-click fact-check; a
+**fact-check review queue** (§7.6: flag for review, never rewrite the player's words,
+resolve per entry); a **usage dashboard** — month-to-date chat/image/fact-check spend,
+turns, tokens, p95 latency, top rejected reasons, costliest sessions (append-only
+`server/data/usage.jsonl`, in-game turns logged too); and **publish preview** — the
+added/changed diff before the confirm dialog.
+
+Live-verified against the real OpenRouter (2026-11-17, ~$0.04 of spend): a playground turn
+reads REAL numbers — prompt 729 tok, $0.00016, 2.6 s (§7.5's 1900-token assumption was
+pessimistic); the cache-hit telemetry measures reality — hits vary with OpenRouter routing
+(60% / 0% / 76% across three same-prefix turns). The style bible (§8.2) was generated into
+`art/stylebible.png` ($0.018) and a cast sprite was generated FROM it ($0.018): the wire
+format is object entries (`{"type":"image_url","image_url":{"url":…}}`), and the live
+constraints are recorded in `server/app/config.py` — seedream-5-0-flash only makes
+transparent images from a reference whose PNG carries a transparent pixel (the bible
+carries a 2px clear fringe; reference-less transparent subjects route to
+seedream-5-5). The sprite was wired into 根叔's definition through the real
+draft → validate → preview → publish loop — **content v2** (f50b1ae38348) is served and
+every booted client hot-packs it. Verified: 74 backend tests in the ephemeral 3.14 env.
+Still to come: the browser half of the exit criterion (reload the game and see the sprite —
+needs a machine with godot to export) and a pinned-3.15.2 pytest run.
 
 ## Fonts and licensing (read before swapping fonts)
 
@@ -141,8 +162,10 @@ against the Cantonese particle set and every string in `client/content/`.
 - **Admin mode + art pipeline exist in first form** (see "Status: P4"); the deeper §9.2
   tooling (condition builder, persona playground, fact-check queue, usage dashboard) is still
   to come. The P3 story engine and chapter-1 content exist (see "Status: P3").
-- **Cache-hit telemetry is not wired.** Prefix stability is *asserted* by test, but the actual hit
-  rate is unmeasured — PLAN §7.5's cost model assumes it works.
+- **Cache-hit telemetry is only partially wired.** The admin playground reads real
+  prompt/cached/cost numbers (OpenRouter `usage.include`) — live-measured 2026-11-17:
+  same-prefix turns hit 60% / 0% / 76% depending on which upstream serves the request —
+  but the in-game streaming path still estimates tokens (PLAN §7.5).
 - **Token counts are estimated** (CJK ≈ 1 token/char), not read from the provider, so budgets are
   conservative rather than exact.
 - **Content changes need a re-export** until P4's hot-pack endpoint exists.

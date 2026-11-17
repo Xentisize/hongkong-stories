@@ -191,6 +191,12 @@ function artBlock(entity: Entity, onChange: () => void): HTMLElement {
   }
   const descInput = textControl("", () => {});
   descInput.placeholder = "subject description for Seedream (English works best)";
+  const bibleCheck = document.createElement("input");
+  bibleCheck.type = "checkbox";
+  bibleCheck.checked = true;
+  bibleCheck.title = "art/stylebible.png 存在时作为 input_references[0] 随每次生成（§8.2）";
+  const bibleLabel = el("label", "inline");
+  bibleLabel.append(bibleCheck, document.createTextNode("风格基准"));
   const generate = document.createElement("button");
   generate.textContent = "生成 Generate";
   const note = el("div");
@@ -215,7 +221,9 @@ function artBlock(entity: Entity, onChange: () => void): HTMLElement {
     generate.disabled = true;
     note.textContent = "生成中… / generating…";
     try {
-      const result = await api.generateArt({ kind, subject_id: String(entity.id), desc }) as Entity;
+      const result = await api.generateArt({
+        kind, subject_id: String(entity.id), desc, use_style_bible: bibleCheck.checked,
+      }) as Entity;
       const path = String(result.path);
       applyArtPath(entity, kind, path);
       preview.src = `data:image/png;base64,${String(result.png_base64)}`;
@@ -233,7 +241,7 @@ function artBlock(entity: Entity, onChange: () => void): HTMLElement {
     }
   };
 
-  row.append(kindSelect, descInput, generate);
+  row.append(kindSelect, descInput, bibleLabel, generate);
   wrap.append(row, preview, note);
   return wrap;
 }

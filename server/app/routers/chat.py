@@ -13,9 +13,11 @@ indicator (§7.4).
 from __future__ import annotations
 
 import json
+import time
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
+from .. import usage as usage_log
 from ..llm import actions as action_rules
 from ..llm import openrouter, prompts
 
@@ -35,6 +37,7 @@ async def _error(websocket: WebSocket, code: str, detail: str = "") -> None:
 
 @router.websocket("/v1/chat")
 async def chat(websocket: WebSocket) -> None:
+    started = time.monotonic()
     await websocket.accept()
 
     settings = websocket.app.state.settings
@@ -103,6 +106,19 @@ async def chat(websocket: WebSocket) -> None:
     accepted, rejected = action_rules.validate_actions(result.actions, npc, state)
     used = prompt_tokens + openrouter.estimate_tokens(result.say)
     session.charge(used)
+
+    # Usage dashboard row (PLAN 9.2): streaming has no provider usage, so cost is the §7.5
+    # price model over the estimated tokens; latency is end-to-end for this turn.
+    usage_log.log_event(
+        settings, "chat",
+        session=str(start.get("session_token", "")),
+        npc=str(npc.get("id", "")),
+        tokens=used,
+        cost_usd=usage_log.estimate_cost(
+            prompt_tokens, 0, openrouter.estimate_tokens(result.say)),
+        latency_ms=round((time.monotonic() - started) * 1000.0, 1),
+        rejected=[r["reason"] for r in rejected],
+    )
 
     try:
         await websocket.send_json(

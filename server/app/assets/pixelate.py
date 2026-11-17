@@ -24,7 +24,8 @@ from .palette import HK_PALETTE_V1, OUTLINE_COLOR
 ALPHA_THRESHOLD = 128
 
 
-def process(png_bytes: bytes, target: tuple[int, int], *, outline: bool = True) -> bytes:
+def process(png_bytes: bytes, target: tuple[int, int], *, outline: bool = True,
+            pad: int = 0) -> bytes:
     try:
         from PIL import Image, ImageChops, ImageFilter
     except ImportError as exc:  # pragma: no cover - environment-dependent
@@ -52,6 +53,14 @@ def process(png_bytes: bytes, target: tuple[int, int], *, outline: bool = True) 
                 pixels[x, y] = (0, 0, 0, 0)
                 continue
             pixels[x, y] = _nearest(r, g, b, a)
+
+    # 3.5. Transparent padding: the style bible is a full-bleed opaque scene, but Seed
+    # refuses a transparent OUTPUT when the reference PNG has no transparent pixel — a 2px
+    # clear fringe makes it a valid reference without changing the style it carries.
+    if pad > 0:
+        padded = Image.new("RGBA", (target[0] + 2 * pad, target[1] + 2 * pad), (0, 0, 0, 0))
+        padded.paste(image, (pad, pad))
+        image = padded
 
     # 4. Force a 1px dark outline. The crop leaves the subject flush with its bounding box,
     # so the ring needs room: pad the canvas by 1px on every side first — the subject keeps

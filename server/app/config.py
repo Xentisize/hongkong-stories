@@ -36,6 +36,10 @@ class Settings:
     openrouter_api_key: str = ""
     chat_model: str = "deepseek/deepseek-v4.1-flash-1017"
     image_model: str = "bytedance-seed/seedream-5-0-flash"
+    # Live-verified 2026-11-17: 5-0-flash makes transparent images only FROM a reference
+    # image. Reference-less transparent subjects (no style bible yet) route to this model,
+    # per the endpoint's own suggestion in its 400 body.
+    image_model_transparent: str = "bytedance-seed/seedream-5-5"
     # json = response_format json_schema + incremental `say` extraction (verified live).
     # prose = plain text stream with a trailing ```actions block. Both are implemented so the
     # choice is a config flip, not a rewrite (PLAN 7.3).
@@ -74,6 +78,8 @@ class Settings:
             admin_data_dir=Path(env.get("HKS_ADMIN_DATA_DIR", cls.admin_data_dir)),
             chat_model=env.get("HKS_CHAT_MODEL", cls.chat_model),
             image_model=env.get("HKS_IMAGE_MODEL", cls.image_model),
+            image_model_transparent=env.get(
+                "HKS_IMAGE_MODEL_TRANSPARENT", cls.image_model_transparent),
             chat_output_mode=env.get("HKS_CHAT_OUTPUT_MODE", cls.chat_output_mode),
             max_tokens=int(env.get("HKS_MAX_TOKENS", cls.max_tokens)),
             temperature=float(env.get("HKS_TEMPERATURE", cls.temperature)),

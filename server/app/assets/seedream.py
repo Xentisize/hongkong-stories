@@ -33,19 +33,26 @@ class GeneratedImage:
 
 
 async def generate_image(settings, *, prompt: str, aspect_ratio: str,
-                         seed: int | None = None) -> GeneratedImage:
+                         seed: int | None = None,
+                         input_references: list[str] | None = None,
+                         background: str = "transparent",
+                         model: str | None = None) -> GeneratedImage:
     if not settings.has_key:
         raise SeedreamError("no_api_key", "OPENROUTER_API_KEY is not configured")
 
     payload: dict = {
-        "model": settings.image_model,
+        "model": model or settings.image_model,
         "prompt": prompt,
         "resolution": "1K",  # 2K costs more and buys nothing after downscaling (PLAN 8.1)
         "aspect_ratio": aspect_ratio,
-        "background": "transparent",
+        "background": background,
     }
     if seed is not None:
         payload["seed"] = int(seed)
+    # Consistency mechanism (PLAN 8.2): reference images arrive as data URLs built by the
+    # admin route from pack files.
+    if input_references:
+        payload["input_references"] = input_references
 
     try:
         async with httpx.AsyncClient(timeout=IMAGE_TIMEOUT_SEC) as client:
@@ -58,7 +65,11 @@ async def generate_image(settings, *, prompt: str, aspect_ratio: str,
         raise SeedreamError("upstream_unreachable", f"images request failed: {exc}") from exc
 
     if response.status_code != 200:
-        raise SeedreamError("upstream_status", f"images endpoint returned {response.status_code}")
+        # Surface the upstream body (truncated): "what did the images endpoint refuse" is the
+        # first question every authoring failure asks, and the key is never in an error body.
+        raise SeedreamError(
+            f"upstream_http_{response.status_code}", response.text[:400],
+        )
 
     data = response.json() if response.headers.get("content-type", "").startswith("application/json") else {}
     items = data.get("data") or []

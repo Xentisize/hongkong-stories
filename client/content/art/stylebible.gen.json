@@ -1,0 +1,22 @@
+{
+  "prompt_id": "gen_20261117_2cd4fd",
+  "model": "bytedance-seed/seedream-5-0-flash",
+  "seed": 0,
+  "resolution": "1K",
+  "aspect_ratio": "16:9",
+  "background": "opaque",
+  "input_references": [],
+  "post": {
+    "palette": "hk_palette_v1",
+    "target_px": [
+      256,
+      144
+    ],
+    "outline": false,
+    "pad": 2
+  },
+  "cost_usd": 0.018,
+  "accepted_by": "admin",
+  "ts": "2026-11-17T03:51:27.656091+00:00",
+  "prompt": "pixel art style bible: a 2027 Sham Shui Po street scene, top-down view, three characters in the street (a cha chaan teng owner in an apron, a retiree with a bird cage, a delivery rider with a helmet), wet market stalls with tarpaulins, tong lau facades with air-conditioner boxes, a cha chaan teng awning, delivery scooters parked at the kerb, hk_palette_v1 palette, 24px tile scale, flat cel shading, no text, plain transparent background"
+}

@@ -1,10 +1,20 @@
-/* Admin shell (PLAN 9.1): token, drafts list, baseline clone list, the NPC editor, and the
- * validate / publish actions. The P4 exit criterion lives here: author an NPC end to end —
- * persona, trigger, generated sprite — then publish; every booted client hot-packs it. */
+/* Admin shell (PLAN 9.1, 9.2): token + nav over four views —
+ *   Editor     draft authoring (NPC form, clone-from-baseline, art, validate/publish)
+ *   Playground chat with a draft NPC; per-turn real usage, rejected actions, fact-check
+ *   Builder    condition rule rows → §5.5 JSON with live evaluation
+ *   Review     fact-check queue + usage dashboard
+ *
+ * The editor's bound entity object survives tab switches, as does the builder's model —
+ * switching views never discards unsaved work. */
 
 import "./style.css";
 import { api, ApiError, DraftSummary, Issue, getToken, setToken } from "./api";
 import { blankNpc, Entity, renderNpcForm } from "./form";
+import { renderConditionBuilder, BuilderHandle } from "./builder";
+import { renderPlayground } from "./playground";
+import { renderReview } from "./review";
+
+type ViewName = "editor" | "playground" | "builder" | "review";
 
 const app = document.querySelector("#app") as HTMLElement;
 
@@ -16,13 +26,16 @@ interface Meta {
 
 let status: HTMLElement;
 let dirtyMark: HTMLElement;
-let draftsList: HTMLElement;
-let baselineList: HTMLElement;
-let editor: HTMLElement;
-let actionsRow: HTMLElement;
-let feedback: HTMLElement;
+let viewHost: HTMLElement;
+const navButtons: Partial<Record<ViewName, HTMLElement>> = {};
+let currentView: ViewName = "editor";
+
+let editorEntity: Entity | null = null;
+let editorIsNew = false;
 let dirty = false;
-let currentId: string | null = null;
+let editorFeedback: HTMLElement | null = null;
+let builderHandle: BuilderHandle | null = null;
+let builderModel: unknown = { flag: "" };
 
 function el(tag: string, className = ""): HTMLElement {
   const node = document.createElement(tag);
@@ -41,13 +54,14 @@ function describeError(err: unknown): string {
 }
 
 function show(level: "ok" | "err" | "warn", text: string): void {
-  feedback.className = `feedback ${level}`;
-  feedback.textContent = text;
+  if (!editorFeedback) return;
+  editorFeedback.className = `feedback ${level}`;
+  editorFeedback.textContent = text;
 }
 
 function markDirty(): void {
   dirty = true;
-  dirtyMark.textContent = "●";
+  dirtyMark.textContent = "● 未保存";
 }
 
 function markClean(): void {
@@ -58,14 +72,16 @@ function markClean(): void {
 async function refreshMeta(): Promise<void> {
   try {
     const meta = await api.meta() as Meta;
-    const npcs = meta.counts["npcs"] ?? 0;
-    status.textContent = `content v${meta.content_version} (${meta.content_hash}) · npcs ${npcs}`;
+    status.textContent =
+      `content v${meta.content_version} (${meta.content_hash}) · npcs ${meta.counts["npcs"] ?? 0}`;
   } catch {
     status.textContent = "未连接后端 / backend unreachable";
   }
 }
 
-async function refreshLists(): Promise<void> {
+/* ---------- editor view ---------- */
+
+async function refreshLists(draftsList: HTMLElement, baselineList: HTMLElement): Promise<void> {
   draftsList.textContent = "";
   const drafts = await api.drafts() as DraftSummary[];
   if (drafts.length === 0) {
@@ -99,8 +115,9 @@ async function refreshLists(): Promise<void> {
 
 async function openDraft(kind: string, id: string): Promise<void> {
   try {
-    const entity = await api.getDraft(kind, id) as Entity;
-    showEditor(entity, false);
+    editorEntity = await api.getDraft(kind, id) as Entity;
+    editorIsNew = false;
+    showView("editor");
   } catch (err) {
     show("err", describeError(err));
   }
@@ -108,25 +125,17 @@ async function openDraft(kind: string, id: string): Promise<void> {
 
 async function cloneDraft(id: string): Promise<void> {
   try {
-    const entity = await api.entity("npcs", id) as Entity;
-    entity.id = `${id}_v2`;
-    showEditor(entity, true);
+    editorEntity = await api.entity("npcs", id) as Entity;
+    editorEntity.id = `${id}_v2`;
+    editorIsNew = true;
+    showView("editor");
     show("warn", `已载入基线 ${id} — 改好 id 与内容后保存为草稿`);
   } catch (err) {
     show("err", describeError(err));
   }
 }
 
-function showEditor(entity: Entity, isNew: boolean): void {
-  currentId = String(entity.id);
-  editor.textContent = "";
-  editor.append(renderNpcForm(entity, { onChange: markDirty }, isNew));
-  feedback.className = "feedback";
-  markClean();
-  wireActions(entity, isNew);
-}
-
-function wireActions(entity: Entity, isNew: boolean): void {
+function wireActions(entity: Entity, isNew: boolean, actionsRow: HTMLElement): void {
   actionsRow.textContent = "";
 
   const save = el("button", "primary");
@@ -135,7 +144,7 @@ function wireActions(entity: Entity, isNew: boolean): void {
 
   const remove = el("button", "danger");
   remove.textContent = "删草稿 Discard";
-  remove.onclick = () => void removeDraft(entity.id);
+  remove.onclick = () => void removeDraft(String(entity.id));
 
   const validate = el("button");
   validate.textContent = "校验 Validate";
@@ -151,10 +160,9 @@ function wireActions(entity: Entity, isNew: boolean): void {
 async function saveDraft(entity: Entity): Promise<void> {
   try {
     await api.putDraft("npcs", String(entity.id), entity);
-    currentId = String(entity.id);
+    editorIsNew = false;
     markClean();
     show("ok", `草稿已保存 / draft saved: ${entity.id}`);
-    await refreshLists();
   } catch (err) {
     show("err", describeError(err));
   }
@@ -165,7 +173,6 @@ async function removeDraft(id: string): Promise<void> {
   try {
     await api.deleteDraft("npcs", id);
     show("ok", `草稿已删除 / draft discarded: ${id}`);
-    await refreshLists();
   } catch (err) {
     show("err", describeError(err));
   }
@@ -192,19 +199,106 @@ async function runValidate(): Promise<void> {
 }
 
 async function runPublish(): Promise<void> {
-  if (!window.confirm("发布会把草稿并入正式内容包并递增版本，所有客户端在下次启动时热更新。继续？")) {
+  let preview: { added: Array<{ kind: string; id: string }>; changed: Array<{ kind: string; id: string }> };
+  try {
+    preview = await api.publishPreview() as typeof preview;
+  } catch (err) {
+    show("err", describeError(err));
+    return;
+  }
+  const lines = [
+    ...preview.added.map((e) => `＋ 新增 ${e.kind}/${e.id}`),
+    ...preview.changed.map((e) => `~ 修改 ${e.kind}/${e.id}`),
+  ];
+  const summary = lines.length ? lines.join("\n") : "（草稿与基线一致或无草稿）";
+  if (!window.confirm(`发布会把草稿并入正式内容包并递增版本，所有客户端下次启动热更新。\n将应用：\n${summary}\n继续？`)) {
     return;
   }
   try {
     const result = await api.publish() as { published: number; version: number; content_hash: string };
+    editorIsNew = false;
     markClean();
     show("ok", `已发布 / published ${result.published} 个草稿 → content v${result.version} (${result.content_hash})`);
     await refreshMeta();
-    await refreshLists();
   } catch (err) {
     show("err", describeError(err));
   }
 }
+
+function editorView(): HTMLElement {
+  const wrap = el("div", "layout");
+  const aside = el("aside");
+  const draftsHead = el("h2");
+  draftsHead.textContent = "草稿 Drafts";
+  const draftsList = el("ul");
+  const baselineHead = el("h2");
+  baselineHead.textContent = "基线 NPC（点按克隆）";
+  const baselineList = el("ul");
+  const newBtn = el("button");
+  newBtn.textContent = "＋ 新建 NPC";
+  newBtn.onclick = () => {
+    editorEntity = blankNpc();
+    editorIsNew = true;
+    showView("editor");
+    show("warn", "新 NPC：填好 id（如 npc_ch01_hawker）、三语名称与内容后保存");
+  };
+  aside.append(draftsHead, draftsList, baselineHead, baselineList, newBtn);
+
+  const card = el("section", "card");
+  const editorHost = el("div");
+  const actionsRow = el("div", "actions");
+  const feedback = el("div", "feedback");
+  editorFeedback = feedback;
+  card.append(editorHost, actionsRow, feedback);
+  wrap.append(aside, card);
+
+  if (editorEntity) {
+    editorHost.append(renderNpcForm(editorEntity, { onChange: markDirty }, editorIsNew));
+    wireActions(editorEntity, editorIsNew, actionsRow);
+  } else {
+    const hint = el("div");
+    hint.style.color = "var(--muted)";
+    hint.textContent = "从左侧选择草稿、克隆基线 NPC，或新建一个。";
+    editorHost.append(hint);
+  }
+
+  void refreshLists(draftsList, baselineList);
+  return wrap;
+}
+
+/* ---------- other views ---------- */
+
+function playgroundView(): HTMLElement {
+  return renderPlayground();
+}
+
+function builderView(): HTMLElement {
+  const card = el("section", "card");
+  builderHandle = renderConditionBuilder(builderModel, () => {});
+  card.append(builderHandle.root);
+  return card;
+}
+
+function reviewView(): HTMLElement {
+  return renderReview();
+}
+
+function showView(name: ViewName): void {
+  if (currentView === "builder" && name !== "builder") {
+    builderModel = builderHandle?.getModel() ?? builderModel;
+  }
+  currentView = name;
+  for (const key of Object.keys(navButtons) as ViewName[]) {
+    navButtons[key]?.classList.toggle("active", key === name);
+  }
+  viewHost.textContent = "";
+  if (name === "editor") viewHost.append(editorView());
+  else if (name === "playground") viewHost.append(playgroundView());
+  else if (name === "builder") viewHost.append(builderView());
+  else viewHost.append(reviewView());
+}
+
+/* ---------- boot ---------- */
 
 function boot(): void {
   status = el("span", "status");
@@ -223,39 +317,31 @@ function boot(): void {
   applyToken.onclick = async () => {
     setToken(tokenInput.value.trim());
     await refreshMeta();
-    await refreshLists();
   };
   bar.append(title, tokenInput, applyToken, dirtyMark, status);
   app.append(bar);
 
-  const layout = el("div", "layout");
+  const tabs = el("div", "tabs");
+  const views: Array<[ViewName, string]> = [
+    ["editor", "编辑 Editor"],
+    ["playground", "调试 Playground"],
+    ["builder", "条件 Builder"],
+    ["review", "审阅 Review"],
+  ];
+  for (const [name, label] of views) {
+    const button = el("button");
+    button.textContent = label;
+    button.onclick = () => showView(name);
+    navButtons[name] = button;
+    tabs.append(button);
+  }
+  app.append(tabs);
 
-  const aside = el("aside");
-  const draftsHead = el("h2");
-  draftsHead.textContent = "草稿 Drafts";
-  draftsList = el("ul");
-  const baselineHead = el("h2");
-  baselineHead.textContent = "基线 NPC（点按克隆）";
-  baselineList = el("ul");
-  const newBtn = el("button");
-  newBtn.textContent = "＋ 新建 NPC";
-  newBtn.onclick = () => {
-    showEditor(blankNpc(), true);
-    show("warn", "新 NPC：填好 id（如 npc_ch01_hawker）、三语名称与内容后保存");
-  };
-  aside.append(draftsHead, draftsList, baselineHead, baselineList, newBtn);
+  viewHost = el("div");
+  app.append(viewHost);
 
-  const card = el("section", "card");
-  editor = el("div");
-  actionsRow = el("div", "actions");
-  feedback = el("div", "feedback");
-  card.append(editor, actionsRow, feedback);
-
-  layout.append(aside, card);
-  app.append(layout);
-
+  showView("editor");
   void refreshMeta();
-  void refreshLists();
 }
 
 boot();
