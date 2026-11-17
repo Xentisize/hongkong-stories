@@ -27,7 +27,7 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	# Input polling bypasses GUI focus, so a focused console LineEdit or dialogue box would
 	# still walk the player around behind the text without this gate.
-	if Dev.console_open or Dialogue.is_active() or _cutscene_showing() or _title_showing():
+	if Dev.console_open or Dialogue.is_active() or _cutscene_showing() or _title_showing() or _inventory_open():
 		velocity = Vector2.ZERO
 		current_target = null
 		return
@@ -104,6 +104,12 @@ func _cutscene_showing() -> bool:
 func _title_showing() -> bool:
 	var title := get_tree().get_first_node_in_group("title")
 	return title != null and bool(title.call("is_showing"))
+
+
+## Same gate for the inventory panel: it is modal — arrows navigate the list, not the street.
+func _inventory_open() -> bool:
+	var hud := get_tree().get_first_node_in_group("inventory_panel")
+	return hud != null and bool(hud.call("is_open"))
 
 
 var _sprite_tex: Texture2D = null

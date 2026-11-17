@@ -1,6 +1,7 @@
 {
   "schema_version": 1,
   "id": "item_tea_tin",
+  "icon": "res://content/art/items/item_tea_tin.png",
   "name": { "zh_HK": "鐵皮茶葉罐", "zh_CN": "铁皮茶叶罐", "en": "Tin of Tea Leaves" },
   "desc": {
     "zh_HK": "阿彩送嘅茶葉罐，罐身印花已經磨到模糊，掂手仲有茶香。",

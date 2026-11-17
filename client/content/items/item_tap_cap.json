@@ -1,6 +1,7 @@
 {
   "schema_version": 1,
   "id": "item_tap_cap",
+  "icon": "res://content/art/items/item_tap_cap.png",
   "name": { "zh_HK": "銅喉嘴", "zh_CN": "铜水管嘴", "en": "Brass Tap Cap" },
   "desc": {
     "zh_HK": "麥嬸送嘅銅喉嘴，話排隊嗰陣擰上自己個桶就唔使嗌交。",

@@ -1,0 +1,24 @@
+{
+  "prompt_id": "gen_20261117_16e5c2",
+  "model": "bytedance-seed/seedream-5-0-flash",
+  "seed": 0,
+  "resolution": "1K",
+  "aspect_ratio": "1:1",
+  "background": "transparent",
+  "input_references": [
+    "art/stylebible.png"
+  ],
+  "post": {
+    "palette": "hk_palette_v1",
+    "target_px": [
+      24,
+      24
+    ],
+    "outline": true,
+    "pad": 0
+  },
+  "cost_usd": 0.018,
+  "accepted_by": "admin",
+  "ts": "2026-11-17T08:51:51.339028+00:00",
+  "prompt": "cute pixel-art game icon of a paper luggage tag with a handwritten address and a punched hole, hk_palette_v1 palette, centered on a clear transparent background, chunky readable shapes at 24px, no text, no drop shadow"
+}

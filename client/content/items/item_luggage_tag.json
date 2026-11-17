@@ -1,6 +1,7 @@
 {
   "schema_version": 1,
   "id": "item_luggage_tag",
+  "icon": "res://content/art/items/item_luggage_tag.png",
   "name": { "zh_HK": "行李牌", "zh_CN": "行李牌", "en": "Luggage Tag" },
   "desc": {
     "zh_HK": "啟德搬運工人送嘅行李牌，背面手寫住一個已經冇人用嘅地址。",
