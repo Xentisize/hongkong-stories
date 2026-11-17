@@ -27,7 +27,7 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	# Input polling bypasses GUI focus, so a focused console LineEdit or dialogue box would
 	# still walk the player around behind the text without this gate.
-	if Dev.console_open or Dialogue.is_active() or _cutscene_showing():
+	if Dev.console_open or Dialogue.is_active() or _cutscene_showing() or _title_showing():
 		velocity = Vector2.ZERO
 		current_target = null
 		return
@@ -98,6 +98,12 @@ func _advance_animation(delta: float) -> void:
 func _cutscene_showing() -> bool:
 	var cutscene := get_tree().get_first_node_in_group("cutscene")
 	return cutscene != null and bool(cutscene.call("is_showing"))
+
+
+## Same gate for the title screen (the cover at boot; Esc reopens it as settings).
+func _title_showing() -> bool:
+	var title := get_tree().get_first_node_in_group("title")
+	return title != null and bool(title.call("is_showing"))
 
 
 func _draw() -> void:

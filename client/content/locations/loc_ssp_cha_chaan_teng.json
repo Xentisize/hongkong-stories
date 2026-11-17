@@ -37,6 +37,10 @@
     "from_street": [2.5, 6.5]
   },
   "music": "audio/ssp_cct_2027.wav",
+  "decor": [
+    { "art": "art/props/prop_lantern.png", "tile": [12, 2] },
+    { "art": "art/props/prop_plant.png", "tile": [3, 2] }
+  ],
   "npcs": [
     { "npc": "npc_ch01_tai", "tile": [4, 4], "facing": "down" },
     { "npc": "npc_ch01_shan", "tile": [13, 8], "facing": "up" }

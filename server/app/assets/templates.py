@@ -19,9 +19,11 @@ TARGETS: dict[str, tuple[str, tuple[int, int], str]] = {
     "prop": ("1:1", (24, 24), "transparent"),
     "backdrop": ("16:9", (256, 144), "opaque"),
     "stylebible": ("16:9", (256, 144), "opaque"),
+    "tile": ("1:1", (24, 24), "opaque"),
 }
 
-# Only cut-out subjects get the 1px outline; a full-bleed scene has no silhouette.
+# Only cut-out subjects get the 1px outline; a full-bleed scene or a map tile has no
+# silhouette (an outlined floor tile would grow a border and stop tiling).
 OUTLINED = {"sprite", "portrait", "prop"}
 
 TEMPLATES: dict[str, str] = {
@@ -41,6 +43,10 @@ TEMPLATES: dict[str, str] = {
     "backdrop": (
         "pixel art top-down street scene of {desc}, 16:9, muted hk_palette_v1 palette, "
         "walkable ground plane, no characters, no text, no UI"
+    ),
+    "tile": (
+        "pixel art {desc}, hk_palette_v1 palette, fills the entire square edge to edge, "
+        "tileable texture, flat shading, no border, no outline, no text, no drop shadow"
     ),
     "stylebible": (
         # §8.2: the style bible is a street scene WITH three cast characters at final
@@ -63,6 +69,8 @@ def pack_path(kind: str, subject_id: str) -> str:
         # The style bible's path is part of the §8.2 contract — input_references[0] on every
         # later generation points at art/stylebible.png.
         return "art/stylebible.png"
+    if kind == "tile":
+        return f"art/tiles/{subject_id}.png"
     if kind == "sprite":
         return f"art/npcs/{subject_id}.png"
     if kind == "portrait":

@@ -37,6 +37,11 @@
     "from_roof": [1.5, 5.5]
   },
   "music": "audio/ssp_2027.wav",
+  "decor": [
+    { "art": "art/props/prop_tv.png", "tile": [10, 2] },
+    { "art": "art/props/prop_crate.png", "tile": [2, 9] },
+    { "art": "art/props/prop_plant.png", "tile": [22, 9] }
+  ],
   "npcs": [
     { "npc": "npc_ch04_caai", "tile": [8, 6], "facing": "down" },
     { "npc": "npc_ch04_rong", "tile": [17, 6], "facing": "left" }

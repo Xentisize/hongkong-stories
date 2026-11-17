@@ -180,9 +180,12 @@ over every new era string, three-locale parity holds with zero Cantonese particl
 `zh_CN`, and `--selftest` runs via the Windows Godot through WSL interop: **119 checks,
 0 failures** — now covering the placement writer and the real audio assets. Earlier runs
 verified the web export (`index.wasm` 38 MB · `index.pck` 5.0 MB) and the browser smokes
-(backend up: real model reply; backend down: scripted fallback). Remaining: the 30-minute
-phone play, chapter 6 (the 2027 finale), and real recordings to replace the synthesized
-beds.
+(backend up: real model reply; backend down: scripted fallback). The Seedream art pass
+shipped too: a generated tileset repaints every room, 17 era NPC sprites render in-world
+(replacing the placeholder rectangles), and eight props dress the locations through the
+`decor` system (~$0.45 of generations, style bible referenced throughout). Remaining: the
+30-minute phone play, chapter 6 (the 2027 finale), and real recordings to replace the
+synthesized beds.
 
 ## Fonts and licensing (read before swapping fonts)
 

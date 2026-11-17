@@ -37,6 +37,10 @@
     "from_factory": [2.5, 5.5]
   },
   "music": "audio/kln_1963.wav",
+  "decor": [
+    { "art": "art/props/prop_ricesack.png", "tile": [12, 3] },
+    { "art": "art/props/prop_plant.png", "tile": [16, 8] }
+  ],
   "npcs": [
     { "npc": "npc_ch03_mak", "tile": [5, 8], "facing": "down" }
   ],

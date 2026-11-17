@@ -35,6 +35,10 @@
     "from_street": [2.5, 5.5]
   },
   "music": "audio/ssp_flat_2027.wav",
+  "decor": [
+    { "art": "art/props/prop_tv.png", "tile": [5, 2] },
+    { "art": "art/props/prop_plant.png", "tile": [11, 2] }
+  ],
   "npcs": [],
   "doors": [],
   "interactables": [

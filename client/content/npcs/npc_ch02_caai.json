@@ -1,9 +1,20 @@
 {
   "schema_version": 1,
   "id": "npc_ch02_caai",
-  "display_name": { "zh_HK": "阿彩", "zh_CN": "阿彩", "en": "A-choi" },
+  "display_name": {
+    "zh_HK": "阿彩",
+    "zh_CN": "阿彩",
+    "en": "A-choi"
+  },
   "era": "ch02_kln_1955",
-  "sprite": null,
+  "sprite": {
+    "sheet": "art/npcs/npc_ch02_caai.png",
+    "frames": {
+      "idle": [
+        0
+      ]
+    }
+  },
   "persona": {
     "role": "A tea-stall keeper in her twenties by the Kowloon market; the player's grandmother, twenty-some years before the player ever knew her.",
     "voice": "Quick, warm, busy hands; teases strangers and feeds them faster.",
@@ -13,7 +24,12 @@
       "Never quotes a price she did not chalk herself",
       "Never serves tea in a chipped cup"
     ],
-    "knowledge_tags": ["the tea stall", "the market", "milk tea", "the hawkers"]
+    "knowledge_tags": [
+      "the tea stall",
+      "the market",
+      "milk tea",
+      "the hawkers"
+    ]
   },
   "lore": "A-choi runs a tea stall by the market: milk tea for the hawkers before dawn — no sugar, extra hot, because they drink standing and cannot wait for it to cool. She is twenty-something, saving for a second bench, and knows everyone who carries a load through this street. One of the photographs in the player's black album shows her stall on the morning it opened, her in the corner laughing at whoever held the camera. She gives away tea more easily than words.",
   "llm": {
@@ -21,8 +37,13 @@
     "temperature": 0.85,
     "max_tokens": 320,
     "language_follow_player": true,
-    "actions_allowed": ["give", "reveal_secret"],
-    "items_may_give": ["item_tea_tin"],
+    "actions_allowed": [
+      "give",
+      "reveal_secret"
+    ],
+    "items_may_give": [
+      "item_tea_tin"
+    ],
     "flags_may_set": [],
     "vars_may_change": {}
   },
@@ -30,12 +51,17 @@
     {
       "id": "s_caai_tea",
       "text": "Her milk tea has one rule — no sugar, extra hot — because the hawkers drink standing up and cannot wait for it to cool.",
-      "reveal_if": { "talked": "npc_ch02_caai", "min": 2 }
+      "reveal_if": {
+        "talked": "npc_ch02_caai",
+        "min": 2
+      }
     },
     {
       "id": "s_caai_album",
       "text": "One photograph in the black album is her stall on the morning it opened; she stands in the corner holding the teapot, laughing at whoever was behind the camera.",
-      "reveal_if": { "has_item": "item_photo_album" }
+      "reveal_if": {
+        "has_item": "item_photo_album"
+      }
     }
   ],
   "scripted_fallback": {
@@ -61,8 +87,17 @@
           "zh_CN": "你老是在这里站着，这罐茶叶你拿去喝。铁皮罐，防潮的。",
           "en": "You keep standing here — take this tin of tea leaves with you. Tin keeps the damp out."
         },
-        "requires": { "talked": "npc_ch02_caai", "min": 2 },
-        "actions": [ { "type": "give", "item": "item_tea_tin", "count": 1 } ]
+        "requires": {
+          "talked": "npc_ch02_caai",
+          "min": 2
+        },
+        "actions": [
+          {
+            "type": "give",
+            "item": "item_tea_tin",
+            "count": 1
+          }
+        ]
       }
     ],
     "exit": {

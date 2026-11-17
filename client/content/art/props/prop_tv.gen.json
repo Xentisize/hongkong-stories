@@ -1,0 +1,24 @@
+{
+  "prompt_id": "gen_20261117_d13286",
+  "model": "bytedance-seed/seedream-5-0-flash",
+  "seed": 0,
+  "resolution": "1K",
+  "aspect_ratio": "1:1",
+  "background": "transparent",
+  "input_references": [
+    "art/stylebible.png"
+  ],
+  "post": {
+    "palette": "hk_palette_v1",
+    "target_px": [
+      24,
+      24
+    ],
+    "outline": true,
+    "pad": 0
+  },
+  "cost_usd": 0.018,
+  "accepted_by": "admin",
+  "ts": "2026-11-17T05:12:36.617139+00:00",
+  "prompt": "pixel art a boxy CRT television on small metal legs with an antenna, isometric-free flat top-down-RPG style, hk_palette_v1 palette, 24px scale, single object, transparent background, no shadow baked in, no text"
+}

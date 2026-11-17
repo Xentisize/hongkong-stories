@@ -180,3 +180,18 @@ func apply_hotpack(manifest: Dictionary, entities: Array, art: Dictionary) -> vo
 ## is loaded through ResourceLoader by callers, as before.
 func get_art(path: String) -> Texture2D:
 	return _art_textures.get(path, null)
+
+
+## Generated-art resolution (§5.7, §8): hot-pack decoded bytes first, then bundled
+## resources under res://content/. Null when neither exists — callers keep their
+## placeholder fallbacks.
+func art_texture(path: String) -> Texture2D:
+	if path.is_empty():
+		return null
+	var hot := get_art(path)
+	if hot != null:
+		return hot
+	var bundled := "res://content/" + path
+	if ResourceLoader.exists(bundled):
+		return load(bundled)
+	return null

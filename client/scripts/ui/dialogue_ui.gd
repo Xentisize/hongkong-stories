@@ -55,8 +55,12 @@ func _build() -> void:
 	_panel.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
 	_panel.offset_left = 4
 	_panel.offset_right = -4
-	_panel.offset_top = -84
+	# The content (name + text + input + hint) needs ~108px; sizing the panel to it and
+	# growing UPWARD keeps the input on-screen — the old 80px panel overflowed past the
+	# screen edge and cut the hint (reported).
+	_panel.offset_top = -112
 	_panel.offset_bottom = -4
+	_panel.grow_vertical = Control.GROW_DIRECTION_BEGIN
 
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.04, 0.045, 0.055, 0.94)

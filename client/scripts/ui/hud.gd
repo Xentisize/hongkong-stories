@@ -62,17 +62,17 @@ func _build() -> void:
 	_fps_label = _make_label(9)
 	_fps_label.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
 	_fps_label.offset_left = 4
-	_fps_label.offset_top = 2
+	_fps_label.offset_top = 0
 	_fps_label.offset_right = 120
-	_fps_label.offset_bottom = 14
+	_fps_label.offset_bottom = 16
 	add_child(_fps_label)
 
 	_message_label = _make_label(12)
 	_message_label.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
 	_message_label.offset_left = 10
 	_message_label.offset_right = -10
-	_message_label.offset_top = 18
-	_message_label.offset_bottom = 52
+	_message_label.offset_top = 16
+	_message_label.offset_bottom = 72
 	_message_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_message_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_message_label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
@@ -83,9 +83,11 @@ func _build() -> void:
 	_prompt_label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
 	_prompt_label.offset_left = 8
 	_prompt_label.offset_right = -8
-	_prompt_label.offset_top = -20
-	_prompt_label.offset_bottom = -4
+	# CJK pixel glyphs need ~16px line height: a 16px box clipped the bottoms (reported).
+	_prompt_label.offset_top = -30
+	_prompt_label.offset_bottom = -2
 	_prompt_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_prompt_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_prompt_label.visible = false
 	add_child(_prompt_label)
 
@@ -119,10 +121,11 @@ func _build() -> void:
 	_stamp_label = _make_label(10)
 	_stamp_label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
 	_stamp_label.offset_left = -90
-	_stamp_label.offset_top = -16
+	_stamp_label.offset_top = -22
 	_stamp_label.offset_right = -2
 	_stamp_label.offset_bottom = -2
 	_stamp_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_stamp_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_stamp_label.add_theme_color_override("font_color", Color(0.55, 0.55, 0.5, 0.9))
 	_stamp_label.text = BUILD_STAMP
 	add_child(_stamp_label)

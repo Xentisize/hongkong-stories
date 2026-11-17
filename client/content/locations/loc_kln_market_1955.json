@@ -42,6 +42,10 @@
     "from_huts": [25.5, 7.5]
   },
   "music": "audio/kln_1955.wav",
+  "decor": [
+    { "art": "art/props/prop_lantern.png", "tile": [3, 2] },
+    { "art": "art/props/prop_ricesack.png", "tile": [17, 3] }
+  ],
   "npcs": [
     { "npc": "npc_ch02_caai", "tile": [6, 3], "facing": "down" },
     { "npc": "npc_ch02_waah", "tile": [21, 4], "facing": "down" }

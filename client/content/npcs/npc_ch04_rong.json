@@ -1,9 +1,20 @@
 {
   "schema_version": 1,
   "id": "npc_ch04_rong",
-  "display_name": { "zh_HK": "阿榮", "zh_CN": "阿荣", "en": "Rong" },
+  "display_name": {
+    "zh_HK": "阿榮",
+    "zh_CN": "阿荣",
+    "en": "Rong"
+  },
   "era": "ch04_kai_tak_1979",
-  "sprite": null,
+  "sprite": {
+    "sheet": "art/npcs/npc_ch04_rong.png",
+    "frames": {
+      "idle": [
+        0
+      ]
+    }
+  },
   "persona": {
     "role": "In his twenties: factory shifts, night school twice a week, and a plan his parents find admirable and unnecessary.",
     "voice": "Counts everything twice, speaks in blueprints, softens only when the shop's radio plays an old song.",
@@ -13,7 +24,12 @@
       "Never discusses his marks at night school",
       "Never lets his mother carry anything heavier than a teapot"
     ],
-    "knowledge_tags": ["the factory floor", "night school", "appliance prices", "the family's ledgers"]
+    "knowledge_tags": [
+      "the factory floor",
+      "night school",
+      "appliance prices",
+      "the family's ledgers"
+    ]
   },
   "lore": "Rong is the second generation: born over a hawker stall, raised in the shop, now doing factory shifts and night school twice a week. His plan is specific — a flat with a lift, bought with saved wages and no debts — and he keeps the numbers in a school exercise book. In the player's album there is a boy standing by the shop door in 1955; he looks at that boy the way one looks at a stranger.",
   "llm": {
@@ -21,21 +37,31 @@
     "temperature": 0.85,
     "max_tokens": 320,
     "language_follow_player": true,
-    "actions_allowed": ["set_flag", "reveal_secret"],
+    "actions_allowed": [
+      "set_flag",
+      "reveal_secret"
+    ],
     "items_may_give": [],
-    "flags_may_set": ["rong_moved_up"],
+    "flags_may_set": [
+      "rong_moved_up"
+    ],
     "vars_may_change": {}
   },
   "secrets": [
     {
       "id": "s_rong_plan",
       "text": "The plan lives in a school exercise book: saved wages month by month, a flat with a lift by thirty-five, and his parents in the room facing the street.",
-      "reveal_if": { "talked": "npc_ch04_rong", "min": 2 }
+      "reveal_if": {
+        "talked": "npc_ch04_rong",
+        "min": 2
+      }
     },
     {
       "id": "s_rong_album",
       "text": "In the black album there is a boy of about eight by the shop door — himself, before the scar on his knee. He goes quiet, then says the boy looks like he trusts the street.",
-      "reveal_if": { "has_item": "item_photo_album" }
+      "reveal_if": {
+        "has_item": "item_photo_album"
+      }
     }
   ],
   "scripted_fallback": {
@@ -61,8 +87,16 @@
           "zh_CN": "你是第一个想知道我簿子里写了什么的人。好——说明白：三十五岁前，一套有电梯的楼，爸妈住面向街道那间房。",
           "en": "You are the first to ask what the exercise book says. Fine — plainly then: a flat with a lift before thirty-five, and my parents in the room facing the street."
         },
-        "requires": { "talked": "npc_ch04_rong", "min": 2 },
-        "actions": [ { "type": "set_flag", "flag": "rong_moved_up" } ]
+        "requires": {
+          "talked": "npc_ch04_rong",
+          "min": 2
+        },
+        "actions": [
+          {
+            "type": "set_flag",
+            "flag": "rong_moved_up"
+          }
+        ]
       }
     ],
     "exit": {

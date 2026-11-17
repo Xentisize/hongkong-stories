@@ -28,13 +28,35 @@ func build(location: Dictionary) -> void:
 	data = location
 	name = "Location_%s" % String(data.get("id", "unknown"))
 	add_to_group("location")
+	# Y-sort merges this location's entities into the player's depth ordering (WorldHost
+	# is y-sorted too); the TileMapLayer's origin at (0,0) keeps the floor behind everyone.
+	y_sort_enabled = true
 	tile_size = int(data.get("tile_size", 24))
 	_build_tiles()
 	_build_collision()
+	_build_decor()
 	_build_doors()
 	_build_interactables()
 	_build_npcs()
 	_build_exits()
+
+
+## Decorative props from the `decor` array (§5.3 extension): {art, tile} entries rendered
+## as sprites at tile centres, Y-sorted with everything else. Pure dressing — no collision,
+## no interaction — so a room can be dressed without touching code.
+func _build_decor() -> void:
+	for raw in data.get("decor", []):
+		var entry: Dictionary = raw
+		var art_path := String(entry.get("art", ""))
+		var texture := ContentDB.art_texture(art_path)
+		if texture == null:
+			push_warning("LocationRoot: decor art missing: %s" % art_path)
+			continue
+		var sprite := Sprite2D.new()
+		sprite.texture = texture
+		var tile: Array = entry.get("tile", [0, 0])
+		sprite.position = Vector2(float(tile[0]) + 0.5, float(tile[1]) + 0.5) * tile_size
+		add_child(sprite)
 
 
 func _build_tiles() -> void:

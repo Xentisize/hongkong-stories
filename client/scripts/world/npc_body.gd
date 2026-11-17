@@ -12,6 +12,7 @@ var display_name: String = ""
 var _tile_size: int = 24
 var _requires: Variant = null
 var _requires_pass: bool = true
+var _sprite_tex: Texture2D = null
 
 
 func configure(placement: Dictionary, tile_size: int) -> void:
@@ -33,7 +34,18 @@ func configure(placement: Dictionary, tile_size: int) -> void:
 		var trigger: Dictionary = definition.get("trigger", {})
 		_requires = trigger.get("requires")
 	refresh_availability()
+	_sprite_tex = _load_sprite_texture(definition)
 	queue_redraw()
+
+
+## Generated art first (hot-pack decoded bytes), then bundled resources — the placeholder
+## rectangles remain the fallback when an NPC has no sprite yet.
+func _load_sprite_texture(definition: Dictionary) -> Texture2D:
+	var sprite: Variant = definition.get("sprite")
+	if typeof(sprite) != TYPE_DICTIONARY:
+		return null
+	var sheet := String((sprite as Dictionary).get("sheet", ""))
+	return ContentDB.art_texture(sheet)
 
 
 func get_prompt() -> String:
@@ -71,6 +83,13 @@ func _talk_verb() -> String:
 
 
 func _draw() -> void:
+	# Generated sprite (24x32 subject + 1px outline = 26x34): feet on the node origin so the
+	# Y-sort depth line matches the placeholder. Placeholder rects stay as the fallback.
+	if _sprite_tex != null:
+		var size := _sprite_tex.get_size()
+		draw_rect(Rect2(-7, -1, 14, 2), Color(0, 0, 0, 0.25))   # ground shadow
+		draw_texture_rect(_sprite_tex, Rect2(-size.x / 2.0, -size.y + 1.0, size.x, size.y), false)
+		return
 	# Placeholder figure in the same proportions as the player, in apron grey so the two read
 	# apart at 1x. Real sprite sheets arrive with the Seedream pipeline (PLAN §8).
 	draw_rect(Rect2(-7, -3, 14, 3), Color(0, 0, 0, 0.25))   # shadow

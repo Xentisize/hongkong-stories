@@ -7,6 +7,7 @@ extends Node2D
 const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
 const CUTSCENE_UI := preload("res://scripts/ui/cutscene_ui.gd")
 const TOUCH_UI := preload("res://scripts/ui/touch_controls.gd")
+const TITLE_UI := preload("res://scripts/ui/title_screen.gd")
 const DEFAULT_LOCATION := "loc_ssp_market_street"
 
 @onready var world_host: Node2D = $WorldHost
@@ -15,12 +16,16 @@ var location: LocationRoot = null
 var player: CharacterBody2D = null
 var cutscene: CanvasLayer = null
 var touch: CanvasLayer = null
+var title: CanvasLayer = null
 
 var _restored_position: bool = false
 
 
 func _ready() -> void:
 	add_to_group("main")
+	# Recursive Y-sort: locations (and the player) sort by their origins, so entities on
+	# both sides of a location boundary overlap by depth, not by tree order.
+	world_host.y_sort_enabled = true
 	# P3: the `goto` effect and location exits both funnel through the bus; the swap is
 	# deferred because the emitter may be mid-effects-loop or inside the exiting tree.
 	Bus.goto_requested.connect(_on_goto_requested)
@@ -28,6 +33,8 @@ func _ready() -> void:
 	add_child(cutscene)
 	touch = TOUCH_UI.new()
 	add_child(touch)
+	title = TITLE_UI.new()
+	add_child(title)
 	var version := Engine.get_version_info()
 	print("[Main] Godot %s | renderer=%s | viewport=%dx%d" % [
 		version.get("string", "?"),
@@ -65,6 +72,9 @@ func load_location(location_id: String, spawn_id: String = "default") -> void:
 
 	location = LocationRoot.new()
 	world_host.add_child(location)
+	# Keep every location BEHIND the player: add_child appends, so a rebuilt location would
+	# otherwise draw its tilemap over the player after the first transition (reported bug).
+	world_host.move_child(location, 0)
 	location.build(definition)
 
 	if player == null:

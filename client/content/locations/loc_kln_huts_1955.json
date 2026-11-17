@@ -36,6 +36,10 @@
     "from_market": [2.5, 5.5]
   },
   "music": "audio/kln_1955.wav",
+  "decor": [
+    { "art": "art/props/prop_crate.png", "tile": [13, 3] },
+    { "art": "art/props/prop_plant.png", "tile": [2, 8] }
+  ],
   "npcs": [
     { "npc": "npc_ch02_ho", "tile": [11, 8], "facing": "up" }
   ],

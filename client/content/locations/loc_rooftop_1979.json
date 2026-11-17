@@ -36,6 +36,10 @@
     "from_shop": [2.5, 5.5]
   },
   "music": "audio/kln_1955.wav",
+  "decor": [
+    { "art": "art/props/prop_birdcage.png", "tile": [13, 7] },
+    { "art": "art/props/prop_plant.png", "tile": [6, 3] }
+  ],
   "npcs": [
     { "npc": "npc_ch04_kwong", "tile": [11, 7], "facing": "left" }
   ],

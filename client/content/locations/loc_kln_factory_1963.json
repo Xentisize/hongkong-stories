@@ -44,6 +44,10 @@
     "from_lane": [1.5, 5.5]
   },
   "music": "audio/kln_1963.wav",
+  "decor": [
+    { "art": "art/props/prop_crate.png", "tile": [9, 4] },
+    { "art": "art/props/prop_fishtank.png", "tile": [21, 9] }
+  ],
   "npcs": [
     { "npc": "npc_ch03_rong", "tile": [19, 9], "facing": "left" },
     { "npc": "npc_ch03_luk", "tile": [5, 9], "facing": "right" }

@@ -112,6 +112,9 @@ await send("Page.enable");
 await sleep(waitMs);
 
 if (mode === "talk") {
+  // The title screen covers the game at boot: dismiss it with Esc before walking.
+  await holdKey("Escape", "Escape", 27, 120);
+  await sleep(600);
   // Market street (the P3 default): spawn tile (13.5, 6.5); Uncle Ken stands at (7, 4).
   // 72 px/s over 24px tiles, so these holds are generous on purpose.
   await holdKey("ArrowLeft", "ArrowLeft", 37, 2200);
