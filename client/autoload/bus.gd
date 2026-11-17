@@ -9,6 +9,10 @@ signal var_changed(var_name: String, value: float)
 signal item_gained(item_id: String, count: int)
 signal item_lost(item_id: String, count: int)
 
+## P6+ item screen: which item the player carries in hand ("" = empty hands). NPCs see it
+## through the state projection and may react; the HUD shows it on the panel title.
+signal held_changed(item_id: String)
+
 signal quest_updated(quest_id: String, node_id: String)
 signal quest_completed(quest_id: String)
 

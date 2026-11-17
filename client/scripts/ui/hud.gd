@@ -14,6 +14,10 @@ const UI_TEXT := {
 	"fps": { "zh_HK": "幀/秒", "zh_CN": "帧/秒", "en": "FPS" },
 	"use": { "zh_HK": "用", "zh_CN": "使用", "en": "Use" },
 	"detail_hint": { "zh_HK": "點一件物品睇詳情", "zh_CN": "点击一件物品看详情", "en": "Click an item for details" },
+	"hold": { "zh_HK": "手持", "zh_CN": "手持", "en": "Hold" },
+	"put_away": { "zh_HK": "放低", "zh_CN": "放下", "en": "Put away" },
+	"holding": { "zh_HK": "手中：", "zh_CN": "手持：", "en": "Holding: " },
+	"held_suffix": { "zh_HK": "（手中）", "zh_CN": "（手持）", "en": " [held]" },
 }
 
 var _fps_label: Label
@@ -38,6 +42,9 @@ func _ready() -> void:
 	_build()
 	Bus.message_shown.connect(_on_message)
 	Bus.inventory_changed.connect(_refresh_inventory)
+	Bus.held_changed.connect(func(_item_id: String) -> void:
+		_refresh_title()
+		_refresh_inventory())
 	Bus.locale_changed.connect(func(_locale: String) -> void: _refresh_texts())
 	_refresh_texts()
 	_refresh_inventory()
@@ -205,8 +212,18 @@ func _use_item(item_id: String) -> void:
 
 
 func _refresh_texts() -> void:
-	_title_label.text = _t("inventory_title")
+	_refresh_title()
 	_refresh_inventory()
+
+
+## The panel title carries what is in hand — NPC awareness is visible, not just implied.
+func _refresh_title() -> void:
+	var title := _t("inventory_title")
+	if not Game.held_item.is_empty():
+		var held_def := ContentDB.get_entity("items", Game.held_item)
+		var held_name := ContentDB.localize(held_def.get("name", Game.held_item), Settings.locale)
+		title += "  " + _t("holding") + held_name
+	_title_label.text = title
 
 
 func _refresh_inventory() -> void:
@@ -253,6 +270,8 @@ func _make_row(item_id: String, count: int) -> Control:
 	var label := _make_label(9)
 	var item_name := ContentDB.localize(definition.get("name", item_id), Settings.locale)
 	label.text = "%s  x%d" % [item_name if not item_name.is_empty() else item_id, count]
+	if item_id == Game.held_item:
+		label.text += " " + _t("held_suffix")
 	if item_id == _selected_item:
 		label.add_theme_color_override("font_color", Color(0.48, 0.79, 0.50))
 	row.add_child(label)
@@ -341,3 +360,12 @@ func _refresh_detail() -> void:
 		use.focus_mode = Control.FOCUS_NONE
 		use.pressed.connect(_use_item.bind(_selected_item))
 		_detail_box.add_child(use)
+
+	# RPG Maker's equip slot, simplified: one item in hand at a time; NPCs can see and react.
+	var held := Game.held_item == _selected_item
+	var hold := Button.new()
+	hold.text = _t("put_away") if held else _t("hold")
+	hold.focus_mode = Control.FOCUS_NONE
+	hold.pressed.connect(func() -> void:
+		Game.set_held("" if Game.held_item == _selected_item else _selected_item))
+	_detail_box.add_child(hold)

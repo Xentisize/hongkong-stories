@@ -21,7 +21,7 @@ from .llm.conditions import evaluate as condition_true
 
 LOCALES = ("zh_HK", "zh_CN", "en")
 KNOWN_CONDITION_VERBS = {
-    "all", "any", "not", "flag", "has_item", "var",
+    "all", "any", "not", "flag", "has_item", "held", "var",
     "visited", "talked", "quest_state", "quest_done", "time_of_day",
 }
 KNOWN_EFFECT_TYPES = {
@@ -114,6 +114,10 @@ def validate_store(store: ContentStore) -> list[dict]:
             return found
         if verb == "flag":
             found.add(str(condition[verb]))
+        if verb == "held":
+            held_id = str(condition[verb])
+            if held_id and held_id not in items:
+                err(path, f"unknown item {held_id!r}")
         return found
 
     def check_localized(field: Any, path: str, *, required: bool = True) -> None:

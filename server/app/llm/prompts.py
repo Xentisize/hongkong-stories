@@ -168,11 +168,21 @@ def volatile_block(npc: dict, state: dict[str, Any], lang: str, player_input: st
     variables = state.get("vars") or {}
     talk_counts = state.get("talk_counts") or {}
     npc_id = str(npc.get("id", ""))
+    held = str(state.get("held_item", ""))
     state_lines = [
         f"You have spoken with the player {int(talk_counts.get(npc_id, 0))} time(s) before.",
         "Flags currently true: " + (", ".join(sorted(k for k, v in flags.items() if v)) or "none"),
         "Player carries: " + (", ".join(sorted(str(k) for k in inventory)) or "nothing"),
+        "In the player's hands right now: " + (held if held else "nothing — their hands are empty"),
     ]
+    if held:
+        # The player is holding something you can SEE (P6+ item screen): react to it when it
+        # fits what you were saying — curiosity, suspicion, a request to look closer.
+        state_lines.append(
+            "You can see the item in their hands. React to it naturally if it interests your "
+            "character — ask about it, admire it, or eye it warily — but only when it fits "
+            "the conversation already happening."
+        )
     if variables:
         state_lines.append("Values: " + ", ".join(f"{k}={v}" for k, v in sorted(variables.items())))
     sections.append("RIGHT NOW:\n" + "\n".join(state_lines))

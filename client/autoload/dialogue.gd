@@ -133,6 +133,7 @@ func state_projection() -> Dictionary:
 		"flags": Game.flags,
 		"vars": Game.vars,
 		"inventory": Game.inventory,
+		"held_item": Game.held_item,
 		"talk_counts": Game.talk_counts,
 		"visited": Game.visited,
 		"quests": Game.quests,

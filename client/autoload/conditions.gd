@@ -8,6 +8,7 @@ extends Node
 ##
 ## Implemented in P1: all / any / not / flag / has_item / var / visited / talked.
 ## Added in P3: quest_state / quest_done / time_of_day.
+## Added in P6: held (the item screen's "in hand" choice).
 
 const COMPARISONS := ["==", "!=", ">", ">=", "<", "<="]
 
@@ -46,6 +47,10 @@ func evaluate(condition: Variant, _context: Dictionary = {}) -> bool:
 
 	if cond.has("has_item"):
 		return Game.has_item(String(cond["has_item"]), int(cond.get("count", 1)))
+
+	if cond.has("held"):
+		# The item screen's "in hand" choice (P6+): NPCs and doors can react to what is held.
+		return Game.held_item == String(cond["held"])
 
 	if cond.has("var"):
 		return _compare(

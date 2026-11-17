@@ -46,6 +46,10 @@ def evaluate(condition: Any, state: State) -> bool:
         inventory = _state_bucket(state, "inventory")
         return int(inventory.get(str(condition["has_item"]), 0)) >= int(condition.get("count", 1))
 
+    if "held" in condition:
+        # The item screen's "in hand" choice (§5.5): the projection carries the held item id.
+        return str(state.get("held_item", "")) == str(condition["held"])
+
     if "var" in condition:
         variables = _state_bucket(state, "vars")
         return _compare(

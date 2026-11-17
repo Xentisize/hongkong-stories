@@ -444,6 +444,7 @@ static func _test_shared_condition_fixtures(c: Checker) -> void:
 		Game.new_game()
 		Game.flags = state.get("flags", {})
 		Game.inventory = state.get("inventory", {})
+		Game.held_item = String(state.get("held_item", ""))
 		Game.vars = state.get("vars", {})
 		Game.visited = state.get("visited", {})
 		Game.talk_counts = state.get("talk_counts", {})

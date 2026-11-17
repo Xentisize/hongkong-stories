@@ -47,6 +47,36 @@
     ],
     "vars_may_change": {}
   },
+  "states": [
+    {
+      "id": "holding_album",
+      "requires": { "held": "item_photo_album" },
+      "persona_patch": {
+        "voice": "Gentle as ever, but his eyes keep drifting to the black album in the player's hands — curious, careful not to stare",
+        "wants": "To see the album's cover properly — it looks like the ones his shop stocked decades ago"
+      },
+      "lore_extra": "The player is holding a small black photo album, carried openly. It looks like the albums your family's shop once stocked on the shelf by the till.",
+      "fallback_lines": [
+        {
+          "text": {
+            "zh_HK": "你手上嗰本相簿……我對眼跟唔住跟。畀我望下封面好唔好？",
+            "zh_CN": "你手上那本相簿……我的眼睛一直跟着它。让我看看封面好不好？",
+            "en": "That album in your hands… my eyes keep following it. May I see the cover?"
+          }
+        },
+        {
+          "text": {
+            "zh_HK": "黑皮、紅書籤——冇錯，就係呢款。我認得實嘅：呢張相就係你屋企間舖頭，未搭棚嗰陣。",
+            "zh_CN": "黑皮、红书签——没错，就是这款。我认得真真的：这张相就是你家的铺子，还没搭棚的时候。",
+            "en": "Black cover, red ribbon — that is the one. I would know it anywhere: this photograph is your family's shop, before the scaffolding went up."
+          },
+          "actions": [
+            { "type": "set_flag", "flag": "album_identified" }
+          ]
+        }
+      ]
+    }
+  ],
   "secrets": [
     {
       "id": "s_ken_album",

@@ -94,6 +94,16 @@ def test_volatile_block_carries_state_and_input(npc: dict) -> None:
     assert "where is the key?" in block
 
 
+def test_volatile_block_carries_the_held_item(npc: dict) -> None:
+    """The item screen's held choice (P6+): the NPC can see what is in the player's hands."""
+    block = prompts.volatile_block(npc, {"held_item": "item_rusty_key"}, "en", "hi")
+    assert "In the player's hands right now: item_rusty_key" in block
+    assert "You can see the item" in block
+    empty = prompts.volatile_block(npc, {}, "en", "hi")
+    assert "hands are empty" in empty
+    assert "You can see the item" not in empty
+
+
 def test_content_store_matches_client_manifest(content_dir) -> None:
     store = ContentStore.load(content_dir)
     assert store.counts()["npcs"] >= 1

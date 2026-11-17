@@ -10,6 +10,7 @@ const SCHEMA_VERSION := 1
 var flags: Dictionary = {}          ## String -> bool
 var vars: Dictionary = {}           ## String -> float
 var inventory: Dictionary = {}      ## item_id -> count
+var held_item: String = ""          ## the item currently carried in hand; "" = empty hands
 var quests: Dictionary = {}         ## quest_id -> {"node": String, "done": bool}
 var talk_counts: Dictionary = {}    ## npc_id -> int
 var visited: Dictionary = {}        ## location_id -> true
@@ -29,6 +30,7 @@ func new_game() -> void:
 	flags.clear()
 	vars.clear()
 	inventory.clear()
+	held_item = ""
 	quests.clear()
 	talk_counts.clear()
 	visited.clear()
@@ -38,6 +40,16 @@ func new_game() -> void:
 	current_location = ""
 	player_position = Vector2.ZERO
 	playtime_sec = 0.0
+
+
+## Marks the item the player carries in hand ("" puts it away). Holding something you do
+## not own is refused — the item screen only offers owned items, so this is a guard against
+## save corruption, not a UX flow.
+func set_held(item_id: String) -> void:
+	if not item_id.is_empty() and not has_item(item_id):
+		return
+	held_item = item_id
+	Bus.held_changed.emit(item_id)
 
 
 ## Convenience accessors — marked thinking in P1 when the effect interpreter lands (§5.6).
@@ -120,6 +132,7 @@ func to_dict() -> Dictionary:
 		"flags": flags.duplicate(true),
 		"vars": vars.duplicate(true),
 		"inventory": inventory.duplicate(true),
+		"held_item": held_item,
 		"quests": quests.duplicate(true),
 		"talk_counts": talk_counts.duplicate(true),
 		"visited": visited.duplicate(true),
@@ -149,6 +162,10 @@ func from_dict(data: Dictionary) -> bool:
 	time_of_day = String(data.get("time_of_day", "day"))
 	current_location = String(data.get("current_location", ""))
 	playtime_sec = float(data.get("playtime_sec", 0.0))
+	# A save that lost the held item (or an older schema) starts with empty hands.
+	held_item = String(data.get("held_item", ""))
+	if not held_item.is_empty() and not has_item(held_item):
+		held_item = ""
 
 	var pos: Array = data.get("player_position", [0.0, 0.0])
 	player_position = Vector2(float(pos[0]), float(pos[1]))
