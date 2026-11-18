@@ -43,6 +43,12 @@ playwright-cli open --browser=chromium "$URL" >/dev/null 2>&1 || {
   exit 1
 }
 
+echo "=== shell (splash, title, credits) ==="
+# Not `SHELL`: that variable is the login shell, and assigning to it does not un-export it, so
+# every child process below would inherit a multi-line verdict instead of a path.
+SHELL_OUT="$(playwright-cli --raw run-code --filename="$PWD/scripts/verify-shell.js" 2>&1 || true)"
+echo "$SHELL_OUT"
+
 OUTPUT="$(playwright-cli --raw run-code --filename="$PWD/scripts/verify-npc-gating.js" 2>&1 || true)"
 echo "$OUTPUT"
 
@@ -59,18 +65,20 @@ echo "=== quests and cutscenes ==="
 QUEST="$(playwright-cli --raw run-code --filename="$PWD/scripts/verify-quest.js" 2>&1 || true)"
 echo "$QUEST"
 
+SHELL_PASS=false
 GATING_PASS=false
 DIALOGUE_PASS=false
 WORLD_PASS=false
 QUEST_PASS=false
+grep -q "VERDICT:PASS" <<<"$SHELL_OUT" && SHELL_PASS=true
 grep -q "VERDICT:PASS" <<<"$OUTPUT" && GATING_PASS=true
 grep -q "VERDICT:PASS" <<<"$DIALOGUE" && DIALOGUE_PASS=true
 grep -q "VERDICT:PASS" <<<"$WORLD" && WORLD_PASS=true
 grep -q "VERDICT:PASS" <<<"$QUEST" && QUEST_PASS=true
 
-if [ "$GATING_PASS" = true ] && [ "$DIALOGUE_PASS" = true ] && [ "$WORLD_PASS" = true ] && [ "$QUEST_PASS" = true ]; then
+if [ "$SHELL_PASS" = true ] && [ "$GATING_PASS" = true ] && [ "$DIALOGUE_PASS" = true ] && [ "$WORLD_PASS" = true ] && [ "$QUEST_PASS" = true ]; then
   exit 0
 fi
 
-echo "browser verification FAILED (gating=$GATING_PASS dialogue=$DIALOGUE_PASS world=$WORLD_PASS quest=$QUEST_PASS)" >&2
+echo "browser verification FAILED (shell=$SHELL_PASS gating=$GATING_PASS dialogue=$DIALOGUE_PASS world=$WORLD_PASS quest=$QUEST_PASS)" >&2
 exit 1

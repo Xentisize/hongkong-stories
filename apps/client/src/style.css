@@ -50,8 +50,9 @@ body {
 }
 
 #stage canvas {
-  image-rendering: pixelated;
+  /* Fallback first, preferred last: Firefox supports both, and the later declaration wins there. */
   image-rendering: crisp-edges;
+  image-rendering: pixelated;
 }
 
 /* A DOM HUD over the canvas, which is the arrangement the full client wants for CJK text:
@@ -352,4 +353,60 @@ body {
   height: 56px;
   border-radius: 50%;
   margin-left: auto;
+}
+
+/* Splash: the pack's own opening image, full bleed, gone after its own time. */
+#splash {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #05060a;
+  z-index: 50;
+  cursor: pointer;
+}
+
+#splash[hidden] {
+  display: none;
+}
+
+#splash img {
+  max-width: 100%;
+  max-height: 100%;
+  /* Fallback first, preferred last: Firefox honours both, and the later declaration wins there. */
+  image-rendering: crisp-edges;
+  image-rendering: pixelated;
+}
+
+/* Credits, revealed from the title: roles come from the settings document, so the list is whatever
+ * a creator wrote rather than anything this stylesheet invents. */
+#credits {
+  max-width: 34rem;
+  max-height: 40vh;
+  overflow-y: auto;
+  margin-top: 1.25rem;
+  padding: 0.75rem 1rem;
+  text-align: center;
+  font-size: 12px;
+  line-height: 1.9;
+  color: var(--muted);
+  background: rgb(10 12 16 / 0.9);
+  border: 1px solid #22262e;
+  border-radius: 4px;
+}
+
+#credits[hidden] {
+  display: none;
+}
+
+#credits .credit-role {
+  color: var(--ink);
+  letter-spacing: 0.15em;
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+#credits .credit-names {
+  margin-bottom: 0.5rem;
 }

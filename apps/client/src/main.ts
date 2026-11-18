@@ -12,15 +12,17 @@ import Phaser from "phaser";
 import tilesUrl from "../../../client/assets/tiles/p1_tiles_2027.png";
 import playerUrl from "../../../client/content/art/npcs/player_walk.png";
 import bundledManifest from "../../../client/content/manifest.json";
+import gameSettings from "../../../client/content/settings/game.json";
 import "./style.css";
 
-import { AudioDirector, WebAudioSink } from "./audio";
+import { AudioDirector, WebAudioSink, gainFor } from "./audio";
 import { artFileName, type LocalizedText, type LocationFile, type NpcFile } from "./content";
 import { fetchManifest, planRefresh, type PackStatus } from "./content-pack";
 import { Dialogue, type DialogueView } from "./dialogue";
 import { apiBase, openSession, type Session } from "./net";
 import { QuestMachine, cutsceneLines, type QuestNode } from "./quests";
 import { emptySave, encodeSave, type SavePayload } from "./save";
+import { localeFrom, resolveSettings } from "./settings";
 import { GameState, persist, restore } from "./state";
 import { VIEW_HEIGHT, VIEW_WIDTH, WorldScene, type WorldTarget } from "./world";
 
@@ -35,6 +37,9 @@ import { VIEW_HEIGHT, VIEW_WIDTH, WorldScene, type WorldTarget } from "./world";
  * Art and content are still imported from the sibling Godot project. A shipped client fetches a
  * content hot-pack from the API instead, so these imports are replaced rather than moved.
  */
+
+/** Game settings from the pack: splash, title, credits, defaults and where a new game starts. */
+const settings = resolveSettings(gameSettings);
 
 /**
  * Every location, so an exit has a destination.
@@ -52,7 +57,8 @@ for (const file of Object.values(locationModules)) {
   if (file?.id) locationsById[file.id] = file;
 }
 
-const START_LOCATION = "loc_ssp_market_street";
+// The pack names where a new game starts; the street below is only the fallback.
+const START_LOCATION = settings.start?.location ?? "loc_ssp_market_street";
 const location = locationsById[START_LOCATION] ?? Object.values(locationsById)[0]!;
 let currentLocationId = location.id;
 
@@ -103,7 +109,7 @@ for (const [path, url] of Object.entries(propModules)) {
 }
 
 // The same locale chain the Godot client uses: zh_HK -> zh_CN -> en (§5.8, §6.5).
-const locale = resolveLocale(navigator.language);
+const locale = localeFrom(settings, resolveLocale(navigator.language));
 
 // The bundled pixel font: HK and Hans are separate faces, so the shell picks by locale rather than
 // letting the browser fall back to whatever monospace it has.
@@ -157,9 +163,10 @@ for (const [path, url] of Object.entries(audioModules)) {
   audioUrls[path.split("/").pop() ?? path] = url;
 }
 
-const audio = new AudioDirector(
-  new WebAudioSink((track) => audioUrls[track.split("/").pop() ?? track] ?? track),
-);
+const audioSink = new WebAudioSink((track) => audioUrls[track.split("/").pop() ?? track] ?? track);
+// A creator's -24 dB is a decision, not a suggestion: the bus starts where the pack says.
+audioSink.setVolume(gainFor(settings.defaults.musicDb));
+const audio = new AudioDirector(audioSink);
 
 if (place) place.textContent = localize(location.display_name, locale);
 
@@ -211,12 +218,14 @@ const game = new Phaser.Game({
       propUrls,
       npcDefs,
       npcSheetUrls,
+      // A new game starts where the pack says, not wherever the map's default point happens to be.
+      spawn: settings.start?.spawn,
       onPlayerMoved: (x, y) => {
         if (coords) coords.textContent = `${x.toFixed(0)}, ${y.toFixed(0)}`;
         updatePrompt();
       },
       onActivate: (target) => activate(target),
-      onExit: (to) => loadLocation(to),
+      onExit: (to, spawn) => loadLocation(to, spawn),
       onMessage: (text) => showMessage(text),
       onEffects: (effects) => applyWorldEffects(effects),
       onReady: () => {
@@ -385,7 +394,7 @@ function activate(target: WorldTarget): void {
 }
 
 /** Swap maps in place: the panel, the save and the session all survive. */
-function loadLocation(id: string): void {
+function loadLocation(id: string, spawn?: string): void {
   const next = locationsById[id];
   if (!next) {
     showMessage({ en: `No map is loaded for ${id}.`, zh_HK: `未載入 ${id}。`, zh_CN: `未载入 ${id}。` });
@@ -395,7 +404,8 @@ function loadLocation(id: string): void {
   closeDialogue();
   currentLocationId = id;
   if (place) place.textContent = localize(next.display_name, locale);
-  scene().loadLocation(next);
+  // An exit names where it arrives; without this every transition lands on the default point.
+  scene().loadLocation(next, spawn);
   audio.enterLocation(next);
 }
 
@@ -471,6 +481,15 @@ formEl?.addEventListener("submit", (event) => {
 });
 
 window.addEventListener("keydown", (event) => {
+  // The splash sits above everything until its time is up.
+  if (splashEl !== null && !splashEl.hidden) {
+    if (settings.splash?.skippable !== false) {
+      event.preventDefault();
+      finishSplash();
+    }
+    return;
+  }
+
   // A cutscene is the topmost layer: it takes the interact keys before anything beneath it.
   if (cutsceneOpen) {
     if (event.key === "e" || event.key === "E" || event.key === " " || event.key === "Enter") {
@@ -514,6 +533,12 @@ const cutsceneEl = document.querySelector<HTMLElement>("#cutscene");
 const cutsceneText = document.querySelector<HTMLElement>("#cutscene-text");
 const titleEl = document.querySelector<HTMLElement>("#title");
 const continueButton = document.querySelector<HTMLButtonElement>("#title-continue");
+const titleName = document.querySelector<HTMLElement>("#title-name");
+const titleSub = document.querySelector<HTMLElement>("#title-sub");
+const creditsEl = document.querySelector<HTMLElement>("#credits");
+const creditsButton = document.querySelector<HTMLButtonElement>("#title-credits");
+const splashEl = document.querySelector<HTMLElement>("#splash");
+const splashArt = document.querySelector<HTMLImageElement>("#splash-art");
 const buildEl = document.querySelector<HTMLElement>("#build");
 const bagEl = document.querySelector<HTMLElement>("#bag");
 const touchEl = document.querySelector<HTMLElement>("#touch");
@@ -588,6 +613,12 @@ function startGame(continueSave: boolean): void {
 
   started = true;
   if (titleEl) titleEl.hidden = true;
+  // Reached from the splash (a check, or a player who skipped) it must not stay on top.
+  if (splashEl) splashEl.hidden = true;
+  if (splashTimer !== null) {
+    clearTimeout(splashTimer);
+    splashTimer = null;
+  }
   scene().setInputEnabled(true);
   scene().setGameState(state.conditionState());
   // Started from a click, which is the gesture an AudioContext needs to leave "suspended".
@@ -596,11 +627,101 @@ function startGame(continueSave: boolean): void {
   machine.schedule();
 }
 
+/**
+ * Every content-relative art path, keyed the way settings name one (`art/backdrops/x.png`).
+ *
+ * The glob covers the whole art tree rather than one folder: the validator accepts any
+ * content-relative path, and a bundle narrowed to `art/backdrops/` would make validation and the
+ * client disagree about which paths actually work.
+ */
+const artModules = import.meta.glob("../../../client/content/art/**/*.png", {
+  eager: true,
+  query: "?url",
+  import: "default",
+}) as Record<string, string>;
+
+function contentArtUrl(path: string): string | undefined {
+  return artModules[`../../../client/content/${path.replace(/^\/+/, "")}`];
+}
+
+let splashTimer: number | null = null;
+
+/** The splash's time is up, or the player skipped it. */
+function finishSplash(): void {
+  if (splashTimer !== null) clearTimeout(splashTimer);
+  splashTimer = null;
+  if (splashEl) splashEl.hidden = true;
+  showTitle();
+}
+
+/**
+ * Show the pack's opening image, then the title.
+ *
+ * Art that is not in the bundle would be a black screen waiting to happen, so the console says so
+ * and the title opens instead: a missing picture must not cost the player their game.
+ */
+function showSplash(): void {
+  const splash = settings.splash;
+  if (splash === null || splashEl === null || splashArt === null) {
+    showTitle();
+    return;
+  }
+
+  const url = contentArtUrl(splash.art);
+  if (url === undefined) {
+    console.warn(`[hks] splash art is not in the bundle: ${splash.art}`);
+    showTitle();
+    return;
+  }
+
+  // A bundled path can still fail at runtime — a stale deploy, a dropped connection — and without
+  // this the player waits out the whole duration on a black screen.
+  splashArt.onerror = () => {
+    console.warn(`[hks] splash art failed to load: ${splash.art}`);
+    finishSplash();
+  };
+  splashArt.src = url;
+  splashEl.hidden = false;
+  if (splash.skippable) splashEl.addEventListener("click", finishSplash, { once: true });
+  splashTimer = window.setTimeout(finishSplash, splash.durationMs);
+}
+
+/** Credits, straight from the document: roles and names are a creator's, not this file's. */
+function renderCredits(): void {
+  if (creditsEl === null) return;
+
+  creditsEl.replaceChildren();
+  for (const credit of settings.credits) {
+    const role = document.createElement("p");
+    role.className = "credit-role";
+    role.textContent = localize(credit.role ?? {}, locale);
+
+    const names = document.createElement("p");
+    names.className = "credit-names";
+    names.textContent = (credit.names ?? []).join("  ");
+
+    creditsEl.append(role, names);
+  }
+}
+
 function showTitle(): void {
   if (titleEl === null) return;
 
   titleEl.hidden = false;
   started = false;
+
+  // The pack names the game; the markup only carries a fallback for a pack that says nothing.
+  const title = localize(settings.title, locale);
+  if (titleName !== null && title !== "") titleName.textContent = title;
+
+  // The same non-empty guard as the title: a pack with no subtitle must keep the markup fallback,
+  // not blank the line under the name.
+  const subtitle = localize(settings.subtitle, locale);
+  if (titleSub !== null && subtitle !== "") titleSub.textContent = subtitle;
+
+  renderCredits();
+  if (creditsButton) creditsButton.hidden = settings.credits.length === 0;
+
   // Continue is only meaningful when a slot exists.
   if (continueButton) continueButton.disabled = restore() === null;
   if (game.scene.isActive("world")) scene().setInputEnabled(false);
@@ -617,6 +738,9 @@ function updateHud(): void {
 
 document.querySelector("#title-new")?.addEventListener("click", () => startGame(false));
 continueButton?.addEventListener("click", () => startGame(true));
+creditsButton?.addEventListener("click", () => {
+  if (creditsEl) creditsEl.hidden = !creditsEl.hidden;
+});
 
 if (touchEl !== null && window.matchMedia?.("(pointer: coarse)").matches === true) {
   touchEl.hidden = false;
@@ -698,6 +822,8 @@ export interface TestHook {
   packStatus: () => PackStatus;
   /** The ambience bed currently playing, or "" — the port of `current_music_stream()`. */
   audioTrack: () => string;
+  /** What the shell is showing, so a check can assert the pack drove it. */
+  shell: () => { title: string; subtitle: string; splashVisible: boolean; credits: number };
 }
 
 const hook: TestHook = {
@@ -724,9 +850,15 @@ const hook: TestHook = {
   cutsceneOpen: () => cutsceneOpen,
   packStatus: () => packStatus,
   audioTrack: () => audio.currentTrack,
+  shell: () => ({
+    title: titleName?.textContent ?? "",
+    subtitle: titleSub?.textContent ?? "",
+    splashVisible: splashEl !== null && !splashEl.hidden,
+    credits: settings.credits.length,
+  }),
 };
 
 (window as unknown as { __hks?: TestHook }).__hks = hook;
 
-// Boot to the title: a player clicks, and the browser checks call `start()`.
-showTitle();
+// Boot through the splash to the title: a player clicks, and the checks call `start()`.
+showSplash();

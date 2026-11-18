@@ -3,6 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- No favicon request: a data URI stops the browser asking for /favicon.ico, which a
+         static host would then 404 in every visitor's console. -->
+    <link rel="icon" href="data:," />
     <title>Hong Kong Stories</title>
   </head>
   <body>
@@ -46,14 +49,21 @@
       </form>
     </section>
 
-    <!-- Title: gates the world until the player starts. -->
+    <!-- Splash: the pack's own opening image. Skippable, and gone once its time is up. -->
+    <div id="splash" hidden>
+      <img id="splash-art" alt="" />
+    </div>
+
+    <!-- Title: gates the world until the player starts. Text and credits come from settings/game.json. -->
     <section id="title" hidden>
-      <h1>香港故事</h1>
-      <p class="title-sub">Hong Kong Stories</p>
+      <h1 id="title-name">香港故事</h1>
+      <p class="title-sub" id="title-sub">Hong Kong Stories</p>
       <div class="title-actions">
         <button id="title-new" type="button">新遊戲 · New game</button>
         <button id="title-continue" type="button">繼續 · Continue</button>
+        <button id="title-credits" type="button">鳴謝 · Credits</button>
       </div>
+      <div id="credits" hidden></div>
     </section>
 
     <!-- Touch controls: only shown on a coarse pointer. -->

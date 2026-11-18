@@ -67,6 +67,8 @@ export interface WorldAssets {
   npcDefs: Record<string, NpcFile>;
   /** Walk sheet bare file name → bundled URL. */
   npcSheetUrls: Record<string, string>;
+  /** Spawn point to place the player at; `default` when absent. */
+  spawn?: string;
   onPlayerMoved?: (x: number, y: number) => void;
   /** The player pressed the interact key beside something interactive. */
   onActivate?: (target: WorldTarget) => void;
@@ -258,7 +260,7 @@ export class WorldScene extends Phaser.Scene {
     this.exits = exitZones(location);
 
     // --- player ------------------------------------------------------------------
-    const spawn = spawnPixel(location);
+    const spawn = spawnPixel(location, this.assets.spawn);
     this.player = this.physics.add.sprite(spawn.x, spawn.y, "player", 0);
     this.player.setOrigin(0.5, 0.5);
     const body = this.player.body as Phaser.Physics.Arcade.Body;
@@ -591,8 +593,9 @@ export class WorldScene extends Phaser.Scene {
   }
 
   /** Swap the map and rebuild. Textures are already loaded, so a restart is all it takes. */
-  loadLocation(location: LocationFile): void {
+  loadLocation(location: LocationFile, spawn?: string): void {
     this.assets.location = location;
+    this.assets.spawn = spawn;
     this.scene.restart();
   }
 
