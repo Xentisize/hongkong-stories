@@ -1,25 +1,38 @@
-# Client CI (docs/PLAN.md §10.5): content gates → headless selftest → web export →
-# brotli → Cloudflare Pages. The Godot binary and the 4.7.2 web templates are cached —
-# the templates archive is 1.28 GB, so the cache key carries the version.
+# Client CI (docs/PLAN.md §10.5): content gates → type-check → unit tests → browser verification →
+# Cloudflare Pages. The Godot export pipeline lives in client-godot.yml and only runs when
+# dispatched: it still publishes the reference build to production, because that is where the game
+# currently lives and this client is not yet at parity.
 name: client
 
 on:
   push:
     branches: [main]
-    paths: ["client/**", "tools/**", ".github/workflows/client.yml"]
+    paths:
+      - "apps/client/**"
+      - "packages/core/**"
+      - "client/content/**"
+      - "client/assets/**"
+      - "tools/**"
+      - ".github/workflows/client.yml"
+  pull_request:
+    paths:
+      - "apps/client/**"
+      - "packages/core/**"
+      - "client/content/**"
 
 jobs:
-  test-export-deploy:
+  verify-and-deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: bun 1.4.4 (runs the content gate)
+      - name: bun 1.4.4
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.4
 
-      # The gate imports @hkstories/core, so the workspace has to be installed first.
+      # The client imports @hkstories/core and reads the pack, so the workspace has to be installed
+      # and the gates have to run first: content that cannot publish must not reach a build.
       - name: Install the workspace
         run: bun install --frozen-lockfile
 
@@ -28,57 +41,26 @@ jobs:
           bun tools/check_content.ts
           bun tools/check_font_coverage.ts
 
-      - name: Cache Godot 4.7.2 + web templates
-        id: godot-cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            /opt/godot
-            ~/.local/share/godot/export_templates/4.7.2.stable
-          key: godot-4.7.2-stable-v1
-
-      - name: Install Godot 4.7.2 + web templates
-        if: steps.godot-cache.outputs.cache-hit != 'true'
+      - name: Type-check and unit tests
+        working-directory: apps/client
         run: |
-          mkdir -p /opt/godot
-          curl -L --fail -o /tmp/godot.zip \
-            https://github.com/godotengine/godot/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.x86_64.zip
-          unzip -q /tmp/godot.zip -d /tmp/godot
-          BIN=$(find /tmp/godot -name 'Godot_v4.7.2*' -type f | head -1)
-          mv "$BIN" /opt/godot/godot && chmod +x /opt/godot/godot
-          curl -L --fail -o /tmp/templates.tpz \
-            https://github.com/godotengine/godot/releases/download/4.7.2-stable/Godot_v4.7.2-stable_export_templates.tpz
-          mkdir -p ~/.local/share/godot/export_templates/4.7.2.stable
-          unzip -o -j -q /tmp/templates.tpz "templates/version.txt" \
-            "templates/web_nothreads_release.zip" "templates/web_nothreads_debug.zip" \
-            -d ~/.local/share/godot/export_templates/4.7.2.stable
+          bun run check
+          bun test
 
-      - name: Import + selftest (headless, exit code = failures)
+      # This builds the bundle itself, then serves it and drives chromium: the four checks assert
+      # NPC gating, the conversation loop, world interaction and the quest/cutscene chain.
+      - name: Browser verification
         run: |
-          /opt/godot/godot --headless --path client --import
-          /opt/godot/godot --headless --path client -- --selftest
+          npm install -g @playwright/cli
+          playwright-cli install-browser chrome-for-testing
+          bash apps/client/scripts/verify.sh
 
-      - name: Export web
-        run: GODOT=/opt/godot/godot tools/export_web.sh
-
-      - name: Browser smokes (boot + offline talk)
-        run: |
-          bun tools/serve_web.ts 8099 & SERVER_PID=$!
-          sleep 2
-          CHROME=$(which google-chrome-stable) node tools/web_smoke.mjs \
-            http://127.0.0.1:8099/ /tmp/smoke_boot.png 25000 boot
-          CHROME=$(which google-chrome-stable) node tools/web_smoke.mjs \
-            http://127.0.0.1:8099/ /tmp/smoke_talk.png 25000 talk
-          kill $SERVER_PID
-
-      - name: Brotli pre-compress
-        run: |
-          sudo apt-get update -qq && sudo apt-get install -y -qq brotli
-          cd build/web && for f in *.wasm *.pck *.js *.html; do brotli --force --best "$f"; done
-
-      - name: Deploy to Cloudflare Pages
+      - name: Deploy the bundle to Cloudflare Pages
+        # A preview alias, not the production root: this client has no inventory screen or dev
+        # console yet, and `main` still serves the Godot build. Flipping this branch to `main` is the
+        # whole switch once parity is reached.
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy build/web --project-name=hongkong-stories --branch=main
+          command: pages deploy apps/client/dist --project-name=hongkong-stories --branch=phaser
