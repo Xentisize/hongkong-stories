@@ -1,12 +1,14 @@
 {
-  "prompt_id": "gen_20261117_1b8407",
-  "model": "bytedance-seed/seedream-5-0-flash",
-  "seed": 0,
+  "prompt_id": "gen_20261118_253d5f",
+  "model": "bytedance-seed/seedream-5-5",
+  "seed": 4242,
+  "seed_returned": 0,
   "resolution": "1K",
   "aspect_ratio": "3:4",
   "background": "transparent",
   "input_references": [
-    "art/stylebible.png"
+    "art/stylebible.png",
+    "art/npcs/npc_ch01_wai_walk_down_stand.png"
   ],
   "post": {
     "palette": "hk_palette_v1",
@@ -17,8 +19,8 @@
     "outline": true,
     "pad": 0
   },
-  "cost_usd": 0.018,
-  "accepted_by": "admin",
-  "ts": "2026-11-17T09:51:39.807691+00:00",
-  "prompt": "pixel art sprite of EXACTLY ONE cute chibi character, single figure centered: a kind building caretaker man in his fifties, greying hair, simple grey work shirt with rolled sleeves and a tool belt, feather duster over one shoulder, warm honest smile, big head small body, side view facing right, mid-step walking with one leg forward, full body, no duplicates, no sheet layout, plain transparent background, hk_palette_v1 palette, 24px tile scale, side/front view, T-pose-adjacent stance, flat cel shading, no outline glow, no text, plain transparent background, posterized 4 shades per hue"
+  "cost_usd": 0.036,
+  "accepted_by": "tools/gen_npc_walk_frames",
+  "ts": "2026-11-18T02:56:13.681721+00:00",
+  "prompt": "pixel art sprite of EXACTLY ONE cute chibi character, single figure centered: the same character as the reference image, a Hong Kong building caretaker in his fifties, plain worn short-sleeve work shirt and dark trousers, a heavy ring of keys and a small notebook at his belt, weathered steady face, short greying hair, big head small body, side view facing right, mid-step walking with one leg forward, full body, no duplicates, no sheet layout, plain transparent background, hk_palette_v1 palette, 24px tile scale, side/front view, T-pose-adjacent stance, flat cel shading, no outline glow, no text, plain transparent background, posterized 4 shades per hue"
 }
