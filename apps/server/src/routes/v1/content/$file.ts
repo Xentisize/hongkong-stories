@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { loadContent } from "@/lib/content";
+import { preflight, withCors } from "@/lib/cors";
 
 /**
  * GET /v1/content/manifest.json — the content hot-pack check (PLAN 5.7).
@@ -16,7 +17,7 @@ import { loadContent } from "@/lib/content";
 export const Route = createFileRoute("/v1/content/$file")({
   server: {
     handlers: {
-      GET: async ({ request }) => {
+      GET: withCors(async ({ request }) => {
         const { pathname } = new URL(request.url);
         if (!pathname.endsWith("/manifest.json")) {
           return Response.json({ detail: "not found" }, { status: 404 });
@@ -28,7 +29,9 @@ export const Route = createFileRoute("/v1/content/$file")({
         } catch (error) {
           return Response.json({ detail: String(error) }, { status: 503 });
         }
-      },
+      }),
+
+      OPTIONS: ({ request }) => preflight(request),
     },
   },
 });

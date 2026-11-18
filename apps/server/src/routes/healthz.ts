@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { counts, loadContent } from "@/lib/content";
+import { preflight, withCors } from "@/lib/cors";
 
 /**
  * Liveness plus the facts a client or a human needs, matching the Python `/healthz` contract
@@ -9,7 +10,7 @@ import { counts, loadContent } from "@/lib/content";
 export const Route = createFileRoute("/healthz")({
   server: {
     handlers: {
-      GET: async () => {
+      GET: withCors(async () => {
         try {
           const { pack } = await loadContent();
           return Response.json({
@@ -26,7 +27,9 @@ export const Route = createFileRoute("/healthz")({
             { status: 503 },
           );
         }
-      },
+      }),
+
+      OPTIONS: ({ request }) => preflight(request),
     },
   },
 });

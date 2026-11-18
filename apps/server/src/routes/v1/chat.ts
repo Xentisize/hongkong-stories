@@ -12,9 +12,12 @@ import {
 } from "@hkstories/core";
 
 import { loadContent } from "@/lib/content";
+import { estimateCost } from "@/lib/completion";
+import { preflight, withCors } from "@/lib/cors";
 import { buildMessages } from "@/lib/prompts";
 import { SayExtractor } from "@/lib/say-extractor";
 import { asPublicSession, chatModel, getSession, remainingOf } from "@/lib/sessions";
+import { logEvent } from "@/lib/usage";
 
 /**
  * POST /v1/chat — one streaming conversation turn (PLAN 7.1).
@@ -71,7 +74,8 @@ function errorStream(code: string, detail?: string): Response {
 export const Route = createFileRoute("/v1/chat")({
   server: {
     handlers: {
-      POST: async ({ request }) => {
+      POST: withCors(async ({ request }) => {
+        const started = performance.now();
         const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
         if (!isRecord(body)) return errorStream("bad_request", "expected a JSON body");
 
@@ -193,6 +197,17 @@ export const Route = createFileRoute("/v1/chat")({
               session.usedTokens += Math.max(0, used);
               session.turns += 1;
 
+              // Usage ledger row (PLAN 9.2). Streaming carries no provider usage, so the cost is
+              // the §7.5 price model over estimated tokens — the same figure the caps accrue.
+              await logEvent("chat", {
+                session: session.token,
+                npc: npcId,
+                tokens: used,
+                cost_usd: estimateCost(promptTokens, 0, estimateTokens(reply.say)),
+                latency_ms: Math.round((performance.now() - started) * 10) / 10,
+                rejected: verdict.rejected.map((entry) => entry.reason),
+              });
+
               controller.enqueue(
                 sse({
                   type: "done",
@@ -227,7 +242,9 @@ export const Route = createFileRoute("/v1/chat")({
             "x-accel-buffering": "no",
           },
         });
-      },
+      }),
+
+      OPTIONS: ({ request }) => preflight(request),
     },
   },
 });

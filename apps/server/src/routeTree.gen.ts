@@ -13,7 +13,23 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as HealthzRouteImport } from './routes/healthz'
 import { Route as V1ChatRouteImport } from './routes/v1/chat'
 import { Route as V1SessionRouteImport } from './routes/v1/session'
+import { Route as V1AdminDraftsRouteImport } from './routes/v1/admin/drafts'
+import { Route as V1AdminEvaluate_conditionRouteImport } from './routes/v1/admin/evaluate_condition'
+import { Route as V1AdminFactcheckRouteImport } from './routes/v1/admin/factcheck'
+import { Route as V1AdminMetaRouteImport } from './routes/v1/admin/meta'
+import { Route as V1AdminPlaygroundRouteImport } from './routes/v1/admin/playground'
+import { Route as V1AdminPublishRouteImport } from './routes/v1/admin/publish'
+import { Route as V1AdminPublish_previewRouteImport } from './routes/v1/admin/publish_preview'
+import { Route as V1AdminUsageRouteImport } from './routes/v1/admin/usage'
+import { Route as V1AdminValidateRouteImport } from './routes/v1/admin/validate'
 import { Route as V1ContentFileRouteImport } from './routes/v1/content/$file'
+import { Route as V1AdminArtGenerateRouteImport } from './routes/v1/admin/art/generate'
+import { Route as V1AdminContentKindRouteImport } from './routes/v1/admin/content/$kind'
+import { Route as V1AdminFactcheckCheckRouteImport } from './routes/v1/admin/factcheck/check'
+import { Route as V1ContentFileSplatRouteImport } from './routes/v1/content/file/$'
+import { Route as V1AdminContentKindIdRouteImport } from './routes/v1/admin/content/$kind/$id'
+import { Route as V1AdminDraftsKindIdRouteImport } from './routes/v1/admin/drafts/$kind/$id'
+import { Route as V1AdminFactcheckIdResolveRouteImport } from './routes/v1/admin/factcheck/$id/resolve'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -35,25 +51,139 @@ const V1SessionRoute = V1SessionRouteImport.update({
   path: '/v1/session',
   getParentRoute: () => rootRouteImport,
 } as any)
+const V1AdminDraftsRoute = V1AdminDraftsRouteImport.update({
+  id: '/v1/admin/drafts',
+  path: '/v1/admin/drafts',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const V1AdminEvaluate_conditionRoute =
+  V1AdminEvaluate_conditionRouteImport.update({
+    id: '/v1/admin/evaluate_condition',
+    path: '/v1/admin/evaluate_condition',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const V1AdminFactcheckRoute = V1AdminFactcheckRouteImport.update({
+  id: '/v1/admin/factcheck',
+  path: '/v1/admin/factcheck',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const V1AdminMetaRoute = V1AdminMetaRouteImport.update({
+  id: '/v1/admin/meta',
+  path: '/v1/admin/meta',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const V1AdminPlaygroundRoute = V1AdminPlaygroundRouteImport.update({
+  id: '/v1/admin/playground',
+  path: '/v1/admin/playground',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const V1AdminPublishRoute = V1AdminPublishRouteImport.update({
+  id: '/v1/admin/publish',
+  path: '/v1/admin/publish',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const V1AdminPublish_previewRoute = V1AdminPublish_previewRouteImport.update({
+  id: '/v1/admin/publish_preview',
+  path: '/v1/admin/publish_preview',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const V1AdminUsageRoute = V1AdminUsageRouteImport.update({
+  id: '/v1/admin/usage',
+  path: '/v1/admin/usage',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const V1AdminValidateRoute = V1AdminValidateRouteImport.update({
+  id: '/v1/admin/validate',
+  path: '/v1/admin/validate',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const V1ContentFileRoute = V1ContentFileRouteImport.update({
   id: '/v1/content/$file',
   path: '/v1/content/$file',
   getParentRoute: () => rootRouteImport,
 } as any)
+const V1AdminArtGenerateRoute = V1AdminArtGenerateRouteImport.update({
+  id: '/v1/admin/art/generate',
+  path: '/v1/admin/art/generate',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const V1AdminContentKindRoute = V1AdminContentKindRouteImport.update({
+  id: '/v1/admin/content/$kind',
+  path: '/v1/admin/content/$kind',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const V1AdminFactcheckCheckRoute = V1AdminFactcheckCheckRouteImport.update({
+  id: '/check',
+  path: '/check',
+  getParentRoute: () => V1AdminFactcheckRoute,
+} as any)
+const V1ContentFileSplatRoute = V1ContentFileSplatRouteImport.update({
+  id: '/v1/content/file/$',
+  path: '/v1/content/file/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const V1AdminContentKindIdRoute = V1AdminContentKindIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => V1AdminContentKindRoute,
+} as any)
+const V1AdminDraftsKindIdRoute = V1AdminDraftsKindIdRouteImport.update({
+  id: '/$kind/$id',
+  path: '/$kind/$id',
+  getParentRoute: () => V1AdminDraftsRoute,
+} as any)
+const V1AdminFactcheckIdResolveRoute =
+  V1AdminFactcheckIdResolveRouteImport.update({
+    id: '/$id/resolve',
+    path: '/$id/resolve',
+    getParentRoute: () => V1AdminFactcheckRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/healthz': typeof HealthzRoute
   '/v1/chat': typeof V1ChatRoute
   '/v1/session': typeof V1SessionRoute
+  '/v1/admin/drafts': typeof V1AdminDraftsRouteWithChildren
+  '/v1/admin/evaluate_condition': typeof V1AdminEvaluate_conditionRoute
+  '/v1/admin/factcheck': typeof V1AdminFactcheckRouteWithChildren
+  '/v1/admin/meta': typeof V1AdminMetaRoute
+  '/v1/admin/playground': typeof V1AdminPlaygroundRoute
+  '/v1/admin/publish': typeof V1AdminPublishRoute
+  '/v1/admin/publish_preview': typeof V1AdminPublish_previewRoute
+  '/v1/admin/usage': typeof V1AdminUsageRoute
+  '/v1/admin/validate': typeof V1AdminValidateRoute
   '/v1/content/$file': typeof V1ContentFileRoute
+  '/v1/admin/art/generate': typeof V1AdminArtGenerateRoute
+  '/v1/admin/content/$kind': typeof V1AdminContentKindRouteWithChildren
+  '/v1/admin/factcheck/check': typeof V1AdminFactcheckCheckRoute
+  '/v1/content/file/$': typeof V1ContentFileSplatRoute
+  '/v1/admin/content/$kind/$id': typeof V1AdminContentKindIdRoute
+  '/v1/admin/drafts/$kind/$id': typeof V1AdminDraftsKindIdRoute
+  '/v1/admin/factcheck/$id/resolve': typeof V1AdminFactcheckIdResolveRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/healthz': typeof HealthzRoute
   '/v1/chat': typeof V1ChatRoute
   '/v1/session': typeof V1SessionRoute
+  '/v1/admin/drafts': typeof V1AdminDraftsRouteWithChildren
+  '/v1/admin/evaluate_condition': typeof V1AdminEvaluate_conditionRoute
+  '/v1/admin/factcheck': typeof V1AdminFactcheckRouteWithChildren
+  '/v1/admin/meta': typeof V1AdminMetaRoute
+  '/v1/admin/playground': typeof V1AdminPlaygroundRoute
+  '/v1/admin/publish': typeof V1AdminPublishRoute
+  '/v1/admin/publish_preview': typeof V1AdminPublish_previewRoute
+  '/v1/admin/usage': typeof V1AdminUsageRoute
+  '/v1/admin/validate': typeof V1AdminValidateRoute
   '/v1/content/$file': typeof V1ContentFileRoute
+  '/v1/admin/art/generate': typeof V1AdminArtGenerateRoute
+  '/v1/admin/content/$kind': typeof V1AdminContentKindRouteWithChildren
+  '/v1/admin/factcheck/check': typeof V1AdminFactcheckCheckRoute
+  '/v1/content/file/$': typeof V1ContentFileSplatRoute
+  '/v1/admin/content/$kind/$id': typeof V1AdminContentKindIdRoute
+  '/v1/admin/drafts/$kind/$id': typeof V1AdminDraftsKindIdRoute
+  '/v1/admin/factcheck/$id/resolve': typeof V1AdminFactcheckIdResolveRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -61,20 +191,94 @@ export interface FileRoutesById {
   '/healthz': typeof HealthzRoute
   '/v1/chat': typeof V1ChatRoute
   '/v1/session': typeof V1SessionRoute
+  '/v1/admin/drafts': typeof V1AdminDraftsRouteWithChildren
+  '/v1/admin/evaluate_condition': typeof V1AdminEvaluate_conditionRoute
+  '/v1/admin/factcheck': typeof V1AdminFactcheckRouteWithChildren
+  '/v1/admin/meta': typeof V1AdminMetaRoute
+  '/v1/admin/playground': typeof V1AdminPlaygroundRoute
+  '/v1/admin/publish': typeof V1AdminPublishRoute
+  '/v1/admin/publish_preview': typeof V1AdminPublish_previewRoute
+  '/v1/admin/usage': typeof V1AdminUsageRoute
+  '/v1/admin/validate': typeof V1AdminValidateRoute
   '/v1/content/$file': typeof V1ContentFileRoute
+  '/v1/admin/art/generate': typeof V1AdminArtGenerateRoute
+  '/v1/admin/content/$kind': typeof V1AdminContentKindRouteWithChildren
+  '/v1/admin/factcheck/check': typeof V1AdminFactcheckCheckRoute
+  '/v1/content/file/$': typeof V1ContentFileSplatRoute
+  '/v1/admin/content/$kind/$id': typeof V1AdminContentKindIdRoute
+  '/v1/admin/drafts/$kind/$id': typeof V1AdminDraftsKindIdRoute
+  '/v1/admin/factcheck/$id/resolve': typeof V1AdminFactcheckIdResolveRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/healthz' | '/v1/chat' | '/v1/session' | '/v1/content/$file'
+  fullPaths:
+    | '/'
+    | '/healthz'
+    | '/v1/chat'
+    | '/v1/session'
+    | '/v1/admin/drafts'
+    | '/v1/admin/evaluate_condition'
+    | '/v1/admin/factcheck'
+    | '/v1/admin/meta'
+    | '/v1/admin/playground'
+    | '/v1/admin/publish'
+    | '/v1/admin/publish_preview'
+    | '/v1/admin/usage'
+    | '/v1/admin/validate'
+    | '/v1/content/$file'
+    | '/v1/admin/art/generate'
+    | '/v1/admin/content/$kind'
+    | '/v1/admin/factcheck/check'
+    | '/v1/content/file/$'
+    | '/v1/admin/content/$kind/$id'
+    | '/v1/admin/drafts/$kind/$id'
+    | '/v1/admin/factcheck/$id/resolve'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/healthz' | '/v1/chat' | '/v1/session' | '/v1/content/$file'
+  to:
+    | '/'
+    | '/healthz'
+    | '/v1/chat'
+    | '/v1/session'
+    | '/v1/admin/drafts'
+    | '/v1/admin/evaluate_condition'
+    | '/v1/admin/factcheck'
+    | '/v1/admin/meta'
+    | '/v1/admin/playground'
+    | '/v1/admin/publish'
+    | '/v1/admin/publish_preview'
+    | '/v1/admin/usage'
+    | '/v1/admin/validate'
+    | '/v1/content/$file'
+    | '/v1/admin/art/generate'
+    | '/v1/admin/content/$kind'
+    | '/v1/admin/factcheck/check'
+    | '/v1/content/file/$'
+    | '/v1/admin/content/$kind/$id'
+    | '/v1/admin/drafts/$kind/$id'
+    | '/v1/admin/factcheck/$id/resolve'
   id:
     | '__root__'
     | '/'
     | '/healthz'
     | '/v1/chat'
     | '/v1/session'
+    | '/v1/admin/drafts'
+    | '/v1/admin/evaluate_condition'
+    | '/v1/admin/factcheck'
+    | '/v1/admin/meta'
+    | '/v1/admin/playground'
+    | '/v1/admin/publish'
+    | '/v1/admin/publish_preview'
+    | '/v1/admin/usage'
+    | '/v1/admin/validate'
     | '/v1/content/$file'
+    | '/v1/admin/art/generate'
+    | '/v1/admin/content/$kind'
+    | '/v1/admin/factcheck/check'
+    | '/v1/content/file/$'
+    | '/v1/admin/content/$kind/$id'
+    | '/v1/admin/drafts/$kind/$id'
+    | '/v1/admin/factcheck/$id/resolve'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -82,7 +286,19 @@ export interface RootRouteChildren {
   HealthzRoute: typeof HealthzRoute
   V1ChatRoute: typeof V1ChatRoute
   V1SessionRoute: typeof V1SessionRoute
+  V1AdminDraftsRoute: typeof V1AdminDraftsRouteWithChildren
+  V1AdminEvaluate_conditionRoute: typeof V1AdminEvaluate_conditionRoute
+  V1AdminFactcheckRoute: typeof V1AdminFactcheckRouteWithChildren
+  V1AdminMetaRoute: typeof V1AdminMetaRoute
+  V1AdminPlaygroundRoute: typeof V1AdminPlaygroundRoute
+  V1AdminPublishRoute: typeof V1AdminPublishRoute
+  V1AdminPublish_previewRoute: typeof V1AdminPublish_previewRoute
+  V1AdminUsageRoute: typeof V1AdminUsageRoute
+  V1AdminValidateRoute: typeof V1AdminValidateRoute
   V1ContentFileRoute: typeof V1ContentFileRoute
+  V1AdminArtGenerateRoute: typeof V1AdminArtGenerateRoute
+  V1AdminContentKindRoute: typeof V1AdminContentKindRouteWithChildren
+  V1ContentFileSplatRoute: typeof V1ContentFileSplatRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -115,6 +331,69 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof V1SessionRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/v1/admin/drafts': {
+      id: '/v1/admin/drafts'
+      path: '/v1/admin/drafts'
+      fullPath: '/v1/admin/drafts'
+      preLoaderRoute: typeof V1AdminDraftsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/v1/admin/evaluate_condition': {
+      id: '/v1/admin/evaluate_condition'
+      path: '/v1/admin/evaluate_condition'
+      fullPath: '/v1/admin/evaluate_condition'
+      preLoaderRoute: typeof V1AdminEvaluate_conditionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/v1/admin/factcheck': {
+      id: '/v1/admin/factcheck'
+      path: '/v1/admin/factcheck'
+      fullPath: '/v1/admin/factcheck'
+      preLoaderRoute: typeof V1AdminFactcheckRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/v1/admin/meta': {
+      id: '/v1/admin/meta'
+      path: '/v1/admin/meta'
+      fullPath: '/v1/admin/meta'
+      preLoaderRoute: typeof V1AdminMetaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/v1/admin/playground': {
+      id: '/v1/admin/playground'
+      path: '/v1/admin/playground'
+      fullPath: '/v1/admin/playground'
+      preLoaderRoute: typeof V1AdminPlaygroundRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/v1/admin/publish': {
+      id: '/v1/admin/publish'
+      path: '/v1/admin/publish'
+      fullPath: '/v1/admin/publish'
+      preLoaderRoute: typeof V1AdminPublishRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/v1/admin/publish_preview': {
+      id: '/v1/admin/publish_preview'
+      path: '/v1/admin/publish_preview'
+      fullPath: '/v1/admin/publish_preview'
+      preLoaderRoute: typeof V1AdminPublish_previewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/v1/admin/usage': {
+      id: '/v1/admin/usage'
+      path: '/v1/admin/usage'
+      fullPath: '/v1/admin/usage'
+      preLoaderRoute: typeof V1AdminUsageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/v1/admin/validate': {
+      id: '/v1/admin/validate'
+      path: '/v1/admin/validate'
+      fullPath: '/v1/admin/validate'
+      preLoaderRoute: typeof V1AdminValidateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/v1/content/$file': {
       id: '/v1/content/$file'
       path: '/v1/content/$file'
@@ -122,15 +401,112 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof V1ContentFileRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/v1/admin/art/generate': {
+      id: '/v1/admin/art/generate'
+      path: '/v1/admin/art/generate'
+      fullPath: '/v1/admin/art/generate'
+      preLoaderRoute: typeof V1AdminArtGenerateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/v1/admin/content/$kind': {
+      id: '/v1/admin/content/$kind'
+      path: '/v1/admin/content/$kind'
+      fullPath: '/v1/admin/content/$kind'
+      preLoaderRoute: typeof V1AdminContentKindRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/v1/admin/factcheck/check': {
+      id: '/v1/admin/factcheck/check'
+      path: '/check'
+      fullPath: '/v1/admin/factcheck/check'
+      preLoaderRoute: typeof V1AdminFactcheckCheckRouteImport
+      parentRoute: typeof V1AdminFactcheckRoute
+    }
+    '/v1/content/file/$': {
+      id: '/v1/content/file/$'
+      path: '/v1/content/file/$'
+      fullPath: '/v1/content/file/$'
+      preLoaderRoute: typeof V1ContentFileSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/v1/admin/content/$kind/$id': {
+      id: '/v1/admin/content/$kind/$id'
+      path: '/$id'
+      fullPath: '/v1/admin/content/$kind/$id'
+      preLoaderRoute: typeof V1AdminContentKindIdRouteImport
+      parentRoute: typeof V1AdminContentKindRoute
+    }
+    '/v1/admin/drafts/$kind/$id': {
+      id: '/v1/admin/drafts/$kind/$id'
+      path: '/$kind/$id'
+      fullPath: '/v1/admin/drafts/$kind/$id'
+      preLoaderRoute: typeof V1AdminDraftsKindIdRouteImport
+      parentRoute: typeof V1AdminDraftsRoute
+    }
+    '/v1/admin/factcheck/$id/resolve': {
+      id: '/v1/admin/factcheck/$id/resolve'
+      path: '/$id/resolve'
+      fullPath: '/v1/admin/factcheck/$id/resolve'
+      preLoaderRoute: typeof V1AdminFactcheckIdResolveRouteImport
+      parentRoute: typeof V1AdminFactcheckRoute
+    }
   }
 }
+
+interface V1AdminDraftsRouteChildren {
+  V1AdminDraftsKindIdRoute: typeof V1AdminDraftsKindIdRoute
+}
+
+const V1AdminDraftsRouteChildren: V1AdminDraftsRouteChildren = {
+  V1AdminDraftsKindIdRoute: V1AdminDraftsKindIdRoute,
+}
+
+const V1AdminDraftsRouteWithChildren = V1AdminDraftsRoute._addFileChildren(
+  V1AdminDraftsRouteChildren,
+)
+
+interface V1AdminFactcheckRouteChildren {
+  V1AdminFactcheckCheckRoute: typeof V1AdminFactcheckCheckRoute
+  V1AdminFactcheckIdResolveRoute: typeof V1AdminFactcheckIdResolveRoute
+}
+
+const V1AdminFactcheckRouteChildren: V1AdminFactcheckRouteChildren = {
+  V1AdminFactcheckCheckRoute: V1AdminFactcheckCheckRoute,
+  V1AdminFactcheckIdResolveRoute: V1AdminFactcheckIdResolveRoute,
+}
+
+const V1AdminFactcheckRouteWithChildren =
+  V1AdminFactcheckRoute._addFileChildren(V1AdminFactcheckRouteChildren)
+
+interface V1AdminContentKindRouteChildren {
+  V1AdminContentKindIdRoute: typeof V1AdminContentKindIdRoute
+}
+
+const V1AdminContentKindRouteChildren: V1AdminContentKindRouteChildren = {
+  V1AdminContentKindIdRoute: V1AdminContentKindIdRoute,
+}
+
+const V1AdminContentKindRouteWithChildren =
+  V1AdminContentKindRoute._addFileChildren(V1AdminContentKindRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   HealthzRoute: HealthzRoute,
   V1ChatRoute: V1ChatRoute,
   V1SessionRoute: V1SessionRoute,
+  V1AdminDraftsRoute: V1AdminDraftsRouteWithChildren,
+  V1AdminEvaluate_conditionRoute: V1AdminEvaluate_conditionRoute,
+  V1AdminFactcheckRoute: V1AdminFactcheckRouteWithChildren,
+  V1AdminMetaRoute: V1AdminMetaRoute,
+  V1AdminPlaygroundRoute: V1AdminPlaygroundRoute,
+  V1AdminPublishRoute: V1AdminPublishRoute,
+  V1AdminPublish_previewRoute: V1AdminPublish_previewRoute,
+  V1AdminUsageRoute: V1AdminUsageRoute,
+  V1AdminValidateRoute: V1AdminValidateRoute,
   V1ContentFileRoute: V1ContentFileRoute,
+  V1AdminArtGenerateRoute: V1AdminArtGenerateRoute,
+  V1AdminContentKindRoute: V1AdminContentKindRouteWithChildren,
+  V1ContentFileSplatRoute: V1ContentFileSplatRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

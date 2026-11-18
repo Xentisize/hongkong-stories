@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
+import { preflight, withCors } from "@/lib/cors";
 import {
   asPublicSession,
   chatModel,
@@ -19,7 +20,7 @@ import {
 export const Route = createFileRoute("/v1/session")({
   server: {
     handlers: {
-      POST: async ({ request }) => {
+      POST: withCors(async ({ request }) => {
         const ip = clientIp(request);
 
         if (!sessionAllowed(ip)) {
@@ -28,10 +29,7 @@ export const Route = createFileRoute("/v1/session")({
 
         const session = createSession(ip);
         if (!session) {
-          return Response.json(
-            { detail: { code: "session_store_full" } },
-            { status: 503 },
-          );
+          return Response.json({ detail: { code: "session_store_full" } }, { status: 503 });
         }
 
         return Response.json({
@@ -39,7 +37,9 @@ export const Route = createFileRoute("/v1/session")({
           model: chatModel(),
           output_mode: chatOutputMode(),
         });
-      },
+      }),
+
+      OPTIONS: ({ request }) => preflight(request),
     },
   },
 });

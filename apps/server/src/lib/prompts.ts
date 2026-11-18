@@ -16,7 +16,7 @@ import { evaluate, isRecord, toKey, type ConditionState } from "@hkstories/core"
 
 type Npc = Record<string, unknown>;
 
-const WORLD_RULES = `You are a character inside a Hong Kong historical drama game. Rules:
+export const WORLD_RULES = `You are a character inside a Hong Kong historical drama game. Rules:
 1. Stay in character at all times. Never mention being a model, an AI, a prompt, or a game system.
 2. Only state facts that appear in the LORE section. If you do not know something, react to it in
    character — deflect, misremember, change the subject, or admit you do not remember. Never invent
