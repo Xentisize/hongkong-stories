@@ -30,7 +30,10 @@ tools/export_web.sh                                  # → build/web/
 bun tools/serve_web.ts 8099                      # → http://127.0.0.1:8099/ (no-store)
 ```
 
-The admin SPA is the same API: `cd admin && bun run dev` proxies `/v1` to it.
+The **studio** (the admin) is the same API: `cd admin && bun run dev` proxies `/v1` to it. Its
+Build place embeds the game itself, running the *draft* pack — point it at the client's dev server
+with `VITE_GAME_URL=http://localhost:5173/ bun run dev`, or leave it unset once the built client is
+served beside the admin at `/game/`.
 
 The API needs Postgres for sessions, chat budgets, the usage ledger and the fact-check queue.
 Content stays in git — the database holds only mutable state, and `bun run db:migrate` is
@@ -133,8 +136,9 @@ into the pack with a `.gen.json` provenance sidecar (model/seed/palette/cost —
 this sprite exactly" stays possible). The pixel work is `apps/server/src/lib/pixelate.ts` on
 sharp, so there is no Python interpreter and no optional dependency group to keep in step (§10.6).
 
-The §9.2 authoring tools are in too, as the SPA's eleven views (Editor / Map / Settings /
-Chapters / Items / Quests / Lore / Art / Playground / Builder / Review): a **map editor** — a location
+The §9.2 authoring tools are in too. They used to be eleven top-level tabs; they are now tabs
+inside the studio's four places (Build / Story / Pack / Ship — see "The studio" below), each the
+same editor as before. A **map editor** — a location
 tree, a tile palette, a paintable canvas with MAP / EVENT / COLLISION modes and drag-and-drop
 placement, writing through the same draft path, plus a location inspector for name/context/ambience,
 spawn points, doors, exits, interactables and decor (props and pressable objects carry markers on the
@@ -227,6 +231,42 @@ the `decor` system (~$0.55 of generations, style bible referenced throughout). R
 the 30-minute phone play, real recordings to replace the synthesized beds, and the P6 ship
 list.
 
+## The studio — the admin, rebuilt for first-time creators
+
+The admin grew as a tool for someone who already knew the content model. It is now a **studio**:
+four places, one question each, and the model kept out of sight until someone asks for it. The
+eleven-tab shell is gone — not hidden behind a flag, deleted — because each of its views is a tab
+inside a place.
+
+| Place | Question it answers | What backs it |
+|---|---|---|
+| **Build** 建造 | "what does my street look like?" | The real Phaser client in an iframe running the **draft** pack (`GET /v1/admin/preview/pack`, the same `mergedPack()` the publisher validates), click-to-select, and a palette that places characters, props and door cells through a `pick` mode on the running game |
+| **Story** 故事 | "what happens in it?" | Scenes as nodes and doors as edges, derived from `exits` (gated doors dashed); the quest flow embedded and editable; "ask AI for a step" |
+| **Pack** 素材 | "who and what exists?" | Characters / Items / Lore / Art as tabs, plus **接駁 Connections** |
+| **Ship** 出貨 | "is it ready?" | A checklist from the validator in plain language, "ask AI to fix" per issue, and tabs for Review / Settings / Conditions |
+
+**WYSIWYG.** The game in Build is the client, not a second renderer: it fetches the pack the author
+is editing, so a draft is visible before it is published. Clicking a tile in the running game selects
+what is there (`selected` → tile + entity), and placing something arms the next click (`pick` →
+`picked`), which the studio turns into an ordinary draft write.
+
+**The co-pilot proposes; the author approves.** `POST /v1/admin/ai/propose` returns a plan and whole
+documents — never a file write. The card shows the steps, one line per change, and a field-level diff
+for updates; approving writes ordinary drafts, so an AI edit is validated, undoable and publishable
+exactly like a typed one. Gaps carry their own instruction, so "fix it" is one click.
+
+**Connections.** Every relationship is *derived* from the fields the engine already reads
+(`has_item`, `talked`, `items_may_give`, `actions[].item`, an exit's `to`, `set_flag` / `flag`), never
+stored twice: pick an item and you see who gives it, which step needs it and which door it opens.
+**Flags are nodes** — the invisible glue between an effect and a condition — so "waited on but nothing
+sets it" is a visible sentence with a fix, instead of a mystery.
+
+**Art.** The look is two independent settings, `art.style` (the pixel tiers from the sprite-ai guide)
+and `art.medium` (natural / chibi / hand-drawn / flat vector / anime / paper craft); both fragments
+are composed into every generation, and both ids ride along in the `.gen.json` provenance. The tile
+atlas is 48 px cells sliced by `width ÷ columns`, so it was redrawn at twice the detail with no
+location document touched (`tools/gen_tile_atlas.ts`, palette-locked to `hk_palette_v1`).
+
 ## Deployment & soft launch (P6)
 
 The shipping path is CI-first; `client.yml` in `.github/workflows/` exercises the web build.
@@ -296,6 +336,20 @@ against the Cantonese particle set and every string in `client/content/`.
   depth is the 2027-chapter fact-check classifier hook-up (§7.6 optional hardening).
   Chapters 1–6 content exists — the finale included (see "Status: P3" / "Status: P5");
   what remains is the P6 ship list and the gdUnit4 port.
+- **The studio's forms still speak the content model.** Re-homing kept every capability (NPC, item,
+  settings, lore, art, conditions, review) but those editors are unchanged inside their new tabs.
+  Replacing them with the places' vocabulary — with the co-pilot drafting into them — is the next
+  body of work; see `TODO.md`.
+- **The live co-pilot path is unverified on this machine.** No `OPENROUTER_API_KEY` is configured
+  here, so `/v1/admin/ai/propose` answers 503 and the dock says exactly that. Composition, parsing,
+  the approval card and the diff are covered by tests; no real generation has been run.
+- **In-game placement was verified with a synthetic canvas click**, not a human drag inside the
+  cross-origin iframe: the coordinate mapping and the `picked` round-trip are exercised, the drag
+  gesture itself is not.
+- **Mechanical links stay derived on purpose.** There is no `links` field on documents: an edge the
+  engine does not read would be a second truth that drifts from the one it does. Declared
+  *narrative* links ("this photo is about grandmother") are not built — they would be a separate,
+  visibly marked layer.
 - **Cache-hit telemetry is only partially wired.** The admin playground reads real
   prompt/cached/cost numbers (OpenRouter `usage.include`) — live-measured 2026-11-17:
   same-prefix turns hit 60% / 0% / 76% depending on which upstream serves the request.

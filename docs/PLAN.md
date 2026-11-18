@@ -1072,3 +1072,52 @@ Four decisions remain:
    rewrite by hand, which is the bulk of the work either way).
 
 Everything downstream of these is already decided in this document.
+
+## 15. Studio — the builder for first-time creators
+
+The admin grew as a tool for someone who already knows the content model. The studio is the other
+surface: four places, one question each, and the model kept out of sight until someone asks for it.
+
+| Place | Question it answers | What backs it |
+|---|---|---|
+| **Build** 建造 | "what does my street look like?" | The real Phaser client in an iframe, running the **draft** pack (`/v1/admin/preview/pack`), with click-to-select and a palette that places characters, props and door cells |
+| **Story** 故事 | "what happens in it?" | Scenes as nodes and doors as edges (derived from `exits`), with the quest flow embedded and "ask AI for a step" |
+| **Pack** 素材 | "who and what exists?" | Art-first lists; the editors for these are on the re-homing list below |
+| **Ship** 出貨 | "is it ready?" | A checklist from `/v1/admin/validate` translated into plain language, with "ask AI to fix" per issue |
+
+**The AI rule, everywhere:** the model proposes, the author approves. `POST /v1/admin/ai/propose`
+returns a plan and whole documents, never writes a file; approving writes ordinary drafts, so an AI
+edit is validated, undoable and publishable exactly like a typed one. The art look is two independent
+settings (`art.style` + `art.medium`), both embedded in every generation (§8).
+
+### Where the old editors went
+
+The eleven-tab shell is **gone**. Each of its views now lives inside a place, reached as a tab:
+
+| Old view | Now |
+|---|---|
+| Editor (NPCs) | Pack › 角色 Characters |
+| Items | Pack › 物品 Items |
+| Lore | Pack › 典故 Lore |
+| Art studio | Pack › 美術 Art |
+| Map | Build (the live draft scene; the tile/legend/collision forms still exist inside it) |
+| Chapters, Quests | Story |
+| Review / factcheck, Settings, Conditions builder | Ship › 審閱 / 設定 / 條件 |
+
+What remains of the "too complicated" problem is *inside* those tabs: the forms still speak the
+content model's language. Replacing them one at a time — with the places' vocabulary and the
+co-pilot's help — is the next body of work, and it can be done without losing a capability.
+
+
+### Friction log (what is still hard, honestly)
+
+- **Draft vs published:** the preview is the draft, by design, but the studio shows no marker of
+  "this is not shipped yet" beyond the Ship checklist — a first-timer may not realise the game is
+  still local.
+- **Unsaved AI proposals** live only in the dock; navigating away loses the plan (the change was
+  never written, so nothing is lost from the pack — the reasoning is).
+- **The live model path is unverified in this environment:** `OPENROUTER_API_KEY` is not configured
+  here, so `/ai/propose` returns 503 and the dock reports it. Composition, parsing, the approval
+  card and the diff are covered by tests; a real generation has not been run.
+- **In-game placement was verified with a synthetic click** on the canvas (a `picked` event with a
+  tile), not with a human drag inside the cross-origin iframe.
