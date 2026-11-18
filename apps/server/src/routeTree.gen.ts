@@ -28,10 +28,12 @@ import { Route as V1AdminPublish_previewRouteImport } from './routes/v1/admin/pu
 import { Route as V1AdminUsageRouteImport } from './routes/v1/admin/usage'
 import { Route as V1AdminValidateRouteImport } from './routes/v1/admin/validate'
 import { Route as V1ContentFileRouteImport } from './routes/v1/content/$file'
+import { Route as V1AdminAiProposeRouteImport } from './routes/v1/admin/ai/propose'
 import { Route as V1AdminArtGenerateRouteImport } from './routes/v1/admin/art/generate'
 import { Route as V1AdminArtTemplatesRouteImport } from './routes/v1/admin/art/templates'
 import { Route as V1AdminContentKindRouteImport } from './routes/v1/admin/content/$kind'
 import { Route as V1AdminFactcheckCheckRouteImport } from './routes/v1/admin/factcheck/check'
+import { Route as V1AdminPreviewPackRouteImport } from './routes/v1/admin/preview/pack'
 import { Route as V1AssetsFileSplatRouteImport } from './routes/v1/assets/file/$'
 import { Route as V1ContentFileSplatRouteImport } from './routes/v1/content/file/$'
 import { Route as V1AdminContentKindIdRouteImport } from './routes/v1/admin/content/$kind/$id'
@@ -134,6 +136,11 @@ const V1ContentFileRoute = V1ContentFileRouteImport.update({
   path: '/v1/content/$file',
   getParentRoute: () => rootRouteImport,
 } as any)
+const V1AdminAiProposeRoute = V1AdminAiProposeRouteImport.update({
+  id: '/v1/admin/ai/propose',
+  path: '/v1/admin/ai/propose',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const V1AdminArtGenerateRoute = V1AdminArtGenerateRouteImport.update({
   id: '/v1/admin/art/generate',
   path: '/v1/admin/art/generate',
@@ -153,6 +160,11 @@ const V1AdminFactcheckCheckRoute = V1AdminFactcheckCheckRouteImport.update({
   id: '/check',
   path: '/check',
   getParentRoute: () => V1AdminFactcheckRoute,
+} as any)
+const V1AdminPreviewPackRoute = V1AdminPreviewPackRouteImport.update({
+  id: '/v1/admin/preview/pack',
+  path: '/v1/admin/preview/pack',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const V1AssetsFileSplatRoute = V1AssetsFileSplatRouteImport.update({
   id: '/v1/assets/file/$',
@@ -201,10 +213,12 @@ export interface FileRoutesByFullPath {
   '/v1/admin/usage': typeof V1AdminUsageRoute
   '/v1/admin/validate': typeof V1AdminValidateRoute
   '/v1/content/$file': typeof V1ContentFileRoute
+  '/v1/admin/ai/propose': typeof V1AdminAiProposeRoute
   '/v1/admin/art/generate': typeof V1AdminArtGenerateRoute
   '/v1/admin/art/templates': typeof V1AdminArtTemplatesRoute
   '/v1/admin/content/$kind': typeof V1AdminContentKindRouteWithChildren
   '/v1/admin/factcheck/check': typeof V1AdminFactcheckCheckRoute
+  '/v1/admin/preview/pack': typeof V1AdminPreviewPackRoute
   '/v1/assets/file/$': typeof V1AssetsFileSplatRoute
   '/v1/content/file/$': typeof V1ContentFileSplatRoute
   '/v1/admin/content/$kind/$id': typeof V1AdminContentKindIdRoute
@@ -231,10 +245,12 @@ export interface FileRoutesByTo {
   '/v1/admin/usage': typeof V1AdminUsageRoute
   '/v1/admin/validate': typeof V1AdminValidateRoute
   '/v1/content/$file': typeof V1ContentFileRoute
+  '/v1/admin/ai/propose': typeof V1AdminAiProposeRoute
   '/v1/admin/art/generate': typeof V1AdminArtGenerateRoute
   '/v1/admin/art/templates': typeof V1AdminArtTemplatesRoute
   '/v1/admin/content/$kind': typeof V1AdminContentKindRouteWithChildren
   '/v1/admin/factcheck/check': typeof V1AdminFactcheckCheckRoute
+  '/v1/admin/preview/pack': typeof V1AdminPreviewPackRoute
   '/v1/assets/file/$': typeof V1AssetsFileSplatRoute
   '/v1/content/file/$': typeof V1ContentFileSplatRoute
   '/v1/admin/content/$kind/$id': typeof V1AdminContentKindIdRoute
@@ -262,10 +278,12 @@ export interface FileRoutesById {
   '/v1/admin/usage': typeof V1AdminUsageRoute
   '/v1/admin/validate': typeof V1AdminValidateRoute
   '/v1/content/$file': typeof V1ContentFileRoute
+  '/v1/admin/ai/propose': typeof V1AdminAiProposeRoute
   '/v1/admin/art/generate': typeof V1AdminArtGenerateRoute
   '/v1/admin/art/templates': typeof V1AdminArtTemplatesRoute
   '/v1/admin/content/$kind': typeof V1AdminContentKindRouteWithChildren
   '/v1/admin/factcheck/check': typeof V1AdminFactcheckCheckRoute
+  '/v1/admin/preview/pack': typeof V1AdminPreviewPackRoute
   '/v1/assets/file/$': typeof V1AssetsFileSplatRoute
   '/v1/content/file/$': typeof V1ContentFileSplatRoute
   '/v1/admin/content/$kind/$id': typeof V1AdminContentKindIdRoute
@@ -294,10 +312,12 @@ export interface FileRouteTypes {
     | '/v1/admin/usage'
     | '/v1/admin/validate'
     | '/v1/content/$file'
+    | '/v1/admin/ai/propose'
     | '/v1/admin/art/generate'
     | '/v1/admin/art/templates'
     | '/v1/admin/content/$kind'
     | '/v1/admin/factcheck/check'
+    | '/v1/admin/preview/pack'
     | '/v1/assets/file/$'
     | '/v1/content/file/$'
     | '/v1/admin/content/$kind/$id'
@@ -324,10 +344,12 @@ export interface FileRouteTypes {
     | '/v1/admin/usage'
     | '/v1/admin/validate'
     | '/v1/content/$file'
+    | '/v1/admin/ai/propose'
     | '/v1/admin/art/generate'
     | '/v1/admin/art/templates'
     | '/v1/admin/content/$kind'
     | '/v1/admin/factcheck/check'
+    | '/v1/admin/preview/pack'
     | '/v1/assets/file/$'
     | '/v1/content/file/$'
     | '/v1/admin/content/$kind/$id'
@@ -354,10 +376,12 @@ export interface FileRouteTypes {
     | '/v1/admin/usage'
     | '/v1/admin/validate'
     | '/v1/content/$file'
+    | '/v1/admin/ai/propose'
     | '/v1/admin/art/generate'
     | '/v1/admin/art/templates'
     | '/v1/admin/content/$kind'
     | '/v1/admin/factcheck/check'
+    | '/v1/admin/preview/pack'
     | '/v1/assets/file/$'
     | '/v1/content/file/$'
     | '/v1/admin/content/$kind/$id'
@@ -385,9 +409,11 @@ export interface RootRouteChildren {
   V1AdminUsageRoute: typeof V1AdminUsageRoute
   V1AdminValidateRoute: typeof V1AdminValidateRoute
   V1ContentFileRoute: typeof V1ContentFileRoute
+  V1AdminAiProposeRoute: typeof V1AdminAiProposeRoute
   V1AdminArtGenerateRoute: typeof V1AdminArtGenerateRoute
   V1AdminArtTemplatesRoute: typeof V1AdminArtTemplatesRoute
   V1AdminContentKindRoute: typeof V1AdminContentKindRouteWithChildren
+  V1AdminPreviewPackRoute: typeof V1AdminPreviewPackRoute
   V1AssetsFileSplatRoute: typeof V1AssetsFileSplatRoute
   V1ContentFileSplatRoute: typeof V1ContentFileSplatRoute
 }
@@ -527,6 +553,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof V1ContentFileRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/v1/admin/ai/propose': {
+      id: '/v1/admin/ai/propose'
+      path: '/v1/admin/ai/propose'
+      fullPath: '/v1/admin/ai/propose'
+      preLoaderRoute: typeof V1AdminAiProposeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/v1/admin/art/generate': {
       id: '/v1/admin/art/generate'
       path: '/v1/admin/art/generate'
@@ -554,6 +587,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/v1/admin/factcheck/check'
       preLoaderRoute: typeof V1AdminFactcheckCheckRouteImport
       parentRoute: typeof V1AdminFactcheckRoute
+    }
+    '/v1/admin/preview/pack': {
+      id: '/v1/admin/preview/pack'
+      path: '/v1/admin/preview/pack'
+      fullPath: '/v1/admin/preview/pack'
+      preLoaderRoute: typeof V1AdminPreviewPackRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/v1/assets/file/$': {
       id: '/v1/assets/file/$'
@@ -649,9 +689,11 @@ const rootRouteChildren: RootRouteChildren = {
   V1AdminUsageRoute: V1AdminUsageRoute,
   V1AdminValidateRoute: V1AdminValidateRoute,
   V1ContentFileRoute: V1ContentFileRoute,
+  V1AdminAiProposeRoute: V1AdminAiProposeRoute,
   V1AdminArtGenerateRoute: V1AdminArtGenerateRoute,
   V1AdminArtTemplatesRoute: V1AdminArtTemplatesRoute,
   V1AdminContentKindRoute: V1AdminContentKindRouteWithChildren,
+  V1AdminPreviewPackRoute: V1AdminPreviewPackRoute,
   V1AssetsFileSplatRoute: V1AssetsFileSplatRoute,
   V1ContentFileSplatRoute: V1ContentFileSplatRoute,
 }
