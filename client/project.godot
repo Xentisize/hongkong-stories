@@ -6,7 +6,7 @@ config_version=5
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/npc_placement/plugin.cfg")
+enabled=PackedStringArray()
 
 [application]
 
