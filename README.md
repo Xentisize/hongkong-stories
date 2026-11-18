@@ -58,9 +58,9 @@ node tools/web_smoke.mjs http://127.0.0.1:8099/ /tmp/s.png 12000 talk   # browse
 ```
 
 The API tests need `DATABASE_URL`: they create a throwaway schema, migrate it, and never touch
-`public`. The `--selftest` counts recorded further down are per-phase figures — the six
-placement-writer checks were removed with the `npc_placement` plugin, so older numbers read higher
-than a current run.
+`public`. `--selftest` reports **123 checks, 0 failures** (Linux 4.7.2 headless, 2026-11-18). The
+per-phase counts further down are historical snapshots: the six placement-writer checks left with the
+`npc_placement` plugin, so an older figure cannot be adjusted by subtraction into today's.
 
 `web_smoke` in `talk` mode injects real key events over CDP, walks to the NPC, presses E, and
 reports the game's `[Dialogue]` line — so it distinguishes *the model answered* from *the
@@ -110,8 +110,8 @@ Verified on this machine: all 36 content entities parse, carry three locales, an
 no Cantonese particles in `zh_CN` (§11 spot-check); the shared condition fixtures pass
 through `@hkstories/core`, the evaluator the game and the API both use (30/30); the
 font-coverage gate passes — every authored
-character is renderable. The Godot `--selftest` suite now RUNS on this machine (a Windows
-4.7.2 build driven through WSL interop): **111 checks, 0 failures**. The backend suite now runs as
+character is renderable. The Godot `--selftest` suite ran on this machine (a Windows
+4.7.2 build driven through WSL interop) at **111 checks, 0 failures**. The backend suite now runs as
 `bun test` in `apps/server`; the Python `pytest` suite and its pinned interpreter are gone.
 The §12 exit criterion — a cold player finishing chapter 1 without a dead end — still needs
 a human playtest, backend up and down.
@@ -199,9 +199,9 @@ its write-back core retired once the admin covered both of its modes.
 
 Verified on this machine: 53 entities validate with 0 errors, the font-coverage gate passes
 over every new era string, three-locale parity holds with zero Cantonese particles in
-`zh_CN`, and `--selftest` runs via the Windows Godot through WSL interop: **122 checks,
-0 failures** — now covering the placement writer, the real audio assets, and the
-interactable gating that opens the finale. The final build exports and the browser smokes
+`zh_CN`, and `--selftest` ran via the Windows Godot through WSL interop at **122 checks,
+0 failures** — then covering the real audio assets and the interactable gating that opens the
+finale. (The placement-writer checks left with the retired plugin; the current count is in Tests.) The final build exports and the browser smokes
 pass on it (backend up: real model reply; backend down: scripted fallback). The Seedream
 art pass shipped too: a generated tileset repaints every room, 18 era NPC sprites render
 in-world (replacing the placeholder rectangles), and eight props dress the locations through
