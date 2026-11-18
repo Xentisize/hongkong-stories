@@ -15,6 +15,7 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { EffectListEditor } from "@/components/EffectListEditor";
+import { InheritanceField } from "@/components/InheritanceField";
 import { RuleEditor } from "@/components/RuleEditor";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -67,14 +68,16 @@ const PROPS = Object.keys(
 const NO_ART = "none";
 
 const LOCALES = ["zh_HK", "zh_CN", "en"] as const;
-const LOCALE_LABELS: Record<string, string> = { zh_HK: "繁 HK", zh_CN: "简 CN", en: "EN" };
+const LOCALE_LABELS: Record<string, string> = { zh_HK: "繁 HK", zh_CN: "簡 CN", en: "EN" };
 
 export function LocationPanel({
+  token,
   doc,
   apply,
   locationIds,
   cursor,
 }: {
+  token: string;
   doc: LocationDoc;
   apply: (next: LocationDoc) => void;
   locationIds: string[];
@@ -194,6 +197,15 @@ export function LocationPanel({
 
   return (
     <div className="space-y-4">
+      <section className="space-y-1">
+        <InheritanceField
+          token={token}
+          kind="locations"
+          doc={doc}
+          onChange={(next) => apply(next as LocationDoc)}
+        />
+      </section>
+
       <section className="space-y-1">
         <p className="text-muted-foreground">地圖 Map</p>
         <p className="font-mono text-sm">{String(doc.id)}</p>
@@ -540,7 +552,7 @@ export function LocationPanel({
           </Button>
         </div>
         <p className="text-[10px] text-muted-foreground">
-          新增會放喺游標格{" "}
+          新增會放喺遊標格{" "}
           {cursor ? (
             <span className="font-mono text-amber-500">
               [{cursor[0]},{cursor[1]}]

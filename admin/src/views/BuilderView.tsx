@@ -73,7 +73,7 @@ export function BuilderView() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-xs font-medium text-muted-foreground">
-              §5.5 JSON（复制到实体的 complete_when / requires / reveal_if）
+              §5.5 JSON（複製到實體的 complete_when / requires / reveal_if）
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -86,7 +86,7 @@ export function BuilderView() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-xs font-medium text-muted-foreground">
-              粘贴条件 JSON 后点导入
+              貼上條件 JSON 後點導入
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
@@ -101,7 +101,7 @@ export function BuilderView() {
               }}
             />
             {importError ? (
-              <p className="text-[11px] text-destructive">JSON 无效：{importError}</p>
+              <p className="text-[11px] text-destructive">JSON 無效：{importError}</p>
             ) : null}
             <Button
               size="sm"
@@ -116,7 +116,7 @@ export function BuilderView() {
                 }
               }}
             >
-              导入 JSON
+              導入 JSON
             </Button>
           </CardContent>
         </Card>
@@ -125,7 +125,7 @@ export function BuilderView() {
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-xs font-medium text-muted-foreground">
-            状态模拟（would this pass, given this state?）
+            狀態模擬（would this pass, given this state?）
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -137,7 +137,7 @@ export function BuilderView() {
             onChange={(event) => setStateText(event.target.value)}
           />
           {stateError ? (
-            <p className="mt-1 text-[11px] text-destructive">状态 JSON 无效：{stateError}</p>
+            <p className="mt-1 text-[11px] text-destructive">狀態 JSON 無效：{stateError}</p>
           ) : null}
         </CardContent>
       </Card>
@@ -157,7 +157,7 @@ function EvalBadge({
   if (stateError) {
     return (
       <Badge variant="outline" className="border-amber-500/60 text-amber-500">
-        · 求值失败（状态 JSON 无效）
+        · 求值失敗（狀態 JSON 無效）
       </Badge>
     );
   }
@@ -170,8 +170,8 @@ function EvalBadge({
         : "border-destructive/60 text-destructive";
   return (
     <Badge variant="outline" className={tone} title={warnings.join("\n") || undefined}>
-      {pass ? "✓ 通过" : "✗ 不通过"}
-      {warnings.length > 0 ? "（有未知条件）" : ""}
+      {pass ? "✓ 通過" : "✗ 不通過"}
+      {warnings.length > 0 ? "（有未知條件）" : ""}
     </Badge>
   );
 }

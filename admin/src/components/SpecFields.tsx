@@ -18,7 +18,7 @@ import { asLocalized, writeLocale } from "@/lib/localized";
 import type { FieldSpec, Rule } from "@/lib/rules";
 
 const LOCALES = ["zh_HK", "zh_CN", "en"] as const;
-const LOCALE_LABELS: Record<string, string> = { zh_HK: "繁 HK", zh_CN: "简 CN", en: "EN" };
+const LOCALE_LABELS: Record<string, string> = { zh_HK: "繁 HK", zh_CN: "簡 CN", en: "EN" };
 
 /** Numbers arrive from an `<input type="number">` as strings; an emptied box is not `0`. */
 function asNumber(text: string): number | undefined {

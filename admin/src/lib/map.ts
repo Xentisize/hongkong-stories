@@ -14,6 +14,10 @@
  * changed, so the undo stack does not fill with no-ops from merely dragging over a painted tile.
  */
 
+import { legendFrame, type TileTransform } from "@hkstories/core";
+
+export type { TileTransform } from "@hkstories/core";
+
 export type TileMap = string[];
 
 /** A placement as authored: tile coordinates, not pixels. */
@@ -53,14 +57,59 @@ export interface LegendEntry {
   char: string;
   col: number;
   row: number;
+  /** A rotated or flipped drawing of the atlas frame, or `null` for the plain frame. */
+  transform: TileTransform | null;
 }
 
+/** A frame, optionally followed by the transform it is drawn with. */
+export type TileLegend = Record<string, [number, number] | [number, number, TileTransform]>;
+
 /** Legend entries in a stable order, so the palette does not jump around between renders. */
-export function legendEntries(legend: Record<string, [number, number]> | undefined): LegendEntry[] {
+export function legendEntries(legend: TileLegend | undefined): LegendEntry[] {
   if (!legend) return [];
-  return Object.entries(legend)
-    .map(([char, position]) => ({ char, col: position[0], row: position[1] }))
-    .sort((a, b) => a.row - b.row || a.col - b.col);
+
+  const entries: LegendEntry[] = [];
+  for (const [char, raw] of Object.entries(legend)) {
+    const frame = legendFrame(raw);
+    if (frame === null) continue; // a malformed frame is the validator's to report
+    entries.push({ char, col: frame.col, row: frame.row, transform: frame.transform });
+  }
+  return entries.sort((a, b) => a.row - b.row || a.col - b.col);
+}
+
+/** Characters a new variant may be minted under, tried in this order. */
+const VARIANT_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+
+/**
+ * The entry that draws `char`'s frame with `transform`, minting a new character when none exists.
+ *
+ * Rotation cannot live in the cell — a cell holds a character — so a rotated tile is a *second
+ * legend entry* pointing at the same atlas frame. Reusing an existing variant keeps the legend from
+ * growing every time the author presses the button.
+ */
+export function transformVariant(
+  legend: TileLegend,
+  char: string,
+  transform: TileTransform,
+): { legend: TileLegend; char: string } | null {
+  const frame = legendFrame(legend[char]);
+  if (frame === null) return null;
+
+  for (const [existing, raw] of Object.entries(legend)) {
+    const entry = legendFrame(raw);
+    if (
+      entry !== null &&
+      entry.col === frame.col &&
+      entry.row === frame.row &&
+      entry.transform === transform
+    ) {
+      return { legend, char: existing };
+    }
+  }
+
+  const free = VARIANT_CHARS.split("").find((candidate) => !(candidate in legend));
+  if (free === undefined) return null; // legend is full: no ids left to mint
+  return { legend: { ...legend, [free]: [frame.col, frame.row, transform] }, char: free };
 }
 
 /** The character at a cell, or undefined outside the map (ragged rows included). */

@@ -738,7 +738,16 @@ admin SPA then just reads those positions. Best of both, no duplicated effort.
   the editor can open it. A list shows baseline documents **and** draft-only ones, because the thing
   an author just created has no published file yet. The header names the game (title from
   `settings/game`) beside the pack version: that, plus the pack itself, is the admin's whole notion
-  of "this project" — there is no second project file to keep in step.
+  of "this project" — there is no second project file to keep in step. Two editing affordances are
+  shared rather than per-view: an **inheritance picker** (`components/InheritanceField`) that offers
+  same-kind parents, templates first, and previews what the parent contributes using the resolver's
+  own merge, and an **undo stack** (`lib/undo`, coalescing keystrokes into one step) with ⌘Z / ⇧⌘Z
+  on the item, quest, chapter, NPC and lore editors. The map editor keeps its own gesture-level
+  stack. Two shapes needed care: the NPC form mutates its model in place, so the stack holds
+  **clones** taken after each edit and undo copies the peeked target back and re-mounts the form via
+  a revision key; the lore editor puts a plain string on the same stack, where coalescing is what
+  makes ⌘Z mean "the last typing run" rather than "the last character" — a controlled textarea has
+  no native undo to fall back on.
 - **Locale tabs** on every string field — one tab per §5.8 locale, each with a completeness
   dot, and a "draft the other two from this one" button (register-aware LLM draft, explicitly
   marked *draft* until a human approves it). A per-entity parity report lists what is missing,

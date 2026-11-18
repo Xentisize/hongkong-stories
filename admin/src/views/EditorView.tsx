@@ -19,6 +19,7 @@ import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { api, type Issue } from "@/api";
+import { InheritanceField } from "@/components/InheritanceField";
 import { NpcForm } from "@/components/NpcForm";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -42,6 +43,7 @@ import {
   type PublishPreview,
   type ValidateResult,
 } from "@/lib/queries";
+import { useUndoable, useUndoKeys } from "@/lib/undo";
 import { cn } from "@/lib/utils";
 
 interface Feedback {
@@ -70,6 +72,17 @@ export function EditorView({
   // Guarantees a re-render on every edit, because the draft is mutated rather than replaced.
   const [, forceRender] = useReducer((n: number) => n + 1, 0);
 
+  /**
+   * Undo for a form that mutates its own model.
+   *
+   * `NpcForm` edits the entity object in place, so the stack cannot hold that object — it would
+   * record the edit it is supposed to undo. Every entry is therefore a **clone** taken after the
+   * edit, and undo copies the peeked target back into the model and bumps `revision`, which
+   * re-mounts the form so its controls show the restored values.
+   */
+  const undoable = useUndoable<Entity>(null);
+  const [revision, setRevision] = useState(0);
+
   const markDirty = useCallback(() => {
     setDirty(true);
     onDirtyChange(true);
@@ -81,12 +94,56 @@ export function EditorView({
     onDirtyChange(false);
   }, [onDirtyChange]);
 
+  /** One stack entry per edit — a clone, coalesced while the author keeps typing. */
+  const recordEdit = useCallback(() => {
+    markDirty();
+    if (entity !== null) undoable.set(structuredClone(entity), { coalesce: true });
+  }, [entity, markDirty, undoable]);
+
+  const applyStacked = useCallback(
+    (target: Entity | null) => {
+      if (target === null) return;
+      setEntity(structuredClone(target));
+      setRevision((n) => n + 1);
+      markDirty();
+    },
+    [markDirty],
+  );
+
+  const undo = useCallback(() => {
+    const target = undoable.nextUndo;
+    if (target === null) return;
+    undoable.undo();
+    applyStacked(target);
+  }, [undoable, applyStacked]);
+
+  const redo = useCallback(() => {
+    const target = undoable.nextRedo;
+    if (target === null) return;
+    undoable.redo();
+    applyStacked(target);
+  }, [undoable, applyStacked]);
+
+  useUndoKeys(undo, redo);
+
+  /** Load a document as the model and as the stack's origin. */
+  const adopt = useCallback(
+    (doc: Entity | null) => {
+      setEntity(doc === null ? null : structuredClone(doc));
+      setRevision((n) => n + 1);
+      undoable.load(doc === null ? null : structuredClone(doc));
+    },
+    [undoable],
+  );
+
   const saveDraft = useMutation({
     mutationFn: () => api.putDraft("npcs", String(entity?.["id"]), entity),
     onSuccess: () => {
       setIsNew(false);
       markClean();
       void refresh();
+      // The saved draft is the new origin: undo should not walk back past what is on disk.
+      undoable.load(entity === null ? null : structuredClone(entity));
       toast.success(`草稿已保存 / draft saved: ${String(entity?.["id"])}`);
     },
     onError: (error) => setFeedback({ level: "err", text: describeError(error) }),
@@ -115,8 +172,8 @@ export function EditorView({
       setFeedback({
         level: result.ok ? "ok" : "err",
         text: result.ok
-          ? `校验通过 / valid（${result.issues.length} 条提示）\n${formatIssues(result.issues)}`
-          : `校验未通过 / ${errors} 个错误\n${formatIssues(result.issues)}`,
+          ? `校验通過 / valid（${result.issues.length} 條提示）\n${formatIssues(result.issues)}`
+          : `校验未通過 / ${errors} 個錯誤\n${formatIssues(result.issues)}`,
       });
     },
     onError: (error) => setFeedback({ level: "err", text: describeError(error) }),
@@ -130,7 +187,7 @@ export function EditorView({
       void refresh();
       setFeedback({
         level: "ok",
-        text: `已发布 / published ${result.published} 个草稿 → content v${result.version} (${result.content_hash})`,
+        text: `已發布 / published ${result.published} 個草稿 → content v${result.version} (${result.content_hash})`,
       });
     },
     onError: (error) => {
@@ -142,7 +199,7 @@ export function EditorView({
   async function openDraft(kind: string, id: string) {
     try {
       const draft = (await api.getDraft(kind, id)) as Entity;
-      setEntity(draft);
+      adopt(draft);
       setIsNew(false);
       setFeedback(null);
     } catch (error) {
@@ -153,11 +210,11 @@ export function EditorView({
   async function cloneBaseline(id: string) {
     try {
       const source = (await api.entity("npcs", id)) as Entity;
-      setEntity({ ...source, id: `${id}_v2` });
+      adopt({ ...source, id: `${id}_v2` });
       setIsNew(true);
       setFeedback({
         level: "warn",
-        text: `已载入基线 ${id} — 改好 id 与内容后保存为草稿`,
+        text: `已載入基線 ${id} — 改好 id 與內容後保存為草稿`,
       });
     } catch (error) {
       setFeedback({ level: "err", text: describeError(error) });
@@ -173,23 +230,25 @@ export function EditorView({
     }
   }
 
-  const draftKey = entity ? `${String(entity["id"])}:${isNew ? "new" : "saved"}` : "empty";
+  const draftKey = entity
+    ? `${String(entity["id"])}:${isNew ? "new" : "saved"}:${revision}`
+    : `empty:${revision}`;
 
   return (
     <div className="grid gap-4 lg:grid-cols-[260px_1fr]">
-      <Card className="h-fit">
+      <Card className="h-fit min-w-0 overflow-hidden">
         <CardHeader className="pb-2">
           <CardTitle className="text-xs font-medium text-muted-foreground">草稿 Drafts</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 p-3 pt-0">
           <ScrollArea className="max-h-52">
             <ul className="space-y-1">
-              {drafts.isPending ? <li className="text-xs text-muted-foreground">加载中…</li> : null}
+              {drafts.isPending ? <li className="text-xs text-muted-foreground">加載中…</li> : null}
               {drafts.isError ? (
-                <li className="text-xs text-destructive">未连接后端 / backend unreachable</li>
+                <li className="text-xs text-destructive">未連接後端 / backend unreachable</li>
               ) : null}
               {drafts.data?.length === 0 ? (
-                <li className="text-xs text-muted-foreground">（无草稿）</li>
+                <li className="text-xs text-muted-foreground">（無草稿）</li>
               ) : null}
               {drafts.data?.map((draft) => (
                 <li key={`${draft.kind}/${draft.id}`}>
@@ -201,7 +260,7 @@ export function EditorView({
                     )}
                     onClick={() => void openDraft(draft.kind, draft.id)}
                   >
-                    <span className="truncate">{draft.id}</span>
+                    <span className="min-w-0 truncate">{draft.id}</span>
                     <Badge variant="secondary" className="shrink-0 text-[10px]">
                       {draft.kind}
                     </Badge>
@@ -213,7 +272,7 @@ export function EditorView({
 
           <Separator />
 
-          <p className="text-xs font-medium text-muted-foreground">基线 NPC（点按克隆）</p>
+          <p className="text-xs font-medium text-muted-foreground">基線 NPC（點按克隆）</p>
           <ScrollArea className="max-h-52">
             <ul className="space-y-1">
               {baseline.data?.map((id) => (
@@ -223,7 +282,7 @@ export function EditorView({
                     className="flex w-full items-center justify-between gap-2 rounded px-2 py-1 text-left text-xs hover:bg-accent hover:text-accent-foreground"
                     onClick={() => void cloneBaseline(id)}
                   >
-                    <span className="truncate">{id}</span>
+                    <span className="min-w-0 truncate">{id}</span>
                     <Badge variant="outline" className="shrink-0 text-[10px]">
                       克隆
                     </Badge>
@@ -237,11 +296,11 @@ export function EditorView({
             size="sm"
             className="w-full"
             onClick={() => {
-              setEntity(blankNpc());
+              adopt(blankNpc());
               setIsNew(true);
               setFeedback({
                 level: "warn",
-                text: "新 NPC：填好 id（如 npc_ch01_hawker）、三语名称与内容后保存",
+                text: "新 NPC：填好 id（如 npc_ch01_hawker）、三語名稱與內容後保存",
               });
             }}
           >
@@ -253,9 +312,34 @@ export function EditorView({
       <div className="space-y-4">
         {entity ? (
           <>
-            <NpcForm key={draftKey} entity={entity} isNew={isNew} onChange={markDirty} />
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">繼承 Inheritance</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <InheritanceField
+                  token={token}
+                  kind="npcs"
+                  doc={entity}
+                  onChange={(next) => {
+                    // The form model is the entity itself, so a wholesale replacement is the only
+                    // honest way to express "this document now points at a different parent".
+                    setEntity(next as Entity);
+                    undoable.set(structuredClone(next as Entity));
+                    markDirty();
+                  }}
+                />
+              </CardContent>
+            </Card>
+            <NpcForm key={draftKey} entity={entity} isNew={isNew} onChange={recordEdit} />
             <Card>
               <CardContent className="flex flex-wrap items-center gap-2 p-3">
+                <Button size="sm" variant="outline" disabled={!undoable.canUndo} title="⌘Z / Ctrl+Z" onClick={undo}>
+                  ↶ 復原
+                </Button>
+                <Button size="sm" variant="outline" disabled={!undoable.canRedo} title="⇧⌘Z / Ctrl+Shift+Z" onClick={redo}>
+                  ↷ 重做
+                </Button>
                 <Button
                   size="sm"
                   onClick={() => saveDraft.mutate()}
@@ -285,7 +369,7 @@ export function EditorView({
                   onClick={() => void startPublish()}
                   disabled={publish.isPending}
                 >
-                  发布 Publish
+                  發布 Publish
                 </Button>
                 {dirty ? <span className="text-xs text-amber-500">● 未保存</span> : null}
               </CardContent>
@@ -294,7 +378,7 @@ export function EditorView({
         ) : (
           <Card>
             <CardContent className="py-10 text-center text-sm text-muted-foreground">
-              从左侧选择草稿、克隆基线 NPC，或新建一个。
+              從左側選擇草稿、克隆基線 NPC，或新建一個。
             </CardContent>
           </Card>
         )}
@@ -322,7 +406,7 @@ export function EditorView({
           <DialogHeader>
             <DialogTitle>删除草稿</DialogTitle>
             <DialogDescription>
-              将删除 {String(entity?.["id"] ?? "")} 的草稿。基线内容不受影响。
+              將删除 {String(entity?.["id"] ?? "")} 的草稿。基線內容不受影響。
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -339,9 +423,9 @@ export function EditorView({
       <Dialog open={confirmPublish !== null} onOpenChange={(open) => !open && setConfirmPublish(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>发布 Publish</DialogTitle>
+            <DialogTitle>發布 Publish</DialogTitle>
             <DialogDescription>
-              发布会把草稿并入正式内容包并递增版本，所有客户端下次启动热更新。
+              發布會把草稿並入正式內容包並遞增版本，所有客戶端下次啟動熱更新。
             </DialogDescription>
           </DialogHeader>
           <ScrollArea className="max-h-60 rounded border p-2">
@@ -354,7 +438,7 @@ export function EditorView({
               取消
             </Button>
             <Button onClick={() => publish.mutate()} disabled={publish.isPending}>
-              继续发布
+              繼續發布
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -375,5 +459,5 @@ function previewLines(preview: PublishPreview | null): string {
     ...preview.added.map((entry) => `＋ 新增 ${entry.kind}/${entry.id}`),
     ...preview.changed.map((entry) => `~ 修改 ${entry.kind}/${entry.id}`),
   ];
-  return lines.length ? lines.join("\n") : "（草稿与基线一致或无草稿）";
+  return lines.length ? lines.join("\n") : "（草稿與基線一致或無草稿）";
 }

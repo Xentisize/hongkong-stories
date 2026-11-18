@@ -49,17 +49,17 @@ export function ReviewView({ token }: { token: string }) {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-sm">
-            Fact-check 审阅队列（§7.6：只标记，从不改写玩家的话）
+            Fact-check 審閱隊列（§7.6：只標記，從不改寫玩家的话）
           </CardTitle>
         </CardHeader>
         <CardContent>
           {queue.isPending ? (
-            <p className="text-xs text-muted-foreground">加载中…</p>
+            <p className="text-xs text-muted-foreground">加載中…</p>
           ) : queue.isError ? (
-            <p className="text-xs text-destructive">队列加载失败: {describeError(queue.error)}</p>
+            <p className="text-xs text-destructive">隊列加載失敗: {describeError(queue.error)}</p>
           ) : queue.data.length === 0 ? (
             <p className="text-xs text-muted-foreground">
-              （队列为空 — 在 Playground 对某轮回复点 fact-check）
+              （隊列為空 — 在 Playground 對某輪回復點 fact-check）
             </p>
           ) : (
             <ScrollArea className="max-h-96">
@@ -84,19 +84,19 @@ export function ReviewView({ token }: { token: string }) {
         </CardHeader>
         <CardContent className="space-y-5">
           {usage.isPending ? (
-            <p className="text-xs text-muted-foreground">加载中…</p>
+            <p className="text-xs text-muted-foreground">加載中…</p>
           ) : usage.isError ? (
-            <p className="text-xs text-destructive">用量加载失败: {describeError(usage.error)}</p>
+            <p className="text-xs text-destructive">用量加載失敗: {describeError(usage.error)}</p>
           ) : (
             <>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
                 {[
-                  [`$${usage.data.chat_cost_usd}`, "对话花费（本月）"],
-                  [`$${usage.data.image_cost_usd}`, "图像花费"],
+                  [`$${usage.data.chat_cost_usd}`, "對话花费（本月）"],
+                  [`$${usage.data.image_cost_usd}`, "圖像花费"],
                   [`$${usage.data.factcheck_cost_usd ?? 0}`, "fact-check 花费"],
-                  [`${usage.data.turns}`, "轮数"],
+                  [`${usage.data.turns}`, "輪數"],
                   [`${usage.data.tokens}`, "tokens"],
-                  [`${usage.data.p95_latency_ms}ms`, "p95 延迟"],
+                  [`${usage.data.p95_latency_ms}ms`, "p95 延遲"],
                 ].map(([value, title]) => (
                   <div key={title} className="rounded-md border p-3">
                     <div className="text-lg font-semibold tabular-nums">{value}</div>
@@ -107,19 +107,19 @@ export function ReviewView({ token }: { token: string }) {
 
               <div className="grid gap-4 lg:grid-cols-2">
                 <div>
-                  <p className="mb-1 text-xs font-medium text-muted-foreground">被拒动作</p>
+                  <p className="mb-1 text-xs font-medium text-muted-foreground">被拒動作</p>
                   <Table>
                     <TableHeader>
                       <TableRow>
                         <TableHead>被拒原因</TableHead>
-                        <TableHead className="text-right">次数</TableHead>
+                        <TableHead className="text-right">次數</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {usage.data.top_rejected.length === 0 ? (
                         <TableRow>
                           <TableCell colSpan={2} className="text-muted-foreground">
-                            （没有被拒动作）
+                            （沒有被拒動作）
                           </TableCell>
                         </TableRow>
                       ) : (
@@ -135,12 +135,12 @@ export function ReviewView({ token }: { token: string }) {
                 </div>
 
                 <div>
-                  <p className="mb-1 text-xs font-medium text-muted-foreground">花费最高的会话</p>
+                  <p className="mb-1 text-xs font-medium text-muted-foreground">花费最高的會话</p>
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>会话</TableHead>
-                        <TableHead className="text-right">轮数</TableHead>
+                        <TableHead>會话</TableHead>
+                        <TableHead className="text-right">輪數</TableHead>
                         <TableHead className="text-right">花费 $</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -148,7 +148,7 @@ export function ReviewView({ token }: { token: string }) {
                       {usage.data.sessions.length === 0 ? (
                         <TableRow>
                           <TableCell colSpan={3} className="text-muted-foreground">
-                            （本月暂无会话记录）
+                            （本月暫無會话記錄）
                           </TableCell>
                         </TableRow>
                       ) : (
@@ -203,15 +203,15 @@ function QueueRow({
         {entry.status === "open" ? (
           <span className="ml-auto flex gap-2">
             <Button size="sm" variant="ghost" disabled={busy} onClick={() => onResolve("dismissed")}>
-              驳回 Dismiss
+              駁回 Dismiss
             </Button>
             <Button size="sm" variant="secondary" disabled={busy} onClick={() => onResolve("confirmed")}>
-              确认 Confirmed
+              確認 Confirmed
             </Button>
           </span>
         ) : null}
       </div>
-      <p>{excerpt(`玩家: ${entry.player_input || "（无）"} → NPC: ${entry.reply}`)}</p>
+      <p>{excerpt(`玩家: ${entry.player_input || "（無）"} → NPC: ${entry.reply}`)}</p>
       <p className="text-muted-foreground">{entry.reason}</p>
     </div>
   );

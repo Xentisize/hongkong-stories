@@ -64,7 +64,7 @@ export function JsonField({
         }}
       />
       {error !== null ? (
-        <p className="text-[11px] text-destructive">JSON 无效，未写入 / invalid, not saved: {error}</p>
+        <p className="text-[11px] text-destructive">JSON 無效，未寫入 / invalid, not saved: {error}</p>
       ) : hint !== undefined ? (
         <p className="text-[11px] text-muted-foreground">{hint}</p>
       ) : null}

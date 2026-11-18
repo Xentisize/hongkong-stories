@@ -28,9 +28,11 @@ import {
   setCollisionRect,
   solidAt,
   tileAt,
+  transformVariant,
   type CollisionRect,
   type MapNpc,
   type TileLayerDoc,
+  type TileLegend,
 } from "./map";
 
 /**
@@ -78,7 +80,7 @@ describe("grid geometry", () => {
   test("legend entries come back in a stable order", () => {
     const entries = legendEntries(legend);
     expect(entries.map((entry) => entry.char)).toEqual([".", ",", "#", "D"]);
-    expect(entries[3]).toEqual({ char: "D", col: 3, row: 0 });
+    expect(entries[3]).toEqual({ char: "D", col: 3, row: 0, transform: null });
     expect(legendEntries(undefined)).toEqual([]);
   });
 
@@ -411,6 +413,49 @@ describe("rectangle tools", () => {
     const wall: CollisionRect[] = [[0, 0, 4, 1]];
     expect(setCollisionRect(wall, 0, 0, 3, 0, true, 4, 4)).toBe(wall);
     expect(setCollisionRect(wall, 8, 8, 9, 9, true, 4, 4)).toBe(wall);
+  });
+});
+
+describe("legend transforms", () => {
+  const legend: TileLegend = { ".": [0, 0], "#": [2, 0] };
+
+  test("entries read the transform when the frame has one", () => {
+    expect(legendEntries({ ".": [0, 0], r: [2, 0, "rot90"] })).toEqual([
+      { char: ".", col: 0, row: 0, transform: null },
+      { char: "r", col: 2, row: 0, transform: "rot90" },
+    ]);
+  });
+
+  test("a malformed frame is skipped rather than painted as tile zero", () => {
+    expect(legendEntries({ ".": [0, 0], bad: [1] as never })).toEqual([
+      { char: ".", col: 0, row: 0, transform: null },
+    ]);
+  });
+
+  test("the first variant mints a new character and keeps the frame", () => {
+    const next = transformVariant(legend, "#", "rot90");
+    expect(next).not.toBeNull();
+    expect(next!.char).toBe("a");
+    expect(next!.legend["a"]).toEqual([2, 0, "rot90"]);
+    expect(next!.legend["#"]).toEqual([2, 0]);
+  });
+
+  test("a second request for the same variant reuses it instead of growing the legend", () => {
+    const first = transformVariant(legend, "#", "rot90")!;
+    const second = transformVariant(first.legend, "#", "rot90")!;
+    expect(second.char).toBe(first.char);
+    expect(second.legend).toBe(first.legend); // same object: nothing was minted
+  });
+
+  test("a different transform mints a different character", () => {
+    const rotated = transformVariant(legend, "#", "rot90")!;
+    const flipped = transformVariant(rotated.legend, "#", "flipX")!;
+    expect(flipped.char).not.toBe(rotated.char);
+    expect(flipped.legend[flipped.char]).toEqual([2, 0, "flipX"]);
+  });
+
+  test("an unknown character has no variant to make", () => {
+    expect(transformVariant(legend, "?", "rot90")).toBeNull();
   });
 });
 

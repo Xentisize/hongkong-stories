@@ -12,7 +12,10 @@ function ScrollArea({
   return (
     <ScrollAreaPrimitive.Root
       data-slot="scroll-area"
-      className={cn("relative", className)}
+      // `overflow-hidden` is load-bearing, not cosmetic: the viewport is the scroller, and without
+      // clipping on the root a `max-h-*` only shrinks the box — the list still paints outside it and
+      // covers whatever sits below (the editor rail's "New NPC" button was the first casualty).
+      className={cn("relative overflow-hidden", className)}
       {...props}
     >
       <ScrollAreaPrimitive.Viewport

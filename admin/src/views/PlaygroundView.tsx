@@ -96,7 +96,7 @@ export function PlaygroundView({ token }: { token: string }) {
         if (cancelled) return;
         setNpc(loaded);
         setHistory([]);
-        setEntries([{ kind: "notice", tone: "info", text: `已载入 ${id}` }]);
+        setEntries([{ kind: "notice", tone: "info", text: `已載入 ${id}` }]);
       } catch (error) {
         if (!cancelled) {
           setEntries([{ kind: "notice", tone: "err", text: describeError(error) }]);
@@ -120,7 +120,7 @@ export function PlaygroundView({ token }: { token: string }) {
     try {
       state = JSON.parse(stateText);
     } catch {
-      setEntries((prev) => [...prev, { kind: "notice", tone: "err", text: "状态模拟不是合法 JSON" }]);
+      setEntries((prev) => [...prev, { kind: "notice", tone: "err", text: "狀態模擬不是合法 JSON" }]);
       return;
     }
 
@@ -149,7 +149,7 @@ export function PlaygroundView({ token }: { token: string }) {
     } catch (error) {
       setEntries((prev) => [
         ...prev,
-        { kind: "notice", tone: "err", text: `turn 失败: ${describeError(error)}` },
+        { kind: "notice", tone: "err", text: `turn 失敗: ${describeError(error)}` },
       ]);
     } finally {
       setSending(false);
@@ -178,9 +178,9 @@ export function PlaygroundView({ token }: { token: string }) {
         checking: false,
         checks: [...entry.checks, { verdict: result.verdict, reason: result.reason }],
       });
-      toast.success("已入审阅队列 / queued for review");
+      toast.success("已入審閱隊列 / queued for review");
     } catch (error) {
-      patch({ checking: false, error: `fact-check 失败: ${describeError(error)}` });
+      patch({ checking: false, error: `fact-check 失敗: ${describeError(error)}` });
     }
   }
 
@@ -196,7 +196,7 @@ export function PlaygroundView({ token }: { token: string }) {
               <Label className="text-[11px] text-muted-foreground">NPC</Label>
               <Select value={selection} onValueChange={(next) => setSelection(next ?? "")}>
                 <SelectTrigger className="h-8 w-72">
-                  <SelectValue placeholder="载入 NPC" />
+                  <SelectValue placeholder="載入 NPC" />
                 </SelectTrigger>
                 <SelectContent>
                   {choices.map((choice) => (
@@ -208,7 +208,7 @@ export function PlaygroundView({ token }: { token: string }) {
               </Select>
             </div>
             <div className="space-y-1">
-              <Label className="text-[11px] text-muted-foreground">语言</Label>
+              <Label className="text-[11px] text-muted-foreground">語言</Label>
               <Select value={lang} onValueChange={(next) => setLang(next ?? "zh_HK")}>
                 <SelectTrigger className="h-8 w-28">
                   <SelectValue />
@@ -231,7 +231,7 @@ export function PlaygroundView({ token }: { token: string }) {
 
           <div className="space-y-1">
             <Label className="text-[11px] text-muted-foreground">
-              状态模拟（state projection，如同游戏内会话）
+              狀態模擬（state projection，如同遊戲內會话）
             </Label>
             <Textarea
               rows={5}
@@ -273,7 +273,7 @@ export function PlaygroundView({ token }: { token: string }) {
 
           <div className="flex items-center gap-2">
             <Input
-              placeholder="以玩家身份说话…（Enter 发送）"
+              placeholder="以玩家身份說话…（Enter 發送）"
               value={input}
               onChange={(event) => setInput(event.target.value)}
               onKeyDown={(event) => {
@@ -282,7 +282,7 @@ export function PlaygroundView({ token }: { token: string }) {
               disabled={!npc || sending}
             />
             <Button onClick={() => void sendTurn()} disabled={!npc || sending}>
-              {sending ? "…" : "发送"}
+              {sending ? "…" : "發送"}
             </Button>
           </div>
         </CardContent>
@@ -314,7 +314,7 @@ function Turn({
     `out ${reply.usage.completion_tokens}`,
     `$${reply.usage.cost_usd}`,
     `mood: ${reply.mood}`,
-    reply.truncated ? "· 截断!" : "",
+    reply.truncated ? "· 截斷!" : "",
   ]
     .filter(Boolean)
     .join(" · ");
@@ -329,17 +329,17 @@ function Turn({
       <p className="text-sm">{reply.say}</p>
       <p className="text-[11px] text-muted-foreground">{stats}</p>
       {reply.actions.length > 0 ? (
-        <p className="text-emerald-500">动作: {JSON.stringify(reply.actions)}</p>
+        <p className="text-emerald-500">動作: {JSON.stringify(reply.actions)}</p>
       ) : null}
       {rejected.size > 0 ? (
         <p className="text-destructive">
-          被拒动作:{" "}
+          被拒動作:{" "}
           {[...rejected.entries()].map(([reason, count]) => `${reason}×${count}`).join(", ")}
         </p>
       ) : null}
       {entry.checks.map((check, index) => (
         <p key={index} className="text-amber-500">
-          fact-check: {check.verdict} — {check.reason}（已入审阅队列）
+          fact-check: {check.verdict} — {check.reason}（已入審閱隊列）
         </p>
       ))}
       {entry.error ? <p className="text-destructive">{entry.error}</p> : null}

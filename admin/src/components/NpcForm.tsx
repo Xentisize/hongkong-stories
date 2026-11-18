@@ -43,7 +43,7 @@ const ACTION_OPTIONS = ["give", "take", "set_flag", "var", "reveal_secret", "ope
 
 const LOCALE_HINTS: Record<string, string> = {
   zh_HK: "正典",
-  zh_CN: "书面语，禁粤语虚词",
+  zh_CN: "書面語，禁粵語虛詞",
   en: "English",
 };
 
@@ -122,7 +122,7 @@ export function NpcForm({ entity, isNew, onChange }: NpcFormProps) {
           }}
         />
         <LineListField
-          label="taboos（每行一条）"
+          label="taboos（每行一條）"
           value={persona["taboos"]}
           onChange={(v) => {
             persona["taboos"] = v;
@@ -139,7 +139,7 @@ export function NpcForm({ entity, isNew, onChange }: NpcFormProps) {
         />
       </Section>
 
-      <Section title="Lore（模型唯一的事实来源 §7.2）">
+      <Section title="Lore（模型唯一的事實來源 §7.2）">
         <TextField
           label="lore"
           value={String(entity["lore"] ?? "")}
@@ -151,7 +151,7 @@ export function NpcForm({ entity, isNew, onChange }: NpcFormProps) {
         />
       </Section>
 
-      <Section title="LLM 允许清单（安全边界 §5.1）">
+      <Section title="LLM 允許清單（安全邊界 §5.1）">
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="temperature">
             <Input
@@ -203,9 +203,9 @@ export function NpcForm({ entity, isNew, onChange }: NpcFormProps) {
         />
       </Section>
 
-      <Section title="Secrets（reveal_if 决定何时可讲）">
+      <Section title="Secrets（reveal_if 決定何時可講）">
         <JsonField
-          label="secrets（JSON 数组）"
+          label="secrets（JSON 數組）"
           value={entity["secrets"]}
           onChange={(v) => {
             entity["secrets"] = v;
@@ -214,7 +214,7 @@ export function NpcForm({ entity, isNew, onChange }: NpcFormProps) {
         />
       </Section>
 
-      <Section title="Scripted fallback（离线保底 §7.4）">
+      <Section title="Scripted fallback（離線保底 §7.4）">
         <LocaleTabs
           label="greeting"
           value={fallback["greeting"]}
@@ -224,7 +224,7 @@ export function NpcForm({ entity, isNew, onChange }: NpcFormProps) {
           }}
         />
         <JsonField
-          label="lines（JSON 数组；条目为三语文本或 {text, requires, actions}）"
+          label="lines（JSON 數組；條目為三語文本或 {text, requires, actions}）"
           value={fallback["lines"]}
           onChange={(v) => {
             fallback["lines"] = v;
@@ -252,7 +252,7 @@ export function NpcForm({ entity, isNew, onChange }: NpcFormProps) {
           />
         </Field>
         <JsonField
-          label="trigger.requires（JSON 条件或 null）"
+          label="trigger.requires（JSON 條件或 null）"
           value={trigger["requires"]}
           rows={6}
           onChange={(v) => {
@@ -326,7 +326,7 @@ function LocaleTabs({
       <div className="flex items-center gap-2">
         <Label className="text-xs text-muted-foreground">{label}</Label>
         {missing.length === 0 ? (
-          <span className="text-[10px] text-emerald-500">三语齐备</span>
+          <span className="text-[10px] text-emerald-500">三語齊備</span>
         ) : (
           <span className="text-[10px] text-amber-500">缺 {missing.join(" / ")}</span>
         )}
@@ -510,7 +510,7 @@ function JsonField({
           }
         }}
       />
-      {error ? <p className="text-[11px] text-destructive">JSON 无效：{error}</p> : null}
+      {error ? <p className="text-[11px] text-destructive">JSON 無效：{error}</p> : null}
     </Field>
   );
 }
@@ -549,7 +549,7 @@ function ArtBlock({ entity, onChange }: { entity: Entity; onChange: () => void }
       setPreview(`data:image/png;base64,${String(result["png_base64"])}`);
       setNote({
         tone: "ok",
-        text: `已写入 ${path} · cost $${result["cost_usd"]} · seed ${result["seed"]} — 记得 Save 草稿`,
+        text: `已寫入 ${path} · cost $${result["cost_usd"]} · seed ${result["seed"]} — 記得 Save 草稿`,
       });
       onChange();
     } catch (error) {
@@ -587,10 +587,10 @@ function ArtBlock({ entity, onChange }: { entity: Entity; onChange: () => void }
         />
         <label
           className="flex items-center gap-1.5 text-xs"
-          title="art/stylebible.png 存在时作为 input_references[0] 随每次生成（§8.2）"
+          title="art/stylebible.png 存在時作為 input_references[0] 隨每次生成（§8.2）"
         >
           <Checkbox checked={useBible} onCheckedChange={(c) => setUseBible(c === true)} />
-          风格基准
+          風格基準
         </label>
         <Button size="sm" onClick={() => void generate()} disabled={busy}>
           生成 Generate

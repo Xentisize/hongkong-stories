@@ -16,6 +16,7 @@ import { toast } from "sonner";
 
 import { api, ApiError } from "@/api";
 import { JsonField } from "@/components/JsonField";
+import { InheritanceField } from "@/components/InheritanceField";
 import { LocaleGap } from "@/components/LocaleGap";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -33,7 +34,8 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { describeError } from "@/lib/errors";
 import { asLocalized, writeLocale, type LocalizedTable } from "@/lib/localized";
-import { queryKeys, useEntityIds } from "@/lib/queries";
+import { queryKeys, useKindIds } from "@/lib/queries";
+import { useUndoable, useUndoKeys } from "@/lib/undo";
 import {
   NODE_TYPES,
   appendNode,
@@ -50,7 +52,7 @@ import {
 import { cn } from "@/lib/utils";
 
 const LOCALES = ["zh_HK", "zh_CN", "en"] as const;
-const LOCALE_LABELS: Record<string, string> = { zh_HK: "繁 HK", zh_CN: "简 CN", en: "EN" };
+const LOCALE_LABELS: Record<string, string> = { zh_HK: "繁 HK", zh_CN: "簡 CN", en: "EN" };
 const LOCALE_HINTS: Record<string, string> = {
   zh_HK: "正典口語",
   zh_CN: "書面語，禁粵語虛詞",
@@ -75,10 +77,12 @@ function pagesOf(text: unknown): LocalizedTable[] {
 
 export function QuestsView({ token }: { token: string }) {
   const client = useQueryClient();
-  const questIds = useEntityIds(token, "quests");
+  const questIds = useKindIds(token, "quests");
 
   const [selected, setSelected] = useState<string | null>(null);
-  const [doc, setDoc] = useState<QuestDoc | null>(null);
+  const undoable = useUndoable<QuestDoc>(null);
+  const doc = undoable.doc;
+  useUndoKeys(undoable.undo, undoable.redo);
   const [hasDraft, setHasDraft] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [isNew, setIsNew] = useState(false);
@@ -94,15 +98,15 @@ export function QuestsView({ token }: { token: string }) {
   const load = useCallback(async (id: string) => {
     setBusy(true);
     try {
-      setDoc((await api.getDraft("quests", id)) as QuestDoc);
+      undoable.load((await api.getDraft("quests", id)) as QuestDoc);
       setHasDraft(true);
     } catch (error) {
       if (!(error instanceof ApiError) || error.status !== 404) toast.error(describeError(error));
       try {
-        setDoc((await api.entity("quests", id)) as QuestDoc);
+        undoable.load((await api.entity("quests", id)) as QuestDoc);
       } catch (inner) {
         if (!(inner instanceof ApiError) || inner.status !== 404) toast.error(describeError(inner));
-        setDoc(null);
+        undoable.load(null);
       }
       setHasDraft(false);
     } finally {
@@ -118,17 +122,16 @@ export function QuestsView({ token }: { token: string }) {
 
   /** Replace the whole document — for the structural edits that return a new chain. */
   const apply = (next: QuestDoc) => {
-    setDoc(next);
+    undoable.set(next);
     setDirty(true);
   };
 
   const edit = (mutate: (next: QuestDoc) => void) => {
-    setDoc((current) => {
-      if (current === null) return current;
-      const next = structuredClone(current);
-      mutate(next);
-      return next;
-    });
+    if (doc === null) return;
+    const next = structuredClone(doc);
+    mutate(next);
+    // Typing coalesces into one step; a structural edit (add/delete/relink) is its own.
+    undoable.set(next, { coalesce: true });
     setDirty(true);
   };
 
@@ -152,7 +155,7 @@ export function QuestsView({ token }: { token: string }) {
     let candidate = "q_new";
     for (let suffix = 2; taken.has(candidate); suffix += 1) candidate = `q_new${suffix}`;
 
-    setDoc(blankQuest(candidate));
+    undoable.load(blankQuest(candidate));
     setSelected(null);
     setIsNew(true);
     setHasDraft(false);
@@ -175,6 +178,8 @@ export function QuestsView({ token }: { token: string }) {
       setIsNew(false);
       setDirty(false);
       setSelected(id);
+      // The saved draft is the new origin: undo should not walk back past what is on disk.
+      undoable.load(doc);
       toast.success(`已保存草稿 / draft saved: ${id}`);
     } catch (error) {
       toast.error(describeError(error));
@@ -247,7 +252,7 @@ export function QuestsView({ token }: { token: string }) {
             新任務 New quest
           </Button>
           {questIds.isPending ? (
-            <p className="text-xs text-muted-foreground">加载中…</p>
+            <p className="text-xs text-muted-foreground">加載中…</p>
           ) : (
             <ScrollArea className="max-h-[26rem]">
               <div className="space-y-1 pr-2">
@@ -285,6 +290,12 @@ export function QuestsView({ token }: { token: string }) {
               未保存 Unsaved
             </Badge>
           ) : null}
+          <Button size="sm" variant="outline" disabled={!undoable.canUndo} title="⌘Z / Ctrl+Z" onClick={undoable.undo}>
+            ↶ 復原
+          </Button>
+          <Button size="sm" variant="outline" disabled={!undoable.canRedo} title="⇧⌘Z / Ctrl+Shift+Z" onClick={undoable.redo}>
+            ↷ 重做
+          </Button>
           <Button size="sm" disabled={!dirty} onClick={() => void save()}>
             保存草稿 Save
           </Button>
@@ -318,7 +329,7 @@ export function QuestsView({ token }: { token: string }) {
 
         {doc === null ? (
           <p className="text-xs text-muted-foreground">
-            {busy ? "加载中…" : "揀一個任務，或者開新一個 / pick a quest, or start a new one"}
+            {busy ? "加載中…" : "揀一個任務，或者開新一個 / pick a quest, or start a new one"}
           </p>
         ) : (
           <>
@@ -363,6 +374,21 @@ export function QuestsView({ token }: { token: string }) {
                     </div>
                   ))}
                 </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">繼承 Inheritance</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <InheritanceField
+                  token={token}
+                  kind="quests"
+                  doc={doc}
+                  onChange={(next) => apply(next as QuestDoc)}
+                  title="父文件 Parent"
+                />
               </CardContent>
             </Card>
 

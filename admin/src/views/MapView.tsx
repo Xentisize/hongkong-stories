@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { atlasCellSize } from "@hkstories/core";
+
 import { api, ApiError } from "@/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -34,10 +36,13 @@ import {
   selectedNpc,
   setCollisionRect,
   tileAt,
+  transformVariant,
   type CollisionRect,
   type DragPayload,
   type MapNpc,
   type TileLayerDoc,
+  type TileLegend,
+  type TileTransform,
 } from "@/lib/map";
 import { MapCanvas, type EditorMode, type EditorTool } from "@/views/map/MapCanvas";
 import { LocationPanel } from "@/views/map/LocationPanel";
@@ -96,8 +101,9 @@ export function MapView({ token, onDirtyChange }: { token: string; onDirtyChange
   const dirty = history.length > 0;
   useEffect(() => onDirtyChange?.(dirty), [dirty, onDirtyChange]);
 
-  const legend = useMemo(() => doc?.legend ?? {}, [doc?.legend]);
+  const legend = useMemo<TileLegend>(() => doc?.legend ?? {}, [doc?.legend]);
   const frames = useMemo(() => legendEntries(legend), [legend]);
+
   const tileSize = Number(doc?.tile_size ?? 24);
   const tilemap = doc?.tilemap ?? [];
   const size = mapSize(tilemap);
@@ -132,9 +138,26 @@ export function MapView({ token, onDirtyChange }: { token: string; onDirtyChange
       setCursor(null);
       setIssues([]);
     } catch (error) {
-      toast.error(`地图加载失败 / could not load ${id}: ${error instanceof Error ? error.message : String(error)}`);
+      toast.error(`地圖加載失敗 / could not load ${id}: ${error instanceof Error ? error.message : String(error)}`);
     }
   }, []);
+
+  /**
+   * Open on a map, once.
+   *
+   * Arriving at a blank canvas with `base 0×0`, a disabled layer button and an inert palette reads
+   * as "the editor is broken", not "nothing is selected" — and every other view picks its first
+   * document, so this one now does too. Guarded by a ref so it never overrides a choice the author
+   * made afterwards (including creating a new map, which clears the selection first).
+   */
+  const openedOnce = useRef(false);
+  useEffect(() => {
+    if (openedOnce.current) return;
+    if (locations.data && locations.data.length > 0) {
+      openedOnce.current = true;
+      void load(locations.data[0]!);
+    }
+  }, [locations.data, load]);
 
   // Load the atlas image whenever the map points at a different one.
   const atlasPath = typeof doc?.atlas === "string" ? doc.atlas : "";
@@ -151,7 +174,7 @@ export function MapView({ token, onDirtyChange }: { token: string; onDirtyChange
     image.onerror = () => {
       if (cancelled) return;
       setAtlas(null);
-      toast.error(`图集加载失败 / atlas failed to load: ${atlasPath}`);
+      toast.error(`圖集加載失敗 / atlas failed to load: ${atlasPath}`);
     };
     image.src = atlasUrl(atlasPath);
     return () => {
@@ -185,6 +208,28 @@ export function MapView({ token, onDirtyChange }: { token: string; onDirtyChange
   }, [currentNpcId]);
 
   const apply = useCallback((next: LocationDoc) => dispatch({ type: "apply", next }), []);
+
+  /**
+   * Paint with the current brush drawn rotated or flipped.
+   *
+   * The transform cannot live in the cell (a cell holds a character), so this mints a *second*
+   * legend entry pointing at the same atlas frame — or reuses one that already means the same
+   * thing — and arms the brush with it. One undoable document edit, and the variant is an ordinary
+   * character everywhere downstream.
+   */
+  const applyTransform = useCallback(
+    (transform: TileTransform) => {
+      if (!doc) return;
+      const next = transformVariant(legend, brush, transform);
+      if (next === null) {
+        toast.error("呢個筆刷冇 legend 條目，變換唔到 / this brush has no legend entry");
+        return;
+      }
+      if (next.legend !== legend) apply({ ...doc, legend: next.legend });
+      setBrush(next.char);
+    },
+    [doc, legend, brush, apply],
+  );
 
   const beginDrag = useCallback((payload: DragPayload, clientX: number, clientY: number) => {
     setDragPayload(payload);
@@ -435,7 +480,7 @@ export function MapView({ token, onDirtyChange }: { token: string; onDirtyChange
       toast.success(`草稿已保存 / draft saved: ${String(doc.id)}`);
       void drafts.refetch();
     } catch (error) {
-      toast.error(`保存失败 / save failed: ${error instanceof Error ? error.message : String(error)}`);
+      toast.error(`保存失敗 / save failed: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setSaving(false);
     }
@@ -446,10 +491,10 @@ export function MapView({ token, onDirtyChange }: { token: string; onDirtyChange
       const result = (await api.validate()) as { ok: boolean; issues: Array<{ level: string; path: string; message: string }> };
       const mine = result.issues.filter((issue) => doc?.id && issue.path.includes(String(doc.id)));
       setIssues(mine);
-      if (mine.length === 0) toast.success("这张地图没有问题 / no issues for this map");
-      else toast.warning(`${mine.length} 个问题 / ${mine.length} issue(s) for this map`);
+      if (mine.length === 0) toast.success("這張地圖沒有問題 / no issues for this map");
+      else toast.warning(`${mine.length} 個問題 / ${mine.length} issue(s) for this map`);
     } catch (error) {
-      toast.error(`校验失败 / validate failed: ${error instanceof Error ? error.message : String(error)}`);
+      toast.error(`校验失敗 / validate failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }, [doc?.id]);
 
@@ -495,6 +540,14 @@ export function MapView({ token, onDirtyChange }: { token: string; onDirtyChange
 
   const atlasImage = atlas;
   const paletteScale = 2.5;
+  // The atlas is self-describing (image width ÷ columns), and a thumbnail shows one *cell* at the
+  // preview size — that is what keeps the palette correct when the art doubles in resolution.
+  const thumbSize = tileSize * paletteScale;
+  const atlasColumns = useMemo(() => Math.max(1, ...frames.map((frame) => frame.col + 1)), [frames]);
+  const atlasCell = atlasImage
+    ? atlasCellSize(atlasImage.naturalWidth, atlasColumns) || tileSize
+    : tileSize;
+  const atlasZoom = thumbSize / atlasCell;
   // Preview frame for the drag ghost: only a tile drag has one.
   const dragFrame =
     dragPayload?.kind === "tile" ? frames.find((entry) => entry.char === dragPayload.char) : undefined;
@@ -505,7 +558,7 @@ export function MapView({ token, onDirtyChange }: { token: string; onDirtyChange
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex overflow-hidden rounded-md border">
           {([
-            ["map", "地图 Map"],
+            ["map", "地圖 Map"],
             ["event", "事件 Event"],
             ["collision", "碰撞 Collision"],
           ] as const).map(([candidate, label]) => (
@@ -522,7 +575,7 @@ export function MapView({ token, onDirtyChange }: { token: string; onDirtyChange
 
         <div className="flex overflow-hidden rounded-md border">
           {([
-            ["brush", "笔刷 Brush"],
+            ["brush", "筆刷 Brush"],
             ["rect", "矩形 Rect"],
           ] as const).map(([candidate, label]) => (
             <button
@@ -547,7 +600,7 @@ export function MapView({ token, onDirtyChange }: { token: string; onDirtyChange
         </div>
 
         <Button size="sm" variant="outline" disabled={history.length === 0} onClick={() => dispatch({ type: "undo" })}>
-          撤销 Undo
+          撤銷 Undo
         </Button>
         <Button size="sm" variant="outline" disabled={!canRedo} onClick={() => dispatch({ type: "redo" })}>
           重做 Redo
@@ -560,7 +613,7 @@ export function MapView({ token, onDirtyChange }: { token: string; onDirtyChange
         ) : null}
 
         <span className="text-[10px] text-muted-foreground">
-          ⌘/Ctrl+Z 撤销 · ⇧ 重做 · ⌘/Ctrl+S 保存 · 1/2/3 模式
+          ⌘/Ctrl+Z 撤銷 · ⇧ 重做 · ⌘/Ctrl+S 保存 · 1/2/3 模式
         </span>
 
         <div className="ml-auto flex items-center gap-2">
@@ -580,7 +633,7 @@ export function MapView({ token, onDirtyChange }: { token: string; onDirtyChange
         {/* Hierarchy */}
         <div className="flex min-h-0 flex-col rounded-md border">
           <div className="flex items-center justify-between border-b px-3 py-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-            <span>地图 Map hierarchy</span>
+            <span>地圖 Map hierarchy</span>
             <Button
               size="sm"
               variant="outline"
@@ -592,8 +645,8 @@ export function MapView({ token, onDirtyChange }: { token: string; onDirtyChange
             </Button>
           </div>
           <div className="min-h-0 flex-1 overflow-auto p-1">
-            {locations.isPending ? <p className="p-2 text-xs text-muted-foreground">加载中…</p> : null}
-            {locations.isError ? <p className="p-2 text-xs text-destructive">无法读取地图列表</p> : null}
+            {locations.isPending ? <p className="p-2 text-xs text-muted-foreground">加載中…</p> : null}
+            {locations.isError ? <p className="p-2 text-xs text-destructive">無法讀取地圖列表</p> : null}
             {(locations.data ?? []).map((id) => (
               <button
                 key={id}
@@ -605,7 +658,7 @@ export function MapView({ token, onDirtyChange }: { token: string; onDirtyChange
               >
                 <span className="truncate font-mono">{id}</span>
                 {draftIds.has(id) ? (
-                  <span className="ml-auto shrink-0 text-[10px] text-amber-500" title="有未发布草稿 / has a draft">
+                  <span className="ml-auto shrink-0 text-[10px] text-amber-500" title="有未發布草稿 / has a draft">
                     ●
                   </span>
                 ) : null}
@@ -616,14 +669,14 @@ export function MapView({ token, onDirtyChange }: { token: string; onDirtyChange
           <div className="border-t p-2">
             <div className="mb-1 flex items-center justify-between">
               <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                图层 Layers
+                圖層 Layers
               </span>
               <Button
                 size="sm"
                 variant="outline"
                 className="h-6 px-2 text-[11px]"
                 disabled={!doc}
-                title="加一个覆盖层 / add an overlay"
+                title="加一個覆蓋層 / add an overlay"
                 onClick={addLayer}
               >
                 ＋
@@ -651,7 +704,7 @@ export function MapView({ token, onDirtyChange }: { token: string; onDirtyChange
                 <button
                   type="button"
                   onClick={() => setActiveLayer(index + 1)}
-                  title="选中这一层 / make this the paint target"
+                  title="選中這一層 / make this the paint target"
                   className="shrink-0 px-1 text-[10px] text-muted-foreground"
                 >
                   {activeLayer === index + 1 ? "▸" : "·"}
@@ -701,8 +754,8 @@ export function MapView({ token, onDirtyChange }: { token: string; onDirtyChange
 
             <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
               {activeLayer === 0
-                ? "画笔写入基础层 base"
-                : `画笔写入 ${overlays[activeLayer - 1]?.id ?? "?"} · 空格＝透明`}
+                ? "畫筆寫入基礎層 base"
+                : `畫筆寫入 ${overlays[activeLayer - 1]?.id ?? "?"} · 空格＝透明`}
             </p>
           </div>
         </div>
@@ -740,7 +793,7 @@ export function MapView({ token, onDirtyChange }: { token: string; onDirtyChange
             />
           ) : (
             <div className="flex h-full items-center justify-center rounded-md border text-xs text-muted-foreground">
-              从左栏选一张地图 / pick a map on the left
+              從左欄選一張地圖 / pick a map on the left
             </div>
           )}
         </div>
@@ -748,11 +801,11 @@ export function MapView({ token, onDirtyChange }: { token: string; onDirtyChange
         {/* Palette */}
         <div className="flex min-h-0 flex-col rounded-md border">
           <div className="border-b px-3 py-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-            图块 Tile palette
+            圖塊 Tile palette
           </div>
           <div className="min-h-0 flex-1 overflow-auto p-2">
             {frames.length === 0 ? (
-              <p className="text-xs text-muted-foreground">没有图例 / this map has no legend</p>
+              <p className="text-xs text-muted-foreground">沒有圖例 / this map has no legend</p>
             ) : (
               <div className="flex flex-wrap gap-2">
                 {/* A space is not a tile in the legend, but it is the only way to erase an overlay
@@ -760,7 +813,7 @@ export function MapView({ token, onDirtyChange }: { token: string; onDirtyChange
                 <button
                   key="transparent"
                   type="button"
-                  title="透明 / transparent (space) — 只喺覆盖层有意义"
+                  title="透明 / transparent (space) — 只喺覆蓋層有意義"
                   onPointerDown={(event) => {
                     setBrush(" ");
                     setMode("map");
@@ -785,6 +838,28 @@ export function MapView({ token, onDirtyChange }: { token: string; onDirtyChange
                   </span>
                 </button>
 
+                {/* Transform the current brush: each press arms a variant entry (minting a
+                    character the first time) rather than mutating the base frame, so both readings
+                    of the tile stay paintable. */}
+                <div className="flex w-full flex-wrap items-center gap-1 pt-1">
+                  <span className="text-[10px] text-muted-foreground">變換 Transform</span>
+                  {([
+                    ["rot90", "⟳", "旋轉 90° / rotate 90°"],
+                    ["flipX", "⇋", "左右翻轉 / flip horizontally"],
+                    ["flipY", "⇅", "上下翻轉 / flip vertically"],
+                  ] as const).map(([transform, glyph, label]) => (
+                    <button
+                      key={transform}
+                      type="button"
+                      title={label}
+                      onClick={() => applyTransform(transform)}
+                      className="rounded border px-1.5 py-0.5 text-[11px] hover:bg-muted"
+                    >
+                      {glyph}
+                    </button>
+                  ))}
+                </div>
+
                 {frames.map((frame) => (
                   <button
                     key={frame.char}
@@ -805,14 +880,14 @@ export function MapView({ token, onDirtyChange }: { token: string; onDirtyChange
                       style={
                         atlasImage
                           ? {
-                              width: tileSize * paletteScale,
-                              height: tileSize * paletteScale,
+                              width: thumbSize,
+                              height: thumbSize,
                               backgroundImage: `url(${atlasUrl(doc?.atlas)})`,
-                              backgroundSize: `${atlasImage.naturalWidth * paletteScale}px ${atlasImage.naturalHeight * paletteScale}px`,
-                              backgroundPosition: `-${frame.col * tileSize * paletteScale}px -${frame.row * tileSize * paletteScale}px`,
+                              backgroundSize: `${atlasImage.naturalWidth * atlasZoom}px ${atlasImage.naturalHeight * atlasZoom}px`,
+                              backgroundPosition: `-${frame.col * thumbSize}px -${frame.row * thumbSize}px`,
                               imageRendering: "pixelated",
                             }
-                          : { width: tileSize * paletteScale, height: tileSize * paletteScale }
+                          : { width: thumbSize, height: thumbSize }
                       }
                     />
                     <span className="mt-0.5 block text-center font-mono text-[10px] text-muted-foreground">
@@ -824,7 +899,7 @@ export function MapView({ token, onDirtyChange }: { token: string; onDirtyChange
             )}
             {doc ? (
               <Button size="sm" variant="outline" className="mt-3 w-full" onClick={fillBlank}>
-                填满空白 / fill blank
+                填滿空白 / fill blank
               </Button>
             ) : null}
           </div>
@@ -833,7 +908,7 @@ export function MapView({ token, onDirtyChange }: { token: string; onDirtyChange
         {/* Inspector */}
         <div className="flex min-h-0 flex-col rounded-md border">
           <div className="flex items-center gap-2 border-b px-3 py-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-            检视 Inspector
+            檢視 Inspector
             {cursor ? (
               <Badge variant="outline" className="ml-auto font-mono text-[10px]">
                 [{cursor[0]},{cursor[1]}]
@@ -843,7 +918,7 @@ export function MapView({ token, onDirtyChange }: { token: string; onDirtyChange
 
           <div className="min-h-0 flex-1 overflow-auto p-3 text-xs">
             {!doc ? (
-              <p className="text-muted-foreground">未选择地图 / no map selected</p>
+              <p className="text-muted-foreground">未選擇地圖 / no map selected</p>
             ) : currentNpc ? (
               <div className="space-y-3">
                 <div className="flex flex-wrap items-center gap-2">
@@ -866,7 +941,7 @@ export function MapView({ token, onDirtyChange }: { token: string; onDirtyChange
                     ))}
                   </select>
 
-                  <label className="text-muted-foreground" htmlFor="wander">游走 Wander</label>
+                  <label className="text-muted-foreground" htmlFor="wander">遊走 Wander</label>
                   <input
                     id="wander"
                     type="number"
@@ -880,7 +955,7 @@ export function MapView({ token, onDirtyChange }: { token: string; onDirtyChange
 
                 <div>
                   <p className="mb-1 text-muted-foreground">
-                    出现条件 Active condition <span className="text-[10px]">(JSON — 用 “条件 Builder” 视图编辑)</span>
+                    出現條件 Active condition <span className="text-[10px]">(JSON — 用 “條件 Builder” 視圖編輯)</span>
                   </p>
                   <textarea
                     className="h-24 w-full rounded border bg-background p-2 font-mono text-[11px] leading-relaxed"
@@ -899,7 +974,7 @@ export function MapView({ token, onDirtyChange }: { token: string; onDirtyChange
                 </div>
 
                 <div>
-                  <p className="mb-1 text-muted-foreground">该状态的 LLM 人格 / persona</p>
+                  <p className="mb-1 text-muted-foreground">該狀態的 LLM 人格 / persona</p>
                   <pre className="max-h-24 overflow-auto rounded bg-muted/40 p-2 text-[11px] leading-relaxed">
                     {npcDoc
                       ? JSON.stringify(
@@ -911,7 +986,7 @@ export function MapView({ token, onDirtyChange }: { token: string; onDirtyChange
                           null,
                           2,
                         )
-                      : "加载中… / loading…"}
+                      : "加載中… / loading…"}
                   </pre>
                 </div>
 
@@ -931,12 +1006,12 @@ export function MapView({ token, onDirtyChange }: { token: string; onDirtyChange
                   <p className="font-mono">
                     {collisionRects.length} rect(s)
                     {mode === "collision" ? (
-                      <span className="ml-2 text-[10px] text-amber-500">编辑中 / editing</span>
+                      <span className="ml-2 text-[10px] text-amber-500">編輯中 / editing</span>
                     ) : null}
                   </p>
                   {mode === "collision" ? (
                     <p className="text-[10px] leading-relaxed text-muted-foreground">
-                      点击或拖动画墙，从实心格开始则擦除
+                      點擊或拖動畫牆，從實心格開始則擦除
                       <br />
                       click or drag to wall · starting on a solid cell erases
                     </p>
@@ -946,6 +1021,7 @@ export function MapView({ token, onDirtyChange }: { token: string; onDirtyChange
                 {/* Name, context, ambience, spawn points, doors, exits, interactables and decor —
                     the document around the canvas, edited on the same undo stack as a brush stroke. */}
                 <LocationPanel
+                  token={token}
                   doc={doc}
                   apply={apply}
                   locationIds={locations.data ?? []}
@@ -975,7 +1051,7 @@ export function MapView({ token, onDirtyChange }: { token: string; onDirtyChange
                       ))}
                     </div>
                     <p className="text-[10px] leading-relaxed text-muted-foreground">
-                      拖到画布放置 · 拖动标记可移动 · 右键删除
+                      拖到畫布放置 · 拖動標記可移動 · 右鍵删除
                       <br />
                       drag onto the canvas to place · drag a marker to move it · right-click removes
                     </p>
@@ -986,7 +1062,7 @@ export function MapView({ token, onDirtyChange }: { token: string; onDirtyChange
 
             {issues.length > 0 ? (
               <div className="mt-3 space-y-1 border-t pt-2">
-                <p className="text-muted-foreground">校验问题 / issues</p>
+                <p className="text-muted-foreground">校验問題 / issues</p>
                 {issues.map((issue, index) => (
                   <p key={index} className={issue.level === "error" ? "text-destructive" : "text-amber-500"}>
                     [{issue.level}] {issue.message}

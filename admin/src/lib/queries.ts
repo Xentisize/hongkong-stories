@@ -64,6 +64,7 @@ export const queryKeys = {
 export function useGameTitle(token: string) {
   return useQuery({
     queryKey: queryKeys.gameTitle(token),
+    enabled: token !== "",
     queryFn: async () => {
       const doc = (await api.entity("settings", "game")) as Entity;
       const title = asLocalized(doc["title"]);
@@ -76,6 +77,9 @@ export function useMeta(token: string) {
   return useQuery({
     queryKey: queryKeys.meta(token),
     queryFn: () => api.meta() as Promise<Meta>,
+    // No token yet means no session to ask about: firing anyway produced a wall of 401s on first
+    // load, which looks like the backend is down rather than "not connected yet".
+    enabled: token !== "",
   });
 }
 
@@ -83,6 +87,7 @@ export function useDrafts(token: string) {
   return useQuery({
     queryKey: queryKeys.drafts(token),
     queryFn: () => api.drafts() as Promise<DraftSummary[]>,
+    enabled: token !== "",
   });
 }
 
@@ -92,6 +97,7 @@ export function useEntityIds(token: string, kind: string) {
     queryKey: queryKeys.entities(token, kind),
     queryFn: () => api.entities(kind) as Promise<{ entities: string[] }>,
     select: (data) => data.entities,
+    enabled: token !== "",
   });
 }
 
@@ -126,7 +132,7 @@ export function useUsage(token: string, enabled: boolean) {
   return useQuery({
     queryKey: queryKeys.usage(token),
     queryFn: () => api.usage() as Promise<UsageSummary>,
-    enabled,
+    enabled: enabled && token !== "",
   });
 }
 
@@ -134,7 +140,7 @@ export function useFactcheckQueue(token: string, enabled: boolean) {
   return useQuery({
     queryKey: queryKeys.factcheck(token),
     queryFn: () => api.factcheckList() as Promise<FactEntry[]>,
-    enabled,
+    enabled: enabled && token !== "",
   });
 }
 

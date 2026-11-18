@@ -152,7 +152,11 @@ verbatim (they are authoring reference: the runtime reads an NPC's inline `lore`
 `@hkstories/core` (the same evaluator the game and the API use) against an editable state mock. The
 row editor and the effect-row editor are shared components (`components/RuleEditor`,
 `components/EffectListEditor`, vocabulary in `lib/rules`), so the builder and the map inspector cannot
-drift into two rule languages; a
+drift into two rule languages. Every content view can also point a document at a parent: the
+`extends` picker offers the same kind (templates first) and previews what the parent contributes,
+key by key, through the same merge publication performs — and the item, quest and chapter editors
+carry an undo stack with ⌘Z / ⇧⌘Z, where a typing run collapses into one step instead of one
+character; a
 **persona playground** — chat with the unsaved draft through the real
 pipeline, per-turn REAL tokens/cost/latency via OpenRouter's `usage.include` (the cache-hit
 telemetry §7.5 wanted), rejected actions surfaced in red, one-click fact-check; a

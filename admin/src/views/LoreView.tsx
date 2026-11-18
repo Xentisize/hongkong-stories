@@ -24,6 +24,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { describeError } from "@/lib/errors";
 import { queryKeys, useEntityIds } from "@/lib/queries";
+import { useUndoable, useUndoKeys } from "@/lib/undo";
 import { cn } from "@/lib/utils";
 
 /** A page name is a file name: no separators, nothing that escapes the folder. */
@@ -38,7 +39,11 @@ export function LoreView({ token }: { token: string }) {
   const [selected, setSelected] = useState<string | null>(null);
   /** The page being created, before it has a draft on disk. */
   const [draftName, setDraftName] = useState<string | null>(null);
-  const [text, setText] = useState("");
+  // The page's text on the same stack as the document forms: a typing run is one step, not one
+  // character, which is what makes ⌘Z usable in a textarea a controlled input has no native undo for.
+  const undoable = useUndoable<string>(null);
+  const text = undoable.doc ?? "";
+  useUndoKeys(undoable.undo, undoable.redo);
   const [saved, setSaved] = useState("");
   const [hasDraft, setHasDraft] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -74,7 +79,7 @@ export function LoreView({ token }: { token: string }) {
         if (!(error instanceof ApiError) || error.status !== 404) toast.error(describeError(error));
       }
       if (cancelled) return;
-      setText(body);
+      undoable.load(body);
       setSaved(body);
       setHasDraft(draft);
       setBusy(false);
@@ -92,7 +97,7 @@ export function LoreView({ token }: { token: string }) {
 
     setSelected(null);
     setDraftName(name);
-    setText(`# ${name}\n\n`);
+    undoable.load(`# ${name}\n\n`);
     setSaved("");
     setHasDraft(false);
   }
@@ -112,6 +117,8 @@ export function LoreView({ token }: { token: string }) {
       setDraftName(null);
       setSelected(target);
       setSaved(text);
+      // The saved text is the new origin: undo should not walk back past what is on disk.
+      undoable.load(text);
       toast.success(`已保存草稿 / draft saved: ${target}.md`);
     } catch (error) {
       toast.error(describeError(error));
@@ -162,7 +169,7 @@ export function LoreView({ token }: { token: string }) {
             新頁面 New page
           </Button>
           {loreIds.isPending ? (
-            <p className="text-xs text-muted-foreground">加载中…</p>
+            <p className="text-xs text-muted-foreground">加載中…</p>
           ) : (loreIds.data ?? []).length === 0 ? (
             <p className="text-xs text-muted-foreground">（冇典故頁 / no lore pages）</p>
           ) : (
@@ -201,6 +208,12 @@ export function LoreView({ token }: { token: string }) {
             </Badge>
           ) : null}
           <span className="font-mono text-[11px] text-muted-foreground">{openName}</span>
+          <Button size="sm" variant="outline" disabled={!undoable.canUndo} title="⌘Z / Ctrl+Z" onClick={undoable.undo}>
+            ↶ 復原
+          </Button>
+          <Button size="sm" variant="outline" disabled={!undoable.canRedo} title="⇧⌘Z / Ctrl+Shift+Z" onClick={undoable.redo}>
+            ↷ 重做
+          </Button>
           <Button size="sm" disabled={!dirty || busy} onClick={() => void save()}>
             保存草稿 Save
           </Button>
@@ -230,7 +243,7 @@ export function LoreView({ token }: { token: string }) {
 
         {selected === null && !isNew ? (
           <p className="text-xs text-muted-foreground">
-            {busy ? "加载中…" : "揀一頁，或者開新一頁 / pick a page, or start a new one"}
+            {busy ? "加載中…" : "揀一頁，或者開新一頁 / pick a page, or start a new one"}
           </p>
         ) : (
           <>
@@ -251,7 +264,7 @@ export function LoreView({ token }: { token: string }) {
               className="min-h-[26rem] font-mono text-xs leading-relaxed"
               placeholder="# 1955 的九龍城寨&#10;&#10;來源：…"
               value={text}
-              onChange={(event) => setText(event.target.value)}
+              onChange={(event) => undoable.set(event.target.value, { coalesce: true })}
             />
 
             <div className="flex items-center gap-3 text-[10px] text-muted-foreground">

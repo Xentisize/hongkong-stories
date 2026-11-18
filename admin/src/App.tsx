@@ -34,17 +34,17 @@ export type ViewId =
   | "review";
 
 const VIEWS: Array<{ id: ViewId; label: string }> = [
-  { id: "editor", label: "编辑 Editor" },
-  { id: "map", label: "地图 Map" },
+  { id: "editor", label: "編輯 Editor" },
+  { id: "map", label: "地圖 Map" },
   { id: "settings", label: "設定 Settings" },
   { id: "chapters", label: "章節 Chapters" },
   { id: "items", label: "物品 Items" },
   { id: "quests", label: "任務 Quests" },
   { id: "lore", label: "典故 Lore" },
   { id: "art", label: "美術 Art" },
-  { id: "playground", label: "调试 Playground" },
-  { id: "builder", label: "条件 Builder" },
-  { id: "review", label: "审阅 Review" },
+  { id: "playground", label: "調試 Playground" },
+  { id: "builder", label: "條件 Builder" },
+  { id: "review", label: "審閱 Review" },
 ];
 
 /**
@@ -98,9 +98,9 @@ export function App() {
   }, []);
 
   const status = meta.isError
-    ? "未连接后端 / backend unreachable"
+    ? "未連接後端 / backend unreachable"
     : meta.isPending
-      ? "连接中…"
+      ? "連接中…"
       : `${gameTitle.data ? `${gameTitle.data} · ` : ""}content v${meta.data.content_version} (${
           meta.data.content_hash
         }) · npcs ${meta.data.counts["npcs"] ?? 0}`;
@@ -202,7 +202,7 @@ function TokenField({ token, onConnect }: { token: string; onConnect: (next: str
         }}
       />
       <Button size="sm" variant="secondary" onClick={() => onConnect(draft)}>
-        连接 Connect
+        連接 Connect
       </Button>
     </div>
   );

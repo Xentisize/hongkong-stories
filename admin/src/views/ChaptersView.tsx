@@ -33,6 +33,7 @@ import { describeError } from "@/lib/errors";
 import { blankChapterDoc } from "@/lib/chapterDoc";
 import { freeIdFrom } from "@/lib/ids";
 import { queryKeys, useKindIds, type Entity } from "@/lib/queries";
+import { useUndoable, useUndoKeys } from "@/lib/undo";
 
 /** Backdrops that ship in the pack, offered as suggestions rather than a closed list. */
 const BACKDROPS = Object.keys(
@@ -43,7 +44,7 @@ const BACKDROPS = Object.keys(
 ).map((entry) => `art/backdrops/${entry.split("/").pop() ?? ""}`);
 
 const LOCALES = ["zh_HK", "zh_CN", "en"] as const;
-const LOCALE_LABELS: Record<string, string> = { zh_HK: "繁 HK", zh_CN: "简 CN", en: "EN" };
+const LOCALE_LABELS: Record<string, string> = { zh_HK: "繁 HK", zh_CN: "簡 CN", en: "EN" };
 
 type Localized = Record<string, string>;
 
@@ -79,7 +80,9 @@ export function ChaptersView({ token }: { token: string }) {
   const locationIds = useKindIds(token, "locations");
 
   const [selected, setSelected] = useState<string | null>(null);
-  const [doc, setDoc] = useState<ChapterDoc | null>(null);
+  const undoable = useUndoable<ChapterDoc>(null);
+  const doc = undoable.doc;
+  useUndoKeys(undoable.undo, undoable.redo);
   const [hasDraft, setHasDraft] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [issues, setIssues] = useState<Issue[]>([]);
@@ -97,15 +100,15 @@ export function ChaptersView({ token }: { token: string }) {
     setBusy(true);
     try {
       const draft = (await api.getDraft("chapters", id)) as ChapterDoc;
-      setDoc(draft);
+      undoable.load(draft);
       setHasDraft(true);
     } catch (error) {
       if (!(error instanceof ApiError) || error.status !== 404) toast.error(describeError(error));
       try {
-        setDoc((await api.entity("chapters", id)) as ChapterDoc);
+        undoable.load((await api.entity("chapters", id)) as ChapterDoc);
       } catch (inner) {
         if (!(inner instanceof ApiError) || inner.status !== 404) toast.error(describeError(inner));
-        setDoc(null);
+        undoable.load(null);
       }
       setHasDraft(false);
     } finally {
@@ -134,12 +137,10 @@ export function ChaptersView({ token }: { token: string }) {
   }, [entryLocation.data]);
 
   const edit = (mutate: (next: ChapterDoc) => void) => {
-    setDoc((current) => {
-      if (current === null) return current;
-      const next = structuredClone(current);
-      mutate(next);
-      return next;
-    });
+    if (doc === null) return;
+    const next = structuredClone(doc);
+    mutate(next);
+    undoable.set(next, { coalesce: true });
     setDirty(true);
   };
 
@@ -170,6 +171,8 @@ export function ChaptersView({ token }: { token: string }) {
       await client.invalidateQueries({ queryKey: queryKeys.drafts(token) });
       setHasDraft(true);
       setDirty(false);
+      // The saved draft is the new origin: undo should not walk back past what is on disk.
+      undoable.load(doc);
       toast.success("已保存草稿 / draft saved");
     } catch (error) {
       toast.error(describeError(error));
@@ -223,7 +226,7 @@ export function ChaptersView({ token }: { token: string }) {
         </CardHeader>
         <CardContent>
           {chapterIds.isPending ? (
-            <p className="text-xs text-muted-foreground">加载中…</p>
+            <p className="text-xs text-muted-foreground">加載中…</p>
           ) : chapterList.length === 0 ? (
             <p className="text-xs text-muted-foreground">（冇章節 / no chapters）</p>
           ) : (
@@ -262,6 +265,12 @@ export function ChaptersView({ token }: { token: string }) {
               未保存 Unsaved
             </Badge>
           ) : null}
+          <Button size="sm" variant="outline" disabled={!undoable.canUndo} title="⌘Z / Ctrl+Z" onClick={undoable.undo}>
+            ↶ 復原
+          </Button>
+          <Button size="sm" variant="outline" disabled={!undoable.canRedo} title="⇧⌘Z / Ctrl+Shift+Z" onClick={undoable.redo}>
+            ↷ 重做
+          </Button>
           <Button size="sm" disabled={!dirty} onClick={() => void save()}>
             保存草稿 Save
           </Button>
@@ -287,7 +296,7 @@ export function ChaptersView({ token }: { token: string }) {
 
         {doc === null ? (
           <p className="text-xs text-muted-foreground">
-            {busy ? "加载中…" : "揀一個章節 / pick a chapter"}
+            {busy ? "加載中…" : "揀一個章節 / pick a chapter"}
           </p>
         ) : (
           <>

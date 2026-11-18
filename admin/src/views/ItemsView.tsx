@@ -14,6 +14,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { api, ApiError } from "@/api";
+import { InheritanceField } from "@/components/InheritanceField";
 import { JsonField } from "@/components/JsonField";
 import { LocaleGap } from "@/components/LocaleGap";
 import { Badge } from "@/components/ui/badge";
@@ -34,6 +35,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { describeError } from "@/lib/errors";
 import { asLocalized, writeLocale, type LocalizedTable } from "@/lib/localized";
 import { queryKeys, useEntityIds, type Entity } from "@/lib/queries";
+import { useUndoable, useUndoKeys } from "@/lib/undo";
 import { cn } from "@/lib/utils";
 
 /** Every item sprite that ships: the picker's list, not a closed set (art may land first). */
@@ -50,7 +52,7 @@ const LORE = Object.keys(
   .sort();
 
 const LOCALES = ["zh_HK", "zh_CN", "en"] as const;
-const LOCALE_LABELS: Record<string, string> = { zh_HK: "繁 HK", zh_CN: "简 CN", en: "EN" };
+const LOCALE_LABELS: Record<string, string> = { zh_HK: "繁 HK", zh_CN: "簡 CN", en: "EN" };
 const LOCALE_HINTS: Record<string, string> = {
   zh_HK: "正典口語",
   zh_CN: "書面語，禁粵語虛詞",
@@ -96,7 +98,10 @@ export function ItemsView({ token }: { token: string }) {
   const itemIds = useEntityIds(token, "items");
 
   const [selected, setSelected] = useState<string | null>(null);
-  const [doc, setDoc] = useState<ItemDoc | null>(null);
+  // The draft is a document with a history: a mistyped field is now one ⌘Z, not a retype.
+  const undoable = useUndoable<ItemDoc>(null);
+  const doc = undoable.doc;
+  useUndoKeys(undoable.undo, undoable.redo);
   const [hasDraft, setHasDraft] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [isNew, setIsNew] = useState(false);
@@ -113,15 +118,15 @@ export function ItemsView({ token }: { token: string }) {
     setBusy(true);
     try {
       const draft = (await api.getDraft("items", id)) as ItemDoc;
-      setDoc(draft);
+      undoable.load(draft);
       setHasDraft(true);
     } catch (error) {
       if (!(error instanceof ApiError) || error.status !== 404) toast.error(describeError(error));
       try {
-        setDoc((await api.entity("items", id)) as ItemDoc);
+        undoable.load((await api.entity("items", id)) as ItemDoc);
       } catch (inner) {
         if (!(inner instanceof ApiError) || inner.status !== 404) toast.error(describeError(inner));
-        setDoc(null);
+        undoable.load(null);
       }
       setHasDraft(false);
     } finally {
@@ -136,12 +141,18 @@ export function ItemsView({ token }: { token: string }) {
   }, [selected, load]);
 
   const edit = (mutate: (next: ItemDoc) => void) => {
-    setDoc((current) => {
-      if (current === null) return current;
-      const next = structuredClone(current);
-      mutate(next);
-      return next;
-    });
+    if (doc === null) return;
+    const next = structuredClone(doc);
+    mutate(next);
+    // Coalesced: a form edit arrives once per keystroke, and one character per undo step is an
+    // undo nobody would use.
+    undoable.set(next, { coalesce: true });
+    setDirty(true);
+  };
+
+  /** A wholesale replacement — the inheritance picker re-points the whole document at a parent. */
+  const applyDoc = (next: ItemDoc) => {
+    undoable.set(next);
     setDirty(true);
   };
 
@@ -151,7 +162,7 @@ export function ItemsView({ token }: { token: string }) {
     let candidate = "item_new";
     for (let suffix = 2; taken.has(candidate); suffix += 1) candidate = `item_new${suffix}`;
 
-    setDoc({
+    undoable.load({
       schema_version: 1,
       id: candidate,
       icon: "",
@@ -187,6 +198,8 @@ export function ItemsView({ token }: { token: string }) {
       setIsNew(false);
       setDirty(false);
       setSelected(id);
+      // The saved draft is the new origin: undo should not walk back past what is on disk.
+      undoable.load(doc);
       toast.success(`已保存草稿 / draft saved: ${id}`);
     } catch (error) {
       toast.error(describeError(error));
@@ -236,7 +249,7 @@ export function ItemsView({ token }: { token: string }) {
             新物品 New item
           </Button>
           {itemIds.isPending ? (
-            <p className="text-xs text-muted-foreground">加载中…</p>
+            <p className="text-xs text-muted-foreground">加載中…</p>
           ) : (
             <ScrollArea className="max-h-[26rem]">
               <div className="space-y-1 pr-2">
@@ -285,6 +298,12 @@ export function ItemsView({ token }: { token: string }) {
           >
             掉棄草稿 Discard
           </Button>
+          <Button size="sm" variant="outline" disabled={!undoable.canUndo} title="⌘Z / Ctrl+Z" onClick={undoable.undo}>
+            ↶ 復原
+          </Button>
+          <Button size="sm" variant="outline" disabled={!undoable.canRedo} title="⇧⌘Z / Ctrl+Shift+Z" onClick={undoable.redo}>
+            ↷ 重做
+          </Button>
           <Button size="sm" variant="outline" onClick={() => void validate()}>
             驗證 Validate
           </Button>
@@ -307,7 +326,7 @@ export function ItemsView({ token }: { token: string }) {
 
         {doc === null ? (
           <p className="text-xs text-muted-foreground">
-            {busy ? "加载中…" : "揀一個物品，或者開新一個 / pick an item, or start a new one"}
+            {busy ? "加載中…" : "揀一個物品，或者開新一個 / pick an item, or start a new one"}
           </p>
         ) : (
           <>
@@ -417,6 +436,21 @@ export function ItemsView({ token }: { token: string }) {
                     />
                   ) : null}
                 </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">繼承 Inheritance</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <InheritanceField
+                  token={token}
+                  kind="items"
+                  doc={doc as Entity}
+                  onChange={(next) => applyDoc(next as ItemDoc)}
+                  title="父文件 Parent"
+                />
               </CardContent>
             </Card>
 

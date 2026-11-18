@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { atlasCellSize, legendFrame, type TileTransform } from "@hkstories/core";
+
 import {
   collisionGrid,
   mapSize,
@@ -8,6 +10,7 @@ import {
   type CollisionRect,
   type MapNpc,
   type TileLayerDoc,
+  type TileLegend,
 } from "@/lib/map";
 
 /**
@@ -31,7 +34,7 @@ export interface MapCanvasProps {
   tilemap: string[];
   /** Overlays drawn above `tilemap`, in order; a space paints nothing. */
   layers: TileLayerDoc[];
-  legend: Record<string, [number, number]>;
+  legend: TileLegend;
   tileSize: number;
   npcs: MapNpc[];
   collision: CollisionRect[];
@@ -108,35 +111,74 @@ export function MapCanvas(props: MapCanvasProps) {
     const context = canvas.getContext("2d");
     if (!context) return;
 
+    // The atlas is self-describing: slice by width ÷ columns, so a higher-resolution redraw needs
+    // no document change. Everything is still *drawn* at the world's tile size.
+    let columns = 1;
+    for (const entry of Object.values(legend)) {
+      const frame = legendFrame(entry);
+      if (frame !== null) columns = Math.max(columns, frame.col + 1);
+    }
+    const cell = atlas === null ? tileSize : atlasCellSize(atlas.width, columns) || tileSize;
+
     context.setTransform(dpr, 0, 0, dpr, 0, 0);
     context.imageSmoothingEnabled = false;
     context.clearRect(0, 0, width * scale, height * scale);
 
-    // Tiles.
-    for (let y = 0; y < height; y += 1) {
-      const row = tilemap[y] ?? "";
-      for (let x = 0; x < width; x += 1) {
-        const char = row[x];
-        const frame = char === undefined ? undefined : legend[char];
-
-        if (char === undefined) continue; // ragged row: leave it empty rather than inventing a tile
-        if (!frame || !atlas) {
-          context.fillStyle = UNKNOWN_TILE;
-          context.fillRect(x * scale, y * scale, scale, scale);
-          continue;
-        }
-
+    // Tiles. A legend frame may carry a transform, which is applied around the cell's centre so a
+    // rotated tile still fills its cell.
+    const drawFrame = (frame: [number, number], transform: TileTransform | null, x: number, y: number) => {
+      if (!atlas) return;
+      if (transform === null) {
         context.drawImage(
           atlas,
-          frame[0] * tileSize,
-          frame[1] * tileSize,
-          tileSize,
-          tileSize,
+          frame[0] * cell,
+          frame[1] * cell,
+          cell,
+          cell,
           x * scale,
           y * scale,
           scale,
           scale,
         );
+        return;
+      }
+
+      context.save();
+      context.translate(x * scale + scale / 2, y * scale + scale / 2);
+      if (transform === "rot90") context.rotate(Math.PI / 2);
+      else if (transform === "rot180") context.rotate(Math.PI);
+      else if (transform === "rot270") context.rotate((Math.PI * 3) / 2);
+      else if (transform === "flipX") context.scale(-1, 1);
+      else if (transform === "flipY") context.scale(1, -1);
+      else context.scale(-1, -1); // flipXY
+      context.drawImage(
+        atlas,
+        frame[0] * cell,
+        frame[1] * cell,
+        cell,
+        cell,
+        -scale / 2,
+        -scale / 2,
+        scale,
+        scale,
+      );
+      context.restore();
+    };
+
+    for (let y = 0; y < height; y += 1) {
+      const row = tilemap[y] ?? "";
+      for (let x = 0; x < width; x += 1) {
+        const char = row[x];
+        if (char === undefined) continue; // ragged row: leave it empty rather than inventing a tile
+
+        const frame = legendFrame(legend[char]);
+        if (frame === null || !atlas) {
+          context.fillStyle = UNKNOWN_TILE;
+          context.fillRect(x * scale, y * scale, scale, scale);
+          continue;
+        }
+
+        drawFrame([frame.col, frame.row], frame.transform, x, y);
       }
     }
 
@@ -148,23 +190,15 @@ export function MapCanvas(props: MapCanvasProps) {
         for (let x = 0; x < width; x += 1) {
           const char = row[x];
           if (char === undefined || char === " ") continue;
-          const frame = legend[char];
-          if (!frame || !atlas) {
+
+          const frame = legendFrame(legend[char]);
+          if (frame === null || !atlas) {
             context.fillStyle = UNKNOWN_TILE;
             context.fillRect(x * scale, y * scale, scale, scale);
             continue;
           }
-          context.drawImage(
-            atlas,
-            frame[0] * tileSize,
-            frame[1] * tileSize,
-            tileSize,
-            tileSize,
-            x * scale,
-            y * scale,
-            scale,
-            scale,
-          );
+
+          drawFrame([frame.col, frame.row], frame.transform, x, y);
         }
       }
     }

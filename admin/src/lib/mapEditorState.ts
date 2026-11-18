@@ -1,4 +1,4 @@
-import type { CollisionRect, MapNpc, TileMap } from "./map";
+import type { CollisionRect, MapNpc, TileLegend, TileMap } from "./map";
 
 /**
  * Editor state for one location (PLAN 9.2).
@@ -17,7 +17,7 @@ export type LocationDoc = {
   tilemap?: TileMap;
   /** Overlays drawn above `tilemap`, in order. Absent for a single-layer document. */
   layers?: Array<{ id?: string; tilemap?: TileMap }>;
-  legend?: Record<string, [number, number]>;
+  legend?: TileLegend;
   tile_size?: number;
   atlas?: string;
   npcs?: MapNpc[];
