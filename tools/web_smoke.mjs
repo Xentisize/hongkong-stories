@@ -112,15 +112,36 @@ await send("Page.enable");
 await sleep(waitMs);
 
 if (mode === "talk") {
-  // The title screen covers the game at boot: dismiss it with Esc before walking.
-  await holdKey("Escape", "Escape", 27, 120);
-  await sleep(600);
-  // Market street (the P3 default): spawn tile (13.5, 6.5); Uncle Ken stands at (7, 4).
-  // 72 px/s over 24px tiles, so these holds are generous on purpose.
-  await holdKey("ArrowLeft", "ArrowLeft", 37, 2200);
-  await holdKey("ArrowUp", "ArrowUp", 38, 900);
-  await holdKey("e", "KeyE", 69, 90);
-  await sleep(14000); // first token measured ~3s; allows a cold start
+  if (url.includes("smoke=1")) {
+    // The game's smoke hook (?smoke=1) opens the conversation itself — headless CDP drops
+    // synthesized key events unreliably, so this path needs no input simulation at all.
+    await sleep(16000);
+  } else {
+    // The title screen covers the game at boot. Dismiss it three ways for robustness —
+    // Esc, Enter (the title closes on ui_accept too), and a plain click on the canvas
+    // center, which also hands the canvas the keyboard focus so the walk keys land.
+    await holdKey("Escape", "Escape", 27, 120);
+    await sleep(400);
+    await holdKey("Enter", "Enter", 13, 120);
+    await sleep(400);
+    await send("Input.dispatchMouseEvent", { type: "mousePressed", x: 576, y: 250, button: "left", clickCount: 1 });
+    await send("Input.dispatchMouseEvent", { type: "mouseReleased", x: 576, y: 250, button: "left", clickCount: 1 });
+    await sleep(600);
+    // Market street (the P3 default): spawn (13.5, 6.5); Uncle Ken's home tile is (7, 4).
+    // 72 px/s over 24px tiles, so these holds are generous on purpose. NPCs wander now
+    // (P6+), so after the calibrated walk we press E while sweeping nearby cells until a
+    // conversation opens — the [Dialogue] console line marks a finished reply.
+    await holdKey("ArrowLeft", "ArrowLeft", 37, 2200);
+    await holdKey("ArrowUp", "ArrowUp", 38, 900);
+    for (let attempt = 0; attempt < 4; attempt++) {
+      await holdKey("e", "KeyE", 69, 90);
+      await sleep(2500);
+      if (messages.some((m) => m.text.startsWith("[Dialogue]"))) break;
+      await holdKey("ArrowRight", "ArrowRight", 39, 500);
+      await holdKey("ArrowDown", "ArrowDown", 40, 300);
+    }
+    await sleep(14000); // first token measured ~3s; allows a cold start
+  }
 }
 
 const probe = await send("Runtime.evaluate", {

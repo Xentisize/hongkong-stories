@@ -34,6 +34,9 @@ const EXHAUSTED_LINES := {
 var active_npc: String = ""
 var is_streaming: bool = false
 var using_fallback: bool = false
+## The mood the model declared for the latest reply (P6+ item screen era). The dialogue UI
+## tints the avatar by it; the offline ladder has no mood, so it stays neutral.
+var last_mood: String = "neutral"
 
 var _pending_input: String = ""
 var _scripted_index: int = 0
@@ -138,6 +141,7 @@ func state_projection() -> Dictionary:
 		"visited": Game.visited,
 		"quests": Game.quests,
 		"time_of_day": Game.time_of_day,
+		"location_context": String(ContentDB.get_entity("locations", Game.current_location).get("context", "")),
 	}
 
 
@@ -152,6 +156,7 @@ func _on_done(frame: Dictionary) -> void:
 	is_streaming = false
 	using_fallback = false
 	_turn_count += 1
+	last_mood = String(frame.get("mood", "neutral"))
 
 	var say := String(frame.get("say", ""))
 	if say.is_empty():

@@ -17,6 +17,7 @@ var player: CharacterBody2D = null
 var cutscene: CanvasLayer = null
 var touch: CanvasLayer = null
 var title: CanvasLayer = null
+var smoke_mode: bool = false
 
 var _restored_position: bool = false
 
@@ -35,6 +36,28 @@ func _ready() -> void:
 	add_child(touch)
 	title = TITLE_UI.new()
 	add_child(title)
+	if _read_smoke_query():
+		smoke_mode = true
+		_smoke_boot.call_deferred()
+
+
+## The browser smoke hook (P6+): ?smoke=1 boots straight into a conversation with Ken —
+## headless CDP drops synthesized key events unreliably, so the talk smoke drives this
+## deterministic path instead of simulated arrow keys. Non-web builds ignore it.
+func _read_smoke_query() -> bool:
+	if not OS.has_feature("web"):
+		return false
+	var raw: String = str(JavaScriptBridge.eval("new URLSearchParams(window.location.search).get('smoke') || ''", true))
+	return raw == "1"
+
+
+func _smoke_boot() -> void:
+	if title != null:
+		title.call("close")
+	# Ken's home tile area; the dialogue opens regardless of where he has wandered to.
+	if player != null:
+		player.global_position = Vector2(9.5, 5.5) * 24
+	Dialogue.open("npc_ch01_ken")
 	var version := Engine.get_version_info()
 	print("[Main] Godot %s | renderer=%s | viewport=%dx%d" % [
 		version.get("string", "?"),

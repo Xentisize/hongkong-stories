@@ -9,6 +9,7 @@
   "era": "ch05_hk_1996",
   "sprite": {
     "sheet": "art/npcs/npc_ch05_suet.png",
+    "sheet_walk": "art/npcs/npc_ch05_suet_walk.png",
     "frames": {
       "idle": [
         0

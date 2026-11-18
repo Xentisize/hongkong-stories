@@ -9,6 +9,7 @@
   "era": "ch04_kai_tak_1979",
   "sprite": {
     "sheet": "art/npcs/npc_ch04_caai.png",
+    "sheet_walk": "art/npcs/npc_ch04_caai_walk.png",
     "frames": {
       "idle": [
         0

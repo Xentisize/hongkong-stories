@@ -221,6 +221,10 @@ def validate_store(store: ContentStore) -> list[dict]:
     for location_id, location in sorted(locations.items()):
         at = f"locations/{location_id}"
         check_localized(location.get("display_name"), f"{at}.display_name")
+        # The per-map context sheet (RPG Maker lessons, #3): prompt-facing texture for the
+        # location's NPCs. Optional, but present means non-empty.
+        if "context" in location and not str(location.get("context", "")).strip():
+            err(f"{at}.context", "context must be a non-empty string when present")
         rows = location.get("tilemap", []) or []
         widths = {len(str(row)) for row in rows}
         if len(widths) > 1:

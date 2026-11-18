@@ -2,6 +2,7 @@
   "schema_version": 1,
   "id": "loc_ssp_flat",
   "display_name": { "zh_HK": "舖頭樓上", "zh_CN": "铺子楼上", "en": "Flat Above the Shop" },
+  "context": "A small flat above the family's shop in 2027, cleared for moving out: stacks of boxes, a shrine shelf with an orange, an old radio, the wooden crate of keepsakes. Everything carries forty years of the same family's fingerprints.",
   "tile_size": 24,
   "atlas": "res://assets/tiles/p1_tiles_2027.png",
   "legend": {

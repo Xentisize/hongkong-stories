@@ -14,6 +14,16 @@ var _requires: Variant = null
 var _requires_pass: bool = true
 var _sprite_tex: Texture2D = null
 var _locale_connected: bool = false
+var _walk_tex: Texture2D = null
+var _facing: String = "down"
+var _wander_radius: float = 0.0
+var _wander_home: Vector2 = Vector2.ZERO
+var _wander_target: Vector2 = Vector2.ZERO
+var _wander_wait: float = 1.0
+var _moving: bool = false
+var _anim_time: float = 0.0
+var _frame: int = 0
+var _walkable: Callable = Callable()
 
 
 func configure(placement: Dictionary, tile_size: int) -> void:
@@ -36,12 +46,73 @@ func configure(placement: Dictionary, tile_size: int) -> void:
 		_requires = trigger.get("requires")
 	refresh_availability()
 	_sprite_tex = _load_sprite_texture(definition)
+	_walk_tex = _load_walk_texture(definition)
+	_facing = String(placement.get("facing", "down"))
+	_wander_radius = float(placement.get("wander", 0.0))
+	_wander_home = position
+	_wander_wait = randf_range(1.0, 3.0)
 	# The display name is localized at configure time; follow locale switches live so the
 	# interaction prompt never shows a stale language.
 	if not _locale_connected:
 		_locale_connected = true
 		Bus.locale_changed.connect(_on_locale_changed)
 	queue_redraw()
+
+
+func set_walkable_query(query: Callable) -> void:
+	_walkable = query
+
+
+func _load_walk_texture(definition: Dictionary) -> Texture2D:
+	var sprite: Variant = definition.get("sprite")
+	if typeof(sprite) != TYPE_DICTIONARY:
+		return null
+	var sheet := String((sprite as Dictionary).get("sheet_walk", ""))
+	return ContentDB.art_texture(sheet)
+
+
+## Wander (RPG Maker's NPC shuffle): every few seconds pick a random walkable tile within
+## the placement's `wander` radius and glide there. radius 0 = a fixture that never moves.
+func _process(delta: float) -> void:
+	if _wander_radius <= 0.0 or not _requires_pass:
+		return
+	_anim_time += delta
+	_frame = int(_anim_time * 6.0) % 2
+	if _moving:
+		position += (_wander_target - position).normalized() * 20.0 * delta
+		if position.distance_to(_wander_target) < 1.5:
+			position = _wander_target
+			_moving = false
+			_wander_wait = randf_range(2.0, 5.0)
+		queue_redraw()
+		return
+	_wander_wait -= delta
+	if _wander_wait <= 0.0:
+		_pick_wander_target()
+
+
+func _pick_wander_target() -> void:
+	if not _walkable.is_valid():
+		return
+	var home_tile := Vector2i(int(_wander_home.x / _tile_size), int(_wander_home.y / _tile_size))
+	for attempt in 8:
+		var dx := randi_range(-int(_wander_radius), int(_wander_radius))
+		var dy := randi_range(-int(_wander_radius), int(_wander_radius))
+		if dx == 0 and dy == 0:
+			continue
+		var tile := home_tile + Vector2i(dx, dy)
+		if _walkable.call(tile.x, tile.y):
+			_wander_target = (Vector2(tile) + Vector2(0.5, 0.5)) * _tile_size
+			_moving = true
+			_facing = _direction_name(_wander_target - _wander_home)
+			return
+	_wander_wait = randf_range(2.0, 4.0)
+
+
+func _direction_name(delta: Vector2) -> String:
+	if absf(delta.x) > absf(delta.y):
+		return "right" if delta.x > 0 else "left"
+	return "down" if delta.y > 0 else "up"
 
 
 func _on_locale_changed(_locale: String) -> void:
@@ -96,6 +167,17 @@ func _talk_verb() -> String:
 
 
 func _draw() -> void:
+	# The walk sheet (4 columns by facing x 2 rows stand/step) when the character has one;
+	# otherwise the single pose, then the placeholder rectangles.
+	if _walk_tex != null:
+		var cell := Vector2(26.0, 34.0)
+		var col: int = ["down", "right", "left", "up"].find(_facing)
+		var row := _frame % 2 if _moving else 0
+		var region := Rect2(col * cell.x, row * cell.y, cell.x, cell.y)
+		var dest := Rect2(-cell.x / 2.0, -cell.y + 1.0, cell.x, cell.y)
+		draw_rect(Rect2(-7, -1, 14, 2), Color(0, 0, 0, 0.25))   # ground shadow
+		draw_texture_rect_region(_walk_tex, dest, region)
+		return
 	# Generated sprite (24x32 subject + 1px outline = 26x34): feet on the node origin so the
 	# Y-sort depth line matches the placeholder. Placeholder rects stay as the fallback.
 	if _sprite_tex != null:

@@ -9,6 +9,7 @@
   "era": "ch01_hk_2027",
   "sprite": {
     "sheet": "art/npcs/npc_ch01_shan.png",
+    "sheet_walk": "art/npcs/npc_ch01_shan_walk.png",
     "frames": {
       "idle": [
         0

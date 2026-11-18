@@ -1,0 +1,24 @@
+{
+  "prompt_id": "gen_20261117_f93e28",
+  "model": "bytedance-seed/seedream-5-0-flash",
+  "seed": 0,
+  "resolution": "1K",
+  "aspect_ratio": "3:4",
+  "background": "transparent",
+  "input_references": [
+    "art/stylebible.png"
+  ],
+  "post": {
+    "palette": "hk_palette_v1",
+    "target_px": [
+      24,
+      32
+    ],
+    "outline": true,
+    "pad": 0
+  },
+  "cost_usd": 0.018,
+  "accepted_by": "admin",
+  "ts": "2026-11-17T09:47:52.145399+00:00",
+  "prompt": "pixel art sprite of EXACTLY ONE cute chibi character, single figure centered: a cheerful young delivery rider in his twenties, black helmet under one arm, bright reflective vest over a red hoodie, big delivery backpack, waving hello with a big grin, big head small body, side view facing left, mid-step walking with one leg forward, full body, no duplicates, no sheet layout, plain transparent background, hk_palette_v1 palette, 24px tile scale, side/front view, T-pose-adjacent stance, flat cel shading, no outline glow, no text, plain transparent background, posterized 4 shades per hue"
+}

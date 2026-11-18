@@ -2,6 +2,7 @@
   "schema_version": 1,
   "id": "loc_ssp_market_street",
   "display_name": { "zh_HK": "北河街街市", "zh_CN": "北河街街市", "en": "Pei Ho Street Market" },
+  "context": "This is Sham Shui Po's market street in 2027: a covered strip of family stalls, tiled shopfronts and a tarpaulin awning. Trams and delivery scooters pass; the smell is fish, roast meats and diesel. The family's own shop fronts it, awning faded, sign repainted. Everyone here has known each other for decades.",
   "tile_size": 24,
   "atlas": "res://assets/tiles/p1_tiles_2027.png",
   "legend": {
@@ -50,11 +51,11 @@
     { "art": "art/props/prop_scooter.png", "tile": [4, 9] }
   ],
   "npcs": [
-    { "npc": "npc_ch01_ken", "tile": [7, 4], "facing": "down",
+    { "npc": "npc_ch01_ken", "tile": [7, 4], "facing": "down", "wander": 2,
       "requires": { "not": { "quest_state": "ch06" } } },
-    { "npc": "npc_ch01_ming", "tile": [20, 3], "facing": "down",
+    { "npc": "npc_ch01_ming", "tile": [20, 3], "facing": "down", "wander": 2,
       "requires": { "not": { "quest_state": "ch06" } } },
-    { "npc": "npc_ch01_wai", "tile": [11, 12], "facing": "up" },
+    { "npc": "npc_ch01_wai", "tile": [11, 12], "facing": "up", "wander": 2 },
     { "npc": "npc_ch06_tai", "tile": [16, 4], "facing": "down",
       "requires": { "quest_state": "ch06" } },
     { "npc": "npc_ch06_ken", "tile": [7, 4], "facing": "down",

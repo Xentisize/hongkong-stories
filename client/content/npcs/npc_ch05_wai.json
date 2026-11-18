@@ -3,7 +3,15 @@
   "id": "npc_ch05_wai",
   "display_name": { "zh_HK": "偉哥", "zh_CN": "伟哥", "en": "Wai" },
   "era": "ch05_hk_1996",
-  "sprite": null,
+  "sprite": {
+    "sheet": "art/npcs/npc_ch05_wai.png",
+    "sheet_walk": "art/npcs/npc_ch05_wai_walk.png",
+    "frames": {
+      "idle": [
+        0
+      ]
+    }
+  },
   "persona": {
     "role": "Newly the building's caretaker in his thirties; he carries the leaving families' boxes down the stairwell and keeps count of the ones that stay.",
     "voice": "Plain, kind, shorter sentences than later years.",

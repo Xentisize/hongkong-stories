@@ -148,6 +148,15 @@ func _on_chunk(text: String) -> void:
 
 func _on_finished(_text: String) -> void:
 	_busy = false
+	# Mood consumption (P6+): the model declares one of seven moods per reply; the avatar
+	# tints subtly so the emotion is felt, not stated. Offline replies stay neutral.
+	var moods := {
+		"neutral": Color(1, 1, 1), "warm": Color(1.0, 0.93, 0.82),
+		"gruff": Color(0.82, 0.82, 0.86), "wistful": Color(0.82, 0.87, 0.95),
+		"amused": Color(1.0, 0.97, 0.85), "wary": Color(0.88, 0.95, 0.88),
+		"sad": Color(0.78, 0.84, 0.95),
+	}
+	_avatar.modulate = moods.get(Dialogue.last_mood, Color(1, 1, 1))
 	_input.editable = true
 	_input.grab_focus()
 

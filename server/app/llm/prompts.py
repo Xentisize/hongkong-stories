@@ -185,6 +185,11 @@ def volatile_block(npc: dict, state: dict[str, Any], lang: str, player_input: st
         )
     if variables:
         state_lines.append("Values: " + ", ".join(f"{k}={v}" for k, v in sorted(variables.items())))
+    # The per-map context sheet (RPG Maker lessons, #3): the location's own texture, set by
+    # the content, grounds the conversation in this street and this room.
+    location_context = str(state.get("location_context", "") or "").strip()
+    if location_context:
+        sections.append("WHERE YOU ARE (the street around this conversation):\n" + location_context)
     sections.append("RIGHT NOW:\n" + "\n".join(state_lines))
 
     line = player_input or "(The player says nothing, and just looks at you.)"

@@ -45,7 +45,12 @@ func _physics_process(delta: float) -> void:
 			queue_redraw()
 
 	_advance_animation(delta)
-	current_target = _find_target()
+	var new_target := _find_target()
+	if new_target != current_target:
+		# P6+ smoke hook: the browser test re-walks until a target is in range, and this
+		# line is how it knows the walk worked ([Target] <prompt> / [Target] none).
+		current_target = new_target
+		print("[Target] ", current_target.get_prompt() if current_target != null else "none")
 
 
 func _unhandled_input(event: InputEvent) -> void:

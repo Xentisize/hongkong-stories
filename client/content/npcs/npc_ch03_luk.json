@@ -9,6 +9,7 @@
   "era": "ch03_kln_1963",
   "sprite": {
     "sheet": "art/npcs/npc_ch03_luk.png",
+    "sheet_walk": "art/npcs/npc_ch03_luk_walk.png",
     "frames": {
       "idle": [
         0

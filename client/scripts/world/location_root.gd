@@ -147,6 +147,7 @@ func _build_npcs() -> void:
 		var node := LocationNpc.new()
 		add_child(node)
 		node.configure(placement, tile_size)
+		node.set_walkable_query(is_tile_walkable)
 		npcs.append(node)
 
 	# NPC presence (§5.1) and prop gating (§5.5) are condition-driven: re-evaluate whenever
@@ -161,6 +162,19 @@ func _refresh_gated() -> void:
 		npc.call("refresh_availability")
 	for prop in interactables:
 		prop.call("refresh_availability")
+
+
+## Walkability for the wanderer: floor and walkable edge only — walls and closed doors
+## stop an NPC's shuffle (open doors still read "D" in the grid, so nobody wanders out).
+func is_tile_walkable(x: int, y: int) -> bool:
+	var rows: Array = data.get("tilemap", [])
+	if y < 0 or y >= rows.size():
+		return false
+	var row := String(rows[y])
+	if x < 0 or x >= row.length():
+		return false
+	var ch := row.substr(x, 1)
+	return ch == "." or ch == ","
 
 
 func _build_exits() -> void:

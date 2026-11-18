@@ -9,6 +9,7 @@
   "era": "ch02_kln_1955",
   "sprite": {
     "sheet": "art/npcs/npc_ch02_waah.png",
+    "sheet_walk": "art/npcs/npc_ch02_waah_walk.png",
     "frames": {
       "idle": [
         0

@@ -186,6 +186,11 @@ func _on_locale(locale: String) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	# Enter/Space starts too — the keyboard-only path shouldn't depend on Esc timing.
+	if is_showing() and event.is_action_pressed("ui_accept"):
+		close()
+		get_viewport().set_input_as_handled()
+		return
 	if not event.is_action_pressed("ui_cancel"):
 		return
 	if Dialogue.is_active():
