@@ -100,6 +100,33 @@ export {
 } from "./assets";
 
 export {
+  describeDiff,
+  diffDocuments,
+  type DiffKind,
+  type FieldDiff,
+} from "./aiDiff";
+
+export {
+  PROPOSAL_KINDS,
+  describeProposal,
+  parseProposal,
+  type Proposal,
+  type ProposalChange,
+  type ProposalKind,
+  type ProposalOp,
+} from "./aiProposal";
+
+export {
+  PREVIEW_CHANNEL,
+  commandMessage,
+  eventMessage,
+  isPreviewCommand,
+  isPreviewEvent,
+  type PreviewCommand,
+  type PreviewEvent,
+} from "./previewBridge";
+
+export {
   ART_MEDIA,
   ART_STYLES,
   DEFAULT_ART_MEDIUM,
