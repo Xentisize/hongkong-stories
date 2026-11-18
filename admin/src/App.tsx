@@ -8,13 +8,15 @@ import { Separator } from "@/components/ui/separator";
 import { useMeta } from "@/lib/queries";
 import { BuilderView } from "@/views/BuilderView";
 import { EditorView } from "@/views/EditorView";
+import { MapView } from "@/views/MapView";
 import { PlaygroundView } from "@/views/PlaygroundView";
 import { ReviewView } from "@/views/ReviewView";
 
-export type ViewId = "editor" | "playground" | "builder" | "review";
+export type ViewId = "editor" | "map" | "playground" | "builder" | "review";
 
 const VIEWS: Array<{ id: ViewId; label: string }> = [
   { id: "editor", label: "编辑 Editor" },
+  { id: "map", label: "地图 Map" },
   { id: "playground", label: "调试 Playground" },
   { id: "builder", label: "条件 Builder" },
   { id: "review", label: "审阅 Review" },
@@ -81,6 +83,11 @@ export function App() {
       <main className="px-4 pb-10">
         <Panel visible={active === "editor"}>
           <EditorView token={token} onDirtyChange={setDirty} />
+        </Panel>
+        {/* The dirty badge stays wired to the editor alone: one shared boolean would let a clean map
+            view clear the editor's unsaved warning. The map reports its own state on its Save button. */}
+        <Panel visible={active === "map"}>
+          <MapView token={token} />
         </Panel>
         <Panel visible={active === "playground"}>
           <PlaygroundView token={token} />
