@@ -36,3 +36,6 @@ Thumbs.db
 .idea/
 .vscode/
 *.swp
+
+# --- agent tooling (AtomCode hooks/MCP/skills are per-machine, not project source) ---
+.atomcode/
