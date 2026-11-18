@@ -30,7 +30,9 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { describeError } from "@/lib/errors";
-import { queryKeys, useEntityIds, type Entity } from "@/lib/queries";
+import { blankChapterDoc } from "@/lib/chapterDoc";
+import { freeIdFrom } from "@/lib/ids";
+import { queryKeys, useKindIds, type Entity } from "@/lib/queries";
 
 /** Backdrops that ship in the pack, offered as suggestions rather than a closed list. */
 const BACKDROPS = Object.keys(
@@ -72,9 +74,9 @@ interface Issue {
 
 export function ChaptersView({ token }: { token: string }) {
   const client = useQueryClient();
-  const chapterIds = useEntityIds(token, "chapters");
-  const questIds = useEntityIds(token, "quests");
-  const locationIds = useEntityIds(token, "locations");
+  const chapterIds = useKindIds(token, "chapters");
+  const questIds = useKindIds(token, "quests");
+  const locationIds = useKindIds(token, "locations");
 
   const [selected, setSelected] = useState<string | null>(null);
   const [doc, setDoc] = useState<ChapterDoc | null>(null);
@@ -141,6 +143,25 @@ export function ChaptersView({ token }: { token: string }) {
     setDirty(true);
   };
 
+  /**
+   * Create a chapter straight into the draft area.
+   *
+   * The skeleton aggregates nothing, so the validator will say "a chapter needs at least one
+   * quest" until the author picks one — which is the intended next step, not a failure. Nothing
+   * reaches players until it is saved and published.
+   */
+  async function createChapter() {
+    const id = freeIdFrom(chapterIds.data ?? [], "ch_");
+    try {
+      await api.putDraft("chapters", id, blankChapterDoc(id));
+      await client.invalidateQueries({ queryKey: queryKeys.drafts(token) });
+      setSelected(id);
+      toast.success(`已建立新章節草稿 / new chapter draft: ${id}`);
+    } catch (error) {
+      toast.error(describeError(error));
+    }
+  }
+
   async function save() {
     if (doc === null || selected === null) return;
 
@@ -188,8 +209,17 @@ export function ChaptersView({ token }: { token: string }) {
   return (
     <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
       <Card className="h-fit">
-        <CardHeader className="pb-2">
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
           <CardTitle className="text-sm">章節 Chapters</CardTitle>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-6 px-2 text-[11px]"
+            title="建立新章節草稿 / create a new chapter"
+            onClick={() => void createChapter()}
+          >
+            ＋ 新
+          </Button>
         </CardHeader>
         <CardContent>
           {chapterIds.isPending ? (

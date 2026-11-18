@@ -2,9 +2,17 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { readdir, readFile, stat } from "node:fs/promises";
 import { join, resolve } from "node:path";
 
-import { isRecord, toKey, type ContentEntity, type ContentPack } from "@hkstories/core";
+import {
+  isRecord,
+  packFromEntries,
+  resolveInheritance,
+  toKey,
+  type ContentEntity,
+  type ContentPack,
+  type Issue,
+} from "@hkstories/core";
 
-import { loadContent } from "@/lib/content";
+import { contentDir, loadEntriesFrom } from "@/lib/content";
 
 /**
  * Admin authentication, CORS and the draft overlay, ported from `server/app/routers/admin.py`.
@@ -145,14 +153,48 @@ export async function draftFiles(): Promise<DraftFile[]> {
  * The pack as it would ship: the baseline overlaid with drafts.
  *
  * Validation runs against this, so an author can see the effect of a draft before publishing —
- * which is the whole point of the draft area.
+ * which is the whole point of the draft area. Authoring-time inheritance is resolved here, once,
+ * so every consumer downstream (the validator, publish, the clients, a bundle export) only ever
+ * sees flat documents and never has to know `extends` exists.
  */
-export async function mergedPack(): Promise<ContentPack> {
-  const { pack } = await loadContent();
+export interface MergedPack {
+  pack: ContentPack;
+  /**
+   * `extends` problems found while resolving the pack and its drafts.
+   *
+   * Errors here block publish exactly like validation errors: a chain that does not resolve would
+   * otherwise ship a document silently missing everything it asked for.
+   */
+  issues: Issue[];
+}
 
-  const tables: Record<string, Record<string, ContentEntity>> = {};
-  for (const [kind, rows] of Object.entries(pack.tables)) tables[kind] = { ...rows };
+/**
+ * Overlay already-parsed drafts onto the pack's entries, keyed by path.
+ *
+ * Paths, not tables: a document's identity is its file, and `extends` resolves over files. A draft
+ * replaces the baseline document at the same kind and id; one with no usable id cannot be placed,
+ * and is left for the validator to complain about rather than dropped here in silence.
+ */
+export function overlayDrafts(
+  entries: Record<string, ContentEntity>,
+  drafts: Array<{ kind: string; entity: unknown }>,
+): Record<string, ContentEntity> {
+  const merged: Record<string, ContentEntity> = { ...entries };
 
+  for (const draft of drafts) {
+    if (!isRecord(draft.entity)) continue;
+    const id = toKey(draft.entity["id"] ?? "");
+    if (id === "") continue;
+    merged[`${draft.kind}/${id}.json`] = draft.entity;
+  }
+
+  return merged;
+}
+
+export async function mergedPack(): Promise<MergedPack> {
+  const { entries, manifest } = await loadEntriesFrom(contentDir());
+
+  const drafts: Array<{ kind: string; entity: unknown }> = [];
   for (const draft of await draftFiles()) {
     // Lore is markdown, not an entity table: it has no `id` field and the validator never sees it.
     if (draftExtension(draft.kind) !== "json") continue;
@@ -163,11 +205,10 @@ export async function mergedPack(): Promise<ContentPack> {
     } catch {
       continue; // a half-written draft must not break validation of the rest
     }
-    if (!isRecord(entity)) continue;
-    const id = toKey(entity["id"] ?? "");
-    if (!id) continue;
-    (tables[draft.kind] ??= {})[id] = entity;
+    drafts.push({ kind: draft.kind, entity });
   }
 
-  return { tables, version: pack.version, contentHash: pack.contentHash };
+  const resolved = resolveInheritance(overlayDrafts(entries, drafts));
+
+  return { pack: packFromEntries(resolved.entries, manifest), issues: resolved.issues };
 }

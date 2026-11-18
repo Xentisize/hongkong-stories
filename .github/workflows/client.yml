@@ -41,6 +41,15 @@ jobs:
           bun tools/check_content.ts
           bun tools/check_font_coverage.ts
 
+      # The bundle is the artifact a person or a model receives, and `import_bundle` is its gate:
+      # export the pack, then import it back through the same manifest/hash/reference checks a
+      # recipient would get. A broken exporter or a dangling asset fails the build here, not on
+      # someone's machine.
+      - name: Bundle round trip
+        run: |
+          bun tools/export_bundle.ts --out /tmp/game.zip
+          bun tools/import_bundle.ts /tmp/game.zip
+
       - name: Type-check and unit tests
         working-directory: apps/client
         run: |

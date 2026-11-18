@@ -139,7 +139,9 @@ tree, a tile palette, a paintable canvas with MAP / EVENT / COLLISION modes and 
 placement, writing through the same draft path, plus a location inspector for name/context/ambience,
 spawn points, doors, exits, interactables and decor (props and pressable objects carry markers on the
 canvas); a **chapters editor** — the aggregation document,
-with every reference picked from what the pack actually contains; an **items editor** — localized
+with every reference picked from what the pack actually contains, and **新** creating an empty
+chapter draft (deliberately empty: a guessed quest or location would validate just enough to look
+finished); an **items editor** — localized
 name/description, icon and lore picked from the shipped files, stack size, category, and the
 `use_requires`/`on_use`/`on_acquire` blocks; a
 **quests editor** — the node chain with add/delete/rename/relink, each edit keeping `next` honest
@@ -254,7 +256,9 @@ A design pass borrowed four RPG Maker patterns (2026-11); where each landed:
    with the **MAP/EVENT** toggle plus a **collision** mode, an inspector for the selected event, a
    **layer list** (add / rename / reorder / delete overlays, with a transparent brush to erase them
    back to nothing), and write-back through the same draft → validate → publish path as every other
-   entity. It replaced the Godot `addons/npc_placement` `@tool` plugin, which was retired along
+   entity. **新地圖** creates a new map draft from an enclosed room — border wall, floor inside, a
+   spawn in the middle — so a location no longer has to be hand-written before the editor can open
+   it. It replaced the Godot `addons/npc_placement` `@tool` plugin, which was retired along
    with its writer.
 2. **The conditional state system** — **NPC event pages** (`states` in an NPC JSON): an
    ordered array where the first `requires` that passes activates a page that patches the

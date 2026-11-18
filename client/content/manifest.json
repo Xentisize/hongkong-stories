@@ -1,7 +1,7 @@
 {
   "manifest_schema": 1,
   "version": 1,
-  "content_hash": "e5cf0a91207b",
+  "content_hash": "8d7c668406ec",
   "files": [
     "npcs/npc_ch01_ken.json",
     "npcs/npc_ch01_ming.json",

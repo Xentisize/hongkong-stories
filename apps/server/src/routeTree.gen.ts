@@ -17,6 +17,7 @@ import { Route as AdminSplatRouteImport } from './routes/admin/$'
 import { Route as V1SplatRouteImport } from './routes/v1/$'
 import { Route as V1ChatRouteImport } from './routes/v1/chat'
 import { Route as V1SessionRouteImport } from './routes/v1/session'
+import { Route as V1AdminBundleRouteImport } from './routes/v1/admin/bundle'
 import { Route as V1AdminDraftsRouteImport } from './routes/v1/admin/drafts'
 import { Route as V1AdminEvaluate_conditionRouteImport } from './routes/v1/admin/evaluate_condition'
 import { Route as V1AdminFactcheckRouteImport } from './routes/v1/admin/factcheck'
@@ -75,6 +76,11 @@ const V1ChatRoute = V1ChatRouteImport.update({
 const V1SessionRoute = V1SessionRouteImport.update({
   id: '/v1/session',
   path: '/v1/session',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const V1AdminBundleRoute = V1AdminBundleRouteImport.update({
+  id: '/v1/admin/bundle',
+  path: '/v1/admin/bundle',
   getParentRoute: () => rootRouteImport,
 } as any)
 const V1AdminDraftsRoute = V1AdminDraftsRouteImport.update({
@@ -184,6 +190,7 @@ export interface FileRoutesByFullPath {
   '/v1/chat': typeof V1ChatRoute
   '/v1/session': typeof V1SessionRoute
   '/admin/': typeof AdminIndexRoute
+  '/v1/admin/bundle': typeof V1AdminBundleRoute
   '/v1/admin/drafts': typeof V1AdminDraftsRouteWithChildren
   '/v1/admin/evaluate_condition': typeof V1AdminEvaluate_conditionRoute
   '/v1/admin/factcheck': typeof V1AdminFactcheckRouteWithChildren
@@ -213,6 +220,7 @@ export interface FileRoutesByTo {
   '/v1/chat': typeof V1ChatRoute
   '/v1/session': typeof V1SessionRoute
   '/admin': typeof AdminIndexRoute
+  '/v1/admin/bundle': typeof V1AdminBundleRoute
   '/v1/admin/drafts': typeof V1AdminDraftsRouteWithChildren
   '/v1/admin/evaluate_condition': typeof V1AdminEvaluate_conditionRoute
   '/v1/admin/factcheck': typeof V1AdminFactcheckRouteWithChildren
@@ -243,6 +251,7 @@ export interface FileRoutesById {
   '/v1/chat': typeof V1ChatRoute
   '/v1/session': typeof V1SessionRoute
   '/admin/': typeof AdminIndexRoute
+  '/v1/admin/bundle': typeof V1AdminBundleRoute
   '/v1/admin/drafts': typeof V1AdminDraftsRouteWithChildren
   '/v1/admin/evaluate_condition': typeof V1AdminEvaluate_conditionRoute
   '/v1/admin/factcheck': typeof V1AdminFactcheckRouteWithChildren
@@ -274,6 +283,7 @@ export interface FileRouteTypes {
     | '/v1/chat'
     | '/v1/session'
     | '/admin/'
+    | '/v1/admin/bundle'
     | '/v1/admin/drafts'
     | '/v1/admin/evaluate_condition'
     | '/v1/admin/factcheck'
@@ -303,6 +313,7 @@ export interface FileRouteTypes {
     | '/v1/chat'
     | '/v1/session'
     | '/admin'
+    | '/v1/admin/bundle'
     | '/v1/admin/drafts'
     | '/v1/admin/evaluate_condition'
     | '/v1/admin/factcheck'
@@ -332,6 +343,7 @@ export interface FileRouteTypes {
     | '/v1/chat'
     | '/v1/session'
     | '/admin/'
+    | '/v1/admin/bundle'
     | '/v1/admin/drafts'
     | '/v1/admin/evaluate_condition'
     | '/v1/admin/factcheck'
@@ -362,6 +374,7 @@ export interface RootRouteChildren {
   V1ChatRoute: typeof V1ChatRoute
   V1SessionRoute: typeof V1SessionRoute
   AdminIndexRoute: typeof AdminIndexRoute
+  V1AdminBundleRoute: typeof V1AdminBundleRoute
   V1AdminDraftsRoute: typeof V1AdminDraftsRouteWithChildren
   V1AdminEvaluate_conditionRoute: typeof V1AdminEvaluate_conditionRoute
   V1AdminFactcheckRoute: typeof V1AdminFactcheckRouteWithChildren
@@ -435,6 +448,13 @@ declare module '@tanstack/react-router' {
       path: '/v1/session'
       fullPath: '/v1/session'
       preLoaderRoute: typeof V1SessionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/v1/admin/bundle': {
+      id: '/v1/admin/bundle'
+      path: '/v1/admin/bundle'
+      fullPath: '/v1/admin/bundle'
+      preLoaderRoute: typeof V1AdminBundleRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/v1/admin/drafts': {
@@ -618,6 +638,7 @@ const rootRouteChildren: RootRouteChildren = {
   V1ChatRoute: V1ChatRoute,
   V1SessionRoute: V1SessionRoute,
   AdminIndexRoute: AdminIndexRoute,
+  V1AdminBundleRoute: V1AdminBundleRoute,
   V1AdminDraftsRoute: V1AdminDraftsRouteWithChildren,
   V1AdminEvaluate_conditionRoute: V1AdminEvaluate_conditionRoute,
   V1AdminFactcheckRoute: V1AdminFactcheckRouteWithChildren,

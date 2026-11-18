@@ -732,7 +732,13 @@ admin SPA then just reads those positions. Best of both, no duplicated effort.
 ### 9.2 Admin features
 
 - **CRUD** for NPCs, items, locations (metadata), quests, lore files — form-driven with a
-  raw-JSON tab; every form field maps to §5 schemas.
+  raw-JSON tab; every form field maps to §5 schemas. Creation exists in the UI for **every** kind,
+  including maps and chapters: a new map is an enclosed room with a spawn point, a new chapter is an
+  empty aggregation, and both land in the draft area — so no document has to be hand-written before
+  the editor can open it. A list shows baseline documents **and** draft-only ones, because the thing
+  an author just created has no published file yet. The header names the game (title from
+  `settings/game`) beside the pack version: that, plus the pack itself, is the admin's whole notion
+  of "this project" — there is no second project file to keep in step.
 - **Locale tabs** on every string field — one tab per §5.8 locale, each with a completeness
   dot, and a "draft the other two from this one" button (register-aware LLM draft, explicitly
   marked *draft* until a human approves it). A per-entity parity report lists what is missing,

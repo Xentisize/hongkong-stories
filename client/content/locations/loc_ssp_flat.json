@@ -49,7 +49,7 @@
     {
       "id": "the_box",
       "tile": [6, 2],
-      "art": "art/props/prop_cardboard_box.png",
+      "art": "art/props/prop_crate.png",
       "scale": 0.6,
       "prompt": { "zh_HK": "打開屋企個箱", "zh_CN": "打开家里的箱子", "en": "Open the family box" },
       "requires": { "all": [

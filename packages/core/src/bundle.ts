@@ -15,7 +15,9 @@
  * without writing a 7 MB archive per case.
  */
 
-import { collectAssetRefs, isRecord, toKey, type ContentEntity } from "@hkstories/core";
+import { collectAssetRefs } from "./assets";
+import { isRecord, toKey } from "./state";
+import type { ContentEntity } from "./validate";
 
 /** Bumped when a change would make an older importer misread a newer bundle. */
 export const BUNDLE_SCHEMA = 1;

@@ -17,7 +17,8 @@ export const Route = createFileRoute("/v1/admin/validate")({
       POST: async ({ request }) => {
         try {
           requireAdmin(request);
-          const issues = validatePack(await mergedPack());
+          const merged = await mergedPack();
+          const issues = [...merged.issues, ...validatePack(merged.pack)];
           const errors = issues.filter((issue) => issue.level === "error");
           return Response.json({ ok: errors.length === 0, issues });
         } catch (error) {

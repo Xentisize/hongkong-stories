@@ -19,14 +19,17 @@ import { tmpdir } from "node:os";
 
 import {
   canonicalJson,
+  isGameManifest,
   isPublishable,
   packFromEntries,
   resolveInheritance,
   validatePack,
+  verifyBundle,
+  verifyContentAssets,
   type ContentEntity,
+  type GameManifest,
 } from "@hkstories/core";
 
-import { isGameManifest, verifyBundle, verifyContentAssets, type GameManifest } from "./bundle";
 import { readDirectoryIndex, sha256Hex, stageFiles, unzipInto } from "./bundle_io";
 
 const repoRoot = join(import.meta.dir, "..");

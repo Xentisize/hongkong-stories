@@ -2,23 +2,36 @@
 /**
  * Validate the content pack — the CI gate over the publish pipeline (PLAN 9.2, 11).
  *
- * Usage: bun tools/check_content.ts [content_dir]
+ * Usage: bun tools/check_content.ts [content_dir] [assets_dir]
  *
  * Exits 0 when there are no error-level issues; warnings are reported but do not fail. The rules
  * live in `@hkstories/core`, so this gate, the admin's inline checks and the publish refusal are
  * the same implementation rather than three that must be kept in agreement.
+ *
+ * The one rule that cannot live in core is "the art exists": the validator is pure and has no
+ * filesystem. Both clients skip a texture they cannot load, so a missing prop is silent at runtime
+ * — which is how a dangling `art/props/prop_cardboard_box.png` shipped. That check is here.
  */
 
+import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 
-import { isRecord, validatePack } from "@hkstories/core";
+import { isRecord, validatePack, type ContentEntity } from "@hkstories/core";
 
 import { loadContentFrom } from "../apps/server/src/lib/content";
 import { computeManifest, manifestDrift } from "../apps/server/src/lib/manifest";
+import { missingAssets } from "./asset_gate";
 
 const target = process.argv[2];
 const root = target ? resolve(target) : join(import.meta.dir, "..", "client", "content");
+
+// `assets/` sits beside `content/` in the repo, and is overridable for a caller that keeps them
+// somewhere else (a bundle import, a fixture tree).
+const assetsArg = process.argv[3];
+const assetsRoot = assetsArg
+  ? resolve(assetsArg)
+  : (process.env["HKS_ASSETS_DIR"] ?? join(root, "..", "assets"));
 
 // `loadContentFrom` reads the manifest first, so a missing or unparsable one would otherwise throw
 // out of the module and lose every diagnostic below — the run would end in a stack trace instead of
@@ -46,6 +59,8 @@ try {
 
 const fresh = await computeManifest(root);
 const drift = manifestDrift(committed, fresh);
+/** Every parsed document, keyed by manifest path — the art check below walks all of them. */
+const documents: Record<string, ContentEntity> = {};
 // A file whose entity has no `id` is now reported by `validatePack` itself (the pack records what
 // it dropped), so only the filename agreement is left to check here.
 for (const file of fresh.files) {
@@ -60,6 +75,7 @@ for (const file of fresh.files) {
   if (!isRecord(entity) || typeof entity["id"] !== "string" || entity["id"].trim() === "") {
     continue; // already reported by validatePack
   }
+  documents[file] = entity;
 
   // The loader keys a table by `id` while publish writes to the filename. When they disagree the
   // entity is stored under one name and shipped under another, so the next regeneration reports a
@@ -79,6 +95,25 @@ if (drift.length > 0) {
     level: "error",
     path: "manifest.json",
     message: `stale manifest: ${drift.join("; ")} — run bun tools/gen_content_manifest.ts`,
+  });
+}
+
+// ---- referenced art -----------------------------------------------------------------------
+// `validatePack` is pure by design, so it cannot know whether a referenced file exists. Both
+// clients silently skip a texture they cannot load, so a dangling reference surfaces as "the art
+// looks wrong" rather than "the content is wrong" — which is exactly how a missing
+// `art/props/prop_cardboard_box.png` shipped. This is the gate that says it out loud.
+const resolveAsset = (path: string): string => {
+  const match = /^(content|assets)\/(.*)$/.exec(path);
+  if (match === null) return join(root, path);
+  return join(match[1] === "assets" ? assetsRoot : root, match[2]!);
+};
+
+for (const missing of missingAssets(documents, (path) => existsSync(resolveAsset(path)))) {
+  issues.push({
+    level: "error",
+    path: missing.path,
+    message: `missing file (referenced as '${missing.ref}')`,
   });
 }
 

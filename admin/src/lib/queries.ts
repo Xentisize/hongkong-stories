@@ -8,6 +8,7 @@
  * so a token change must invalidate everything rather than silently reuse another token's
  * cached drafts. */
 
+import { useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
@@ -17,6 +18,7 @@ import {
   type Issue,
   type UsageSummary,
 } from "@/api";
+import { asLocalized } from "@/lib/localized";
 
 export interface Meta {
   content_version: number;
@@ -44,11 +46,31 @@ export type Entity = Record<string, unknown>;
 
 export const queryKeys = {
   meta: (token: string) => ["meta", token] as const,
+  gameTitle: (token: string) => ["game-title", token] as const,
   drafts: (token: string) => ["drafts", token] as const,
   entities: (token: string, kind: string) => ["entities", token, kind] as const,
   usage: (token: string) => ["usage", token] as const,
   factcheck: (token: string) => ["factcheck", token] as const,
 };
+
+/**
+ * The game's name, from the one settings document a pack is allowed to have.
+ *
+ * That document already carries the title (and so does the bundle's `game.json`), which is why the
+ * header can say *which* game this is without inventing a second project file. Baseline rather
+ * than draft: the header describes the game as it currently ships, and a half-typed draft title
+ * would make the admin's own identity flicker.
+ */
+export function useGameTitle(token: string) {
+  return useQuery({
+    queryKey: queryKeys.gameTitle(token),
+    queryFn: async () => {
+      const doc = (await api.entity("settings", "game")) as Entity;
+      const title = asLocalized(doc["title"]);
+      return title["zh_HK"] ?? title["en"] ?? String(doc["id"] ?? "");
+    },
+  });
+}
 
 export function useMeta(token: string) {
   return useQuery({
@@ -71,6 +93,33 @@ export function useEntityIds(token: string, kind: string) {
     queryFn: () => api.entities(kind) as Promise<{ entities: string[] }>,
     select: (data) => data.entities,
   });
+}
+
+/**
+ * Every id of a kind that the editor can open: baseline documents **plus** draft-only ones.
+ *
+ * A document created in the editor has no baseline file until it is published, so the baseline list
+ * alone would omit the thing the author just made — which reads as "the create button did nothing".
+ * The union is what the sidebar, the exits' target picker and the chapter pickers all want.
+ */
+export function useKindIds(token: string, kind: string) {
+  const baseline = useEntityIds(token, kind);
+  const drafts = useDrafts(token);
+
+  const ids = useMemo(() => {
+    const merged = new Set<string>(baseline.data ?? []);
+    for (const draft of drafts.data ?? []) {
+      if (draft.kind === kind) merged.add(draft.id);
+    }
+    return [...merged].sort();
+  }, [baseline.data, drafts.data, kind]);
+
+  return {
+    data: baseline.data === undefined && drafts.data === undefined ? undefined : ids,
+    isPending: baseline.isPending || drafts.isPending,
+    isError: baseline.isError || drafts.isError,
+    refetch: baseline.refetch,
+  };
 }
 
 export function useUsage(token: string, enabled: boolean) {
@@ -99,6 +148,7 @@ export function useRefreshContent(token: string) {
   return () => {
     for (const key of [
       queryKeys.meta(token),
+      queryKeys.gameTitle(token),
       queryKeys.drafts(token),
       queryKeys.entities(token, "npcs"),
       queryKeys.usage(token),

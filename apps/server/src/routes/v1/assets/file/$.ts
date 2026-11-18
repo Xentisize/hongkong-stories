@@ -3,7 +3,7 @@ import { extname, isAbsolute, join, relative, resolve } from "node:path";
 
 import { createFileRoute } from "@tanstack/react-router";
 
-import { repoRoot } from "@/lib/admin";
+import { assetsDir } from "@/lib/content";
 import { preflight, withCors } from "@/lib/cors";
 
 /**
@@ -29,10 +29,6 @@ const MEDIA_TYPES: Record<string, string> = {
   ".wav": "audio/wav",
   ".ogg": "audio/ogg",
 };
-
-export function assetsDir(): string {
-  return process.env["HKS_ASSETS_DIR"] ?? join(repoRoot(), "client", "assets");
-}
 
 const PREFIX = "/v1/assets/file/";
 

@@ -51,6 +51,13 @@ async function requestText(method: string, path: string, body?: string): Promise
   return response.text();
 }
 
+/** Same contract as `request`, for the endpoint that answers with an archive instead of JSON. */
+async function requestBlob(method: string, path: string): Promise<Blob> {
+  const response = await fetch(path, { method, headers: { Authorization: `Bearer ${getToken()}` } });
+  if (!response.ok) throw await toApiError(response);
+  return response.blob();
+}
+
 async function toApiError(response: Response): Promise<ApiError> {
   let detail: unknown = response.statusText;
   try {
@@ -78,6 +85,8 @@ export const api = {
     requestText("PUT", `/v1/admin/drafts/lore/${encodeURIComponent(id)}`, text),
   validate: () => request("POST", "/v1/admin/validate"),
   publish: () => request("POST", "/v1/admin/publish"),
+  /** The whole game as one archive: `game.json` + pack + every media file, hashed. */
+  exportBundle: () => requestBlob("GET", "/v1/admin/bundle"),
   artTemplates: () => request("GET", "/v1/admin/art/templates"),
   generateArt: (body: unknown) => request("POST", "/v1/admin/art/generate", body),
   evaluateCondition: (body: unknown) => request("POST", "/v1/admin/evaluate_condition", body),

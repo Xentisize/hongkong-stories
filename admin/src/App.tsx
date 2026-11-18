@@ -1,11 +1,13 @@
 import { useCallback, useState, type ReactNode } from "react";
+import { toast } from "sonner";
 
-import { getToken, setToken } from "@/api";
+import { api, getToken, setToken } from "@/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { useMeta } from "@/lib/queries";
+import { describeError } from "@/lib/errors";
+import { useGameTitle, useMeta } from "@/lib/queries";
 import { ArtView } from "@/views/ArtView";
 import { ChaptersView } from "@/views/ChaptersView";
 import { BuilderView } from "@/views/BuilderView";
@@ -57,8 +59,35 @@ export function App() {
   const [token, setTokenState] = useState(() => getToken());
   const [active, setActive] = useState<ViewId>("editor");
   const [dirty, setDirty] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const meta = useMeta(token);
+  const gameTitle = useGameTitle(token);
+
+  /**
+   * Download the whole game as one archive.
+   *
+   * The server builds it (and refuses an incomplete one), so this only has to turn the response
+   * into a file. Downloaded through an anchor rather than `window.open` so the bearer header
+   * survives — a plain navigation would drop the credential and get a 401.
+   */
+  const exportBundle = useCallback(async () => {
+    setExporting(true);
+    try {
+      const blob = await api.exportBundle();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "game.zip";
+      link.click();
+      URL.revokeObjectURL(url);
+      toast.success(`已匯出 ${(blob.size / 1024 / 1024).toFixed(1)} MiB / bundle downloaded`);
+    } catch (error) {
+      toast.error(describeError(error));
+    } finally {
+      setExporting(false);
+    }
+  }, []);
 
   // The API client reads the token from localStorage on every call, so connecting is: persist,
   // then let the query key change drive the refetch.
@@ -72,9 +101,9 @@ export function App() {
     ? "未连接后端 / backend unreachable"
     : meta.isPending
       ? "连接中…"
-      : `content v${meta.data.content_version} (${meta.data.content_hash}) · npcs ${
-          meta.data.counts["npcs"] ?? 0
-        }`;
+      : `${gameTitle.data ? `${gameTitle.data} · ` : ""}content v${meta.data.content_version} (${
+          meta.data.content_hash
+        }) · npcs ${meta.data.counts["npcs"] ?? 0}`;
 
   return (
     <div className="dark min-h-screen bg-background text-foreground">
@@ -86,7 +115,17 @@ export function App() {
             ● 未保存
           </Badge>
         ) : null}
-        <span className="ml-auto text-xs text-muted-foreground">{status}</span>
+        <Button
+          size="sm"
+          variant="outline"
+          className="ml-auto"
+          disabled={exporting || meta.isError}
+          title="匯出整包 game.zip（game.json + 內容 + 美術）/ export the whole game as one archive"
+          onClick={() => void exportBundle()}
+        >
+          {exporting ? "匯出中…" : "匯出 Export"}
+        </Button>
+        <span className="text-xs text-muted-foreground">{status}</span>
       </header>
 
       <nav className="flex items-center gap-1 px-4 py-2">

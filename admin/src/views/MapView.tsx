@@ -5,7 +5,9 @@ import { api, ApiError } from "@/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useDrafts, useEntityIds } from "@/lib/queries";
+import { freeIdFrom } from "@/lib/ids";
+import { blankLocationDoc } from "@/lib/locationDoc";
+import { useDrafts, useKindIds } from "@/lib/queries";
 import { normalise, reducer, type LocationDoc } from "@/lib/mapEditorState";
 import {
   applyDrop,
@@ -61,8 +63,8 @@ import { LocationPanel } from "@/views/map/LocationPanel";
 const ZOOMS = [1, 2, 3, 4];
 
 export function MapView({ token, onDirtyChange }: { token: string; onDirtyChange?: (dirty: boolean) => void }) {
-  const locations = useEntityIds(token, "locations");
-  const npcIds = useEntityIds(token, "npcs");
+  const locations = useKindIds(token, "locations");
+  const npcIds = useKindIds(token, "npcs");
   const drafts = useDrafts(token);
 
   const [state, dispatch] = useReducer(reducer, { doc: null, history: [] });
@@ -403,6 +405,26 @@ export function MapView({ token, onDirtyChange }: { token: string; onDirtyChange
     [overlays, updateLayers],
   );
 
+  /**
+   * Create a map straight into the draft area.
+   *
+   * A new map has no baseline file, so this writes a draft and then loads it — the same path an
+   * existing map takes, which means everything downstream (undo, save, validate, publish) already
+   * knows what to do with it. Nothing is created until the author saves and publishes, so a
+   * half-made map cannot reach players.
+   */
+  const createMap = useCallback(async () => {
+    const id = freeIdFrom(locations.data ?? [], "loc_");
+    try {
+      await api.putDraft("locations", id, blankLocationDoc(id));
+      await drafts.refetch();
+      await load(id);
+      toast.success(`已建立新地圖草稿 / new map draft: ${id}`);
+    } catch (error) {
+      toast.error(`建立失敗 / create failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }, [locations.data, drafts, load]);
+
   const save = useCallback(async () => {
     if (!doc?.id) return;
     setSaving(true);
@@ -557,8 +579,17 @@ export function MapView({ token, onDirtyChange }: { token: string; onDirtyChange
       <div className="grid min-h-0 flex-1 grid-cols-[240px_minmax(0,1fr)] grid-rows-[minmax(0,1fr)_240px] gap-2">
         {/* Hierarchy */}
         <div className="flex min-h-0 flex-col rounded-md border">
-          <div className="border-b px-3 py-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-            地图 Map hierarchy
+          <div className="flex items-center justify-between border-b px-3 py-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+            <span>地图 Map hierarchy</span>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-6 px-2 text-[11px] normal-case tracking-normal"
+              title="建立新地圖草稿 / create a new map"
+              onClick={() => void createMap()}
+            >
+              ＋ 新地圖
+            </Button>
           </div>
           <div className="min-h-0 flex-1 overflow-auto p-1">
             {locations.isPending ? <p className="p-2 text-xs text-muted-foreground">加载中…</p> : null}

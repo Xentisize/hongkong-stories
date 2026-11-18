@@ -1,11 +1,14 @@
 import { describe, expect, test } from "bun:test";
 
 import {
+  DEFAULT_ATLAS,
+  DEFAULT_MAP_SIZE,
   artProblem,
   blankDecor,
   blankDoor,
   blankExit,
   blankInteractable,
+  blankLocationDoc,
   formatPoint,
   formatRect,
   formatTiles,
@@ -179,6 +182,54 @@ describe("blankDecor", () => {
       art: "art/props/prop_tv.png",
       tile: [5, 2],
     });
+  });
+});
+
+describe("blankLocationDoc", () => {
+  test("is an enclosed room: wall border, floor interior", () => {
+    const doc = blankLocationDoc("loc_new");
+    const rows = doc.tilemap ?? [];
+
+    expect(rows).toHaveLength(DEFAULT_MAP_SIZE.height);
+    expect(rows.every((row) => row.length === DEFAULT_MAP_SIZE.width)).toBe(true);
+    expect(rows[0]).toBe("#".repeat(DEFAULT_MAP_SIZE.width));
+    expect(rows.at(-1)).toBe("#".repeat(DEFAULT_MAP_SIZE.width));
+
+    const middle = rows[1] ?? "";
+    expect(middle.startsWith("#")).toBe(true);
+    expect(middle.endsWith("#")).toBe(true);
+    expect(middle.slice(1, -1)).toBe(".".repeat(DEFAULT_MAP_SIZE.width - 2));
+  });
+
+  test("opens on the atlas and legend the authored maps use", () => {
+    const doc = blankLocationDoc("loc_new");
+    expect(doc.atlas).toBe(DEFAULT_ATLAS);
+    expect(doc.legend).toEqual({ ".": [0, 0], "#": [2, 0] });
+    expect(doc.tile_size).toBe(24);
+  });
+
+  test("puts the spawn in the middle so there is somewhere to stand", () => {
+    expect(blankLocationDoc("loc_new").spawn_points).toEqual({ default: [14.5, 7.5] });
+  });
+
+  test("starts with no content, and no overlays", () => {
+    const doc = blankLocationDoc("loc_new");
+    expect(doc.collision).toEqual([]);
+    expect(doc.npcs).toEqual([]);
+    expect(doc.decor).toEqual([]);
+    expect(doc.interactables).toEqual([]);
+    expect(doc.doors).toEqual([]);
+    expect(doc.exits).toEqual([]);
+    expect(doc.layers).toBeUndefined();
+  });
+
+  test("a size too small to enclose anything is clamped to 3x3", () => {
+    const doc = blankLocationDoc("loc_new", { width: 1, height: 2 });
+    expect(doc.tilemap).toEqual(["###", "#.#", "###"]);
+  });
+
+  test("the display name starts empty in all three locales, ready to be filled", () => {
+    expect(blankLocationDoc("loc_new").display_name).toEqual({ zh_HK: "", zh_CN: "", en: "" });
   });
 });
 

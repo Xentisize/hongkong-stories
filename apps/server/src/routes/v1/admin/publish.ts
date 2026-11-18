@@ -34,7 +34,11 @@ export const Route = createFileRoute("/v1/admin/publish")({
 
           const drafts = await draftFiles();
 
-          const issues = validatePack(await mergedPack());
+          const merged = await mergedPack();
+          // Inheritance problems first: an unresolved chain means a document never became what it
+          // says it is, so validating the half-resolved form would report consequences instead of
+          // the cause.
+          const issues = [...merged.issues, ...validatePack(merged.pack)];
           const errors = issues.filter((issue) => issue.level === "error");
           if (errors.length > 0) {
             // The admin reads `detail`, so the refusal keeps the Python shape.

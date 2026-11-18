@@ -108,6 +108,21 @@ export {
 } from "./tiles";
 
 export {
+  BUNDLE_SCHEMA,
+  buildAssetIndex,
+  bundlePath,
+  isGameManifest,
+  verifyBundle,
+  verifyContentAssets,
+  type BundleAsset,
+  type BundleContent,
+  type BundleIssue,
+  type BundleIssueLevel,
+  type BundleReader,
+  type GameManifest,
+} from "./bundle";
+
+export {
   ACTION_TYPES,
   MOODS,
   NpcActionSchema,

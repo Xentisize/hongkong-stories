@@ -13,6 +13,7 @@
 
 import type { LocalizedTable } from "./localized";
 import type { CollisionRect } from "./map";
+import type { LocationDoc } from "./mapEditorState";
 
 export interface DoorDoc {
   id?: string;
@@ -75,16 +76,10 @@ export function spawnNames(spawnPoints: unknown): string[] {
 /**
  * `stem` + the smallest free number: `door_` → `door_1`, `door_2`, `door_3`…
  *
- * The number is chosen, never derived from the entry count — deleting the second of three doors must
- * not hand the next one an id a surviving door already answers to.
+ * Defined in `./ids` (creating a map or a chapter needs the same rule), re-exported here so the
+ * inspector keeps importing its neighbours from one place.
  */
-export function freeEntryId(entries: Array<{ id?: unknown }>, stem: string, start = 1): string {
-  const taken = new Set(entries.map((entry) => String(entry.id ?? "")));
-  for (let number = start; ; number += 1) {
-    const candidate = `${stem}${number}`;
-    if (!taken.has(candidate)) return candidate;
-  }
-}
+export { freeEntryId } from "./ids";
 
 export function blankDoor(tile: [number, number], id = "door_1"): DoorDoc {
   return {
@@ -205,5 +200,50 @@ export function artProblem(art: unknown, required: boolean): string | null {
     return "要用內容相對路徑，例如 art/props/prop_crate.png / content-relative path required";
   }
   return null;
+}
+
+/* ---------- a new map ---------------------------------------------------------------- */
+
+/** The atlas every authored street uses, so a new map opens on real tiles. */
+export const DEFAULT_ATLAS = "res://assets/tiles/p1_tiles_2027.png";
+
+/** The shape the authored streets use. */
+export const DEFAULT_MAP_SIZE = { width: 28, height: 14 } as const;
+
+/**
+ * A new location document: one enclosed room, ready to paint.
+ *
+ * The border is wall and the interior is floor, because a grid of walls is a map an author cannot
+ * walk to test, and an all-floor grid renders as holes in the atlas. The spawn point sits in the
+ * middle so the game has somewhere to put a player before anything else is authored — and the
+ * chapter/map pickers then have a real id to point at, instead of an empty string.
+ */
+export function blankLocationDoc(
+  id: string,
+  size: { width: number; height: number } = DEFAULT_MAP_SIZE,
+): LocationDoc {
+  const width = Math.max(3, Math.floor(size.width));
+  const height = Math.max(3, Math.floor(size.height));
+  const wall = "#".repeat(width);
+  const room = `#${".".repeat(width - 2)}#`;
+
+  return {
+    schema_version: 1,
+    id,
+    display_name: { zh_HK: "", zh_CN: "", en: "" },
+    context: "",
+    tile_size: 24,
+    atlas: DEFAULT_ATLAS,
+    // The two characters a room needs, at the coordinates the default atlas paints them.
+    legend: { ".": [0, 0], "#": [2, 0] },
+    tilemap: Array.from({ length: height }, (_, y) => (y === 0 || y === height - 1 ? wall : room)),
+    collision: [],
+    spawn_points: { default: [Math.floor(width / 2) + 0.5, Math.floor(height / 2) + 0.5] },
+    npcs: [],
+    decor: [],
+    interactables: [],
+    doors: [],
+    exits: [],
+  };
 }
 
