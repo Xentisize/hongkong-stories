@@ -37,9 +37,21 @@ Action shapes: {"type":"give","item":<id>} | {"type":"take","item":<id>} |
 {"type":"reveal_secret","secret":<id>}`;
 
 const REGISTER: Record<string, string> = {
-  zh_HK: `Language: reply in WRITTEN CANTONESE (粵文) using Traditional characters.
-Use Cantonese function words and grammar naturally (係 / 唔 / 咗 / 嘅 / 喺 / 哋 / 嗰 / 冇).
-Never drift into Mandarin written form. Do not translate your line into English.`,
+  // Measured, not assumed: the previous wording asked for "WRITTEN CANTONESE (粵文)" — the *literary*
+  // register — and sampled clean only because the model carries Cantonese on its own. What a character
+  // in this game sounds like is 香港口語: how a person on that street actually talks.
+  zh_HK: `Language: reply in the Cantonese a Hong Kong person actually speaks (香港口語, Traditional
+characters) — not 書面語, not the written 粵文 register, and not Mandarin with Cantonese words in it.
+Use Cantonese words and grammar: 係 / 唔 / 咗 / 嘅 / 喺 / 哋 / 嗰 / 冇 / 咩 / 佢 / 而家 / 得閒.
+End sentences the way people talk — 啦 / 喇 / 囉 / 喎 / 咋 / 嘛 / 㗎 — a few, not on every sentence.
+Say it the Cantonese way instead of translating Mandarin:
+我唔知 (not 我不知道) · 你去咗邊度 (not 你去了哪裡) · 呢樣嘢 (not 這個東西) ·
+佢係我老竇 (not 他是我的父親) · 好靚 (not 很漂亮) · 食咗飯喇 (not 已經吃了飯了) ·
+邊個 (not 誰) · 咩事 (not 甚麼事) · 冇 (not 沒有).
+Do not use 的 / 是 / 很 / 們 / 他 / 她 / 這 / 那 / 甚麼 / 誰 as function words, and do not compose
+written sentences (否則 / 然而 / 因此 / 由於 / 以及 / 給 / 讓).
+Loanwords Hong Kongers really say are fine (巴士, 的士, 士多, 隔籬); nothing else in English.
+Speak as your persona speaks: an older shopkeeper on this street does not use a young person's slang.`,
   zh_CN: `Language: reply in Simplified Chinese using standard written Chinese (書面語).
 Never use Cantonese particles or Cantonese-only characters.`,
   en: `Language: reply in English, in the same voice and register as your persona.`,
@@ -47,7 +59,7 @@ Never use Cantonese particles or Cantonese-only characters.`,
 
 const LANGUAGE_REMINDER: Record<string, string> = {
   zh_HK:
-    "LANGUAGE REMINDER: this turn's reply must be in WRITTEN CANTONESE (Traditional). Do not continue in any other language, even if the history above is in one.",
+    "LANGUAGE REMINDER: this turn's reply must be spoken Hong Kong Cantonese in Traditional characters (係 / 唔 / 咗 / 嘅 / 冇), not Mandarin and not written Chinese — even if the player has just written Mandarin or English, and even if the history above is in another language.",
   zh_CN:
     "LANGUAGE REMINDER: this turn's reply must be in Simplified Chinese (書面語, no Cantonese particles), even if the history above is in another language.",
   en: "LANGUAGE REMINDER: this turn's reply must be in English, even if the history above is in another language.",

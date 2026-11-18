@@ -72,6 +72,58 @@ describe("the cacheable prefix", () => {
   });
 });
 
+describe("the Cantonese register", () => {
+  test("asks for the spoken register, not the literary one", () => {
+    // The old wording asked for "WRITTEN CANTONESE (粵文)" — a literary register, and a different
+    // thing from how somebody on that street talks. Sampled replies came out native anyway, which is
+    // the model carrying Cantonese, not the instruction doing its job.
+    const prefix = stablePrefix(npc(), "zh_HK");
+    expect(prefix).toContain("香港口語");
+    expect(prefix).not.toContain("WRITTEN CANTONESE");
+  });
+
+  test("teaches by contrast, because a vocabulary list does not stop translation", () => {
+    const prefix = stablePrefix(npc(), "zh_HK");
+    expect(prefix).toContain("我唔知 (not 我不知道)");
+    expect(prefix).toContain("呢樣嘢 (not 這個東西)");
+    expect(prefix).toContain("食咗飯喇 (not 已經吃了飯了)");
+  });
+
+  test("names the Mandarin function words and the written sentence forms to avoid", () => {
+    const prefix = stablePrefix(npc(), "zh_HK");
+    for (const word of ["很", "們", "甚麼", "誰"]) expect(prefix).toContain(word);
+    // Written connectives are the tell that a character started composing sentences.
+    expect(prefix).toContain("否則");
+    expect(prefix).toContain("然而");
+  });
+
+  test("allows the loanwords Hong Kongers actually use", () => {
+    // Banning English outright would forbid 巴士 and 的士 — less native, not more.
+    const prefix = stablePrefix(npc(), "zh_HK");
+    expect(prefix).toContain("的士");
+    expect(prefix).toContain("巴士");
+  });
+
+  test("bounds the slang by the persona's own voice", () => {
+    expect(stablePrefix(npc(), "zh_HK")).toContain("older shopkeeper");
+  });
+
+  test("the last word before generation forbids drifting into the player's language", () => {
+    // The real failure mode: the player writes Mandarin or English and the character follows.
+    const messages = buildMessages(npc(), EMPTY, "zh_HK", [], "你为什么不去新界住？");
+    const last = messages[messages.length - 1]!;
+    expect(last.content).toContain("Mandarin");
+    expect(last.content).toContain("English");
+  });
+
+  test("zh_CN carries the opposite instruction, and no Cantonese leaks into it", () => {
+    const prefix = stablePrefix(npc(), "zh_CN");
+    expect(prefix).toContain("書面語");
+    expect(prefix).toContain("Never use Cantonese particles");
+    expect(prefix).not.toContain("香港口語");
+  });
+});
+
 describe("message assembly", () => {
   test("a different active event page yields a different system message", () => {
     const calm = buildMessages(npc(), EMPTY, "zh_HK", [], "hello");
