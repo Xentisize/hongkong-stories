@@ -14,6 +14,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { api, ApiError } from "@/api";
+import { AssetThumb } from "@/components/AssetThumb";
 import { InheritanceField } from "@/components/InheritanceField";
 import { JsonField } from "@/components/JsonField";
 import { LocaleGap } from "@/components/LocaleGap";
@@ -33,6 +34,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { describeError } from "@/lib/errors";
+import { contentAssetUrl } from "@/lib/art";
 import { asLocalized, writeLocale, type LocalizedTable } from "@/lib/localized";
 import { queryKeys, useEntityIds, type Entity } from "@/lib/queries";
 import { useUndoable, useUndoKeys } from "@/lib/undo";
@@ -85,12 +87,9 @@ interface Issue {
   message: string;
 }
 
-/** A Godot resource path is two different HTTP routes depending on where the file lives. */
-function previewSrc(path: string): string | null {
-  if (path.startsWith("res://content/")) return `/v1/content/file/${path.slice("res://content/".length)}`;
-  if (path.startsWith("res://assets/")) return `/v1/assets/file/${path.slice("res://assets/".length)}`;
-  if (path.startsWith("art/")) return `/v1/content/file/${path}`;
-  return null;
+/** The icon a generated item is expected to carry, when that file exists in the pack. */
+function iconForId(id: string): string | null {
+  return ICONS.find((entry) => entry.endsWith(`/${id}.png`)) ?? null;
 }
 
 export function ItemsView({ token }: { token: string }) {
@@ -231,7 +230,6 @@ export function ItemsView({ token }: { token: string }) {
 
   const usable = doc?.usable === true;
   const iconPath = typeof doc?.icon === "string" ? doc.icon : "";
-  const iconPreview = previewSrc(iconPath);
   const category = doc?.category ?? "";
   const categories = useMemo(
     () => (category !== "" && !CATEGORIES.includes(category) ? [category, ...CATEGORIES] : CATEGORIES),
@@ -263,7 +261,8 @@ export function ItemsView({ token }: { token: string }) {
                       selected === id ? "bg-accent text-accent-foreground" : "hover:bg-muted",
                     )}
                   >
-                    <span className="truncate font-mono">{id}</span>
+                    <AssetThumb path={iconForId(id)} size={20} className="border-0" />
+                    <span className="min-w-0 flex-1 truncate font-mono">{id}</span>
                     {selected === id && hasDraft ? (
                       <Badge variant="secondary" className="text-[9px]">
                         草稿
@@ -412,29 +411,50 @@ export function ItemsView({ token }: { token: string }) {
                   </div>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
-                  <div className="space-y-1">
-                    <Label className="text-xs">圖示 Icon</Label>
-                    <Input
-                      list="hks-item-icons"
-                      className="h-8 font-mono text-xs"
-                      value={iconPath}
-                      placeholder="res://content/art/items/item_tea_tin.png"
-                      onChange={(event) => edit((next) => void (next.icon = event.target.value))}
-                    />
-                    <datalist id="hks-item-icons">
-                      {ICONS.map((entry) => (
-                        <option key={entry} value={entry} />
-                      ))}
-                    </datalist>
+                <div className="space-y-1">
+                  <Label className="text-xs">圖示 Icon</Label>
+                  <div className="flex items-start gap-2">
+                    <AssetThumb path={iconPath} size={48} />
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <Input
+                        list="hks-item-icons"
+                        className="h-8 font-mono text-xs"
+                        value={iconPath}
+                        placeholder="res://content/art/items/item_tea_tin.png"
+                        onChange={(event) => edit((next) => void (next.icon = event.target.value))}
+                      />
+                      <datalist id="hks-item-icons">
+                        {ICONS.map((entry) => (
+                          <option key={entry} value={entry} />
+                        ))}
+                      </datalist>
+
+                      {/* Pick by looking rather than by typing a path: the sprites are what tells
+                          two items apart. The text field above stays for a path that has no file yet. */}
+                      {ICONS.length > 0 ? (
+                        <ScrollArea className="max-h-24">
+                          <div className="flex flex-wrap gap-1 pr-2">
+                            {ICONS.map((entry) => (
+                              <button
+                                key={entry}
+                                type="button"
+                                title={entry}
+                                onClick={() => edit((next) => void (next.icon = entry))}
+                                className={cn(
+                                  "rounded border-2 p-0.5",
+                                  iconPath === entry
+                                    ? "border-amber-500"
+                                    : "border-transparent hover:border-muted-foreground/40",
+                                )}
+                              >
+                                <AssetThumb path={entry} size={28} className="border-0" />
+                              </button>
+                            ))}
+                          </div>
+                        </ScrollArea>
+                      ) : null}
+                    </div>
                   </div>
-                  {iconPreview !== null ? (
-                    <img
-                      src={iconPreview}
-                      alt=""
-                      className="size-12 rounded border object-contain [image-rendering:pixelated]"
-                    />
-                  ) : null}
                 </div>
               </CardContent>
             </Card>
