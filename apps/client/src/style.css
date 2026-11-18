@@ -1,0 +1,60 @@
+/* Game shell styling. Deliberately plain CSS, not the admin's Tailwind/shadcn setup: the game
+ * paints its own pixel UI at a 384x216 viewport and must not inherit an application type scale.
+ * If in-game HTML UI (dialogue, inventory) arrives later, it belongs to this stylesheet too. */
+
+:root {
+  color-scheme: dark;
+  --ink: #e8e4d9;
+  --muted: #8b8578;
+  --bg: #101217;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: ui-monospace, "SFMono-Regular", "Cascadia Mono", Menlo, monospace;
+  overflow: hidden;
+}
+
+/* The canvas is drawn at 384x216 and integer-scaled by the FIT mode; nearest-neighbour keeps
+ * the 24 px tiles crisp (§6.1). */
+#stage {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+
+#stage canvas {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+/* A DOM HUD over the canvas, which is the arrangement the full client wants for CJK text:
+ * browser font fallback instead of an engine theme, and no glyph rasterisation at 12 px. */
+#hud {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+  pointer-events: none;
+  text-shadow: 0 1px 0 #000;
+}
+
+#place {
+  color: var(--ink);
+}
