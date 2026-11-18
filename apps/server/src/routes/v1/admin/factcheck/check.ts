@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { isRecord } from "@hkstories/core";
 
+import { DB_NOT_READY, ledgerReady } from "@/db/client";
 import { errorResponse, fail, requireAdmin } from "@/lib/admin";
 import { UpstreamError } from "@/lib/completion";
 import { check } from "@/lib/factcheck";
@@ -20,6 +21,10 @@ export const Route = createFileRoute("/v1/admin/factcheck/check")({
       POST: async ({ request }) => {
         try {
           requireAdmin(request);
+
+          // Before the provider call, not after: a scoring run that cannot be queued is money
+          // spent for nothing.
+          if (!(await ledgerReady())) fail(503, DB_NOT_READY);
 
           const apiKey = process.env.OPENROUTER_API_KEY ?? "";
           if (!apiKey) fail(503, "OPENROUTER_API_KEY is not configured");

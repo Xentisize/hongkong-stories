@@ -1,10 +1,11 @@
-import { appendFile, mkdir, readFile, rename, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
 import { randomBytes } from "node:crypto";
+
+import { asc, eq, sql } from "drizzle-orm";
 
 import { isRecord, toKey } from "@hkstories/core";
 
-import { adminDataDir } from "./admin";
+import { db, hasDatabase } from "@/db/client";
+import { factcheckEntries, type FactcheckEntryRow } from "@/db/schema";
 import { completeProse } from "./completion";
 import { WORLD_RULES } from "./prompts";
 
@@ -15,13 +16,18 @@ import { WORLD_RULES } from "./prompts";
  * sit at status `open` until a human resolves them `dismissed`/`confirmed` in the admin UI.
  *
  * The checker runs in prose mode: constraining it to the NPC reply schema would shape the verdict
- * wrong. Its output is parsed defensively, and an unparsable reply becomes `questionable` — which
- * is precisely what a review queue is for.
+ * wrong. Its output is parsed defensively, and an unparsable reply becomes `questionable` — which is
+ * precisely what a review queue is for.
+ *
+ * Now a table rather than a JSONL file. The reason is `resolve`: the file version read every entry,
+ * mutated one, and rewrote the whole file, so two authors resolving different entries at the same
+ * moment silently lost one edit. This is a single-row `UPDATE`.
  */
 
 export const VERDICTS = ["ok", "questionable", "contradiction"] as const;
 export type Verdict = (typeof VERDICTS)[number];
 
+/** The wire shape the admin consumes: snake_case, `ts` as an ISO string. */
 export interface FactCheckEntry {
   id: string;
   ts: string;
@@ -32,41 +38,37 @@ export interface FactCheckEntry {
   reason: string;
   status: string;
   cost_usd: number;
-  [field: string]: unknown;
 }
 
-export function factcheckPath(): string {
-  return join(adminDataDir(), "factcheck.jsonl");
+function toEntry(row: FactcheckEntryRow): FactCheckEntry {
+  return {
+    id: row.id,
+    ts: row.ts.toISOString(),
+    npc_id: row.npcId,
+    player_input: row.playerInput,
+    reply: row.reply,
+    verdict: row.verdict,
+    reason: row.reason,
+    status: row.status,
+    cost_usd: Number(row.costUsd),
+  };
 }
 
-async function load(): Promise<FactCheckEntry[]> {
-  let text: string;
-  try {
-    text = await readFile(factcheckPath(), "utf8");
-  } catch {
-    return [];
-  }
-
-  const entries: FactCheckEntry[] = [];
-  for (const line of text.split("\n")) {
-    if (!line.trim()) continue;
-    try {
-      entries.push(JSON.parse(line) as FactCheckEntry);
-    } catch {
-      continue; // a torn line must not lose the rest of the queue
-    }
-  }
-  return entries;
+function requireDatabase(): void {
+  if (!hasDatabase()) throw new Error("DATABASE_URL is not configured");
 }
 
 /** Open entries first, then resolved ones; chronological within each group. */
 export async function listEntries(): Promise<FactCheckEntry[]> {
-  const entries = await load();
-  return entries.sort((a, b) => {
-    const rank = Number(a.status !== "open") - Number(b.status !== "open");
-    if (rank !== 0) return rank;
-    return String(a.ts ?? "").localeCompare(String(b.ts ?? ""));
-  });
+  requireDatabase();
+  const rows = await db()
+    .select()
+    .from(factcheckEntries)
+    .orderBy(
+      sql`case when ${factcheckEntries.status} = 'open' then 0 else 1 end`,
+      asc(factcheckEntries.ts),
+    );
+  return rows.map(toEntry);
 }
 
 /** Strip a fenced block, then trust nothing else about the shape. */
@@ -95,13 +97,15 @@ export interface CheckOptions {
   model: string;
 }
 
-/** Score one NPC line against the character's authored lore, then append it to the queue. */
+/** Score one NPC line against the character's authored lore, then queue it for review. */
 export async function check(
   options: CheckOptions,
   npc: Record<string, unknown>,
   playerInput: string,
   reply: string,
 ): Promise<FactCheckEntry> {
+  requireDatabase();
+
   const persona = isRecord(npc["persona"]) ? npc["persona"] : {};
   const lore = String(npc["lore"] ?? "") || "(none authored)";
 
@@ -130,47 +134,39 @@ export async function check(
   const { verdict, reason } = parseVerdict(result.raw);
 
   const now = new Date();
-  const entry: FactCheckEntry = {
+  const row: FactcheckEntryRow = {
     id: `fc_${now.toISOString().replace(/[-:.TZ]/g, "").slice(0, 14)}_${randomBytes(3).toString("hex")}`,
-    ts: now.toISOString(),
-    npc_id: toKey(npc["id"] ?? ""),
-    player_input: playerInput,
+    ts: now,
+    npcId: toKey(npc["id"] ?? ""),
+    playerInput,
     reply,
     verdict,
     reason,
     status: "open",
-    cost_usd: result.costUsd,
+    costUsd: String(result.costUsd),
   };
 
-  const path = factcheckPath();
-  await mkdir(dirname(path), { recursive: true });
-  await appendFile(path, JSON.stringify(entry) + "\n", "utf8");
-  return entry;
+  await db().insert(factcheckEntries).values(row);
+  return toEntry(row);
 }
 
 /**
  * Resolve one entry; returns the updated entry, or `null` when the id is unknown.
  *
- * The Python version rewrote the whole file in place, which truncates the queue if the process dies
- * mid-write. This writes a sibling temp file and renames over the original, so a crash leaves the
- * previous queue intact.
+ * A single-row update, so concurrent resolutions of different entries cannot clobber each other.
  */
 export async function resolve(id: string, status: string): Promise<FactCheckEntry | null> {
   if (status !== "dismissed" && status !== "confirmed") {
     throw new Error(`bad status '${status}'`);
   }
+  requireDatabase();
 
-  const entries = await load();
-  const entry = entries.find((candidate) => candidate.id === id);
-  if (!entry) return null;
+  const rows = await db()
+    .update(factcheckEntries)
+    .set({ status })
+    .where(eq(factcheckEntries.id, id))
+    .returning();
 
-  entry.status = status;
-
-  const path = factcheckPath();
-  const temporary = `${path}.tmp`;
-  const body = entries.map((row) => JSON.stringify(row)).join("\n") + "\n";
-  await writeFile(temporary, body, "utf8");
-  await rename(temporary, path);
-
-  return entry;
+  const row = rows[0];
+  return row ? toEntry(row) : null;
 }

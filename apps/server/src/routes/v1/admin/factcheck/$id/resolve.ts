@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { isRecord } from "@hkstories/core";
 
+import { DB_NOT_READY, ledgerReady } from "@/db/client";
 import { errorResponse, fail, requireAdmin } from "@/lib/admin";
 import { resolve } from "@/lib/factcheck";
 
@@ -12,6 +13,7 @@ export const Route = createFileRoute("/v1/admin/factcheck/$id/resolve")({
       POST: async ({ request, params }) => {
         try {
           requireAdmin(request);
+          if (!(await ledgerReady())) fail(503, DB_NOT_READY);
 
           const body: unknown = await request.json().catch(() => null);
           if (!isRecord(body)) fail(422, "expected a JSON object");

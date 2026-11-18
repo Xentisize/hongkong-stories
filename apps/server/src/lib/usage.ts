@@ -1,65 +1,20 @@
-import { appendFile, mkdir, readFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { sql } from "drizzle-orm";
 
-import { adminDataDir } from "./admin";
+import { db, hasDatabase } from "@/db/client";
+import { usageEvents } from "@/db/schema";
 
 /**
- * Usage accounting (PLAN 9.2 usage dashboard) — append-only JSONL, aggregated on read.
+ * Usage accounting (PLAN 9.2 usage dashboard) — an append-only table, aggregated on read.
  *
- * One line per billable event: in-game chat turns, playground turns, fact-check calls, image
- * generations. JSONL rather than a database for now because the dashboard reads a few hundred
- * lines this phase; the seam that matters is that every write goes through `logEvent`, so moving
- * to Postgres later is one module rather than a hunt through routes.
+ * One row per billable event: in-game chat turns, playground turns, fact-check calls, image
+ * generations. The rollup is now a set of SQL aggregates rather than a file read in JavaScript —
+ * that is the point of the move, since the dashboard asks "sum what, count what, percentile what"
+ * and the database answers it without materialising every row in memory.
  *
- * Logging is best-effort and never fatal: a broken ledger must not break a chat turn.
+ * Logging stays best-effort: a broken ledger must not break a chat turn. It is no longer *silent*
+ * though — the JSONL version swallowed write errors entirely, which meant a ledger that had quietly
+ * stopped recording looked exactly like a month with no traffic.
  */
-
-export interface UsageEvent {
-  ts: string;
-  type: string;
-  [field: string]: unknown;
-}
-
-export function usagePath(): string {
-  return join(adminDataDir(), "usage.jsonl");
-}
-
-export async function logEvent(type: string, fields: Record<string, unknown> = {}): Promise<void> {
-  const entry: UsageEvent = { ts: new Date().toISOString(), type, ...fields };
-  try {
-    const path = usagePath();
-    await mkdir(dirname(path), { recursive: true });
-    await appendFile(path, JSON.stringify(entry) + "\n", "utf8");
-  } catch {
-    // Accounting must never break a turn.
-  }
-}
-
-async function load(): Promise<UsageEvent[]> {
-  let text: string;
-  try {
-    text = await readFile(usagePath(), "utf8");
-  } catch {
-    return [];
-  }
-
-  const entries: UsageEvent[] = [];
-  for (const line of text.split("\n")) {
-    if (!line.trim()) continue;
-    try {
-      entries.push(JSON.parse(line) as UsageEvent);
-    } catch {
-      continue; // a torn line from a crash must not poison the dashboard
-    }
-  }
-  return entries;
-}
-
-function p95(values: number[]): number {
-  if (values.length === 0) return 0;
-  const ordered = [...values].sort((a, b) => a - b);
-  return ordered[Math.min(ordered.length - 1, Math.floor(ordered.length * 0.95))]!;
-}
 
 export interface UsageSummary {
   month: string;
@@ -73,73 +28,125 @@ export interface UsageSummary {
   sessions: Array<{ session: string; turns: number; cost_usd: number }>;
 }
 
-/** Month-to-date rollup: spend, turns, tokens, p95 latency, top rejections, costliest sessions. */
-export async function aggregate(): Promise<UsageSummary> {
-  const month = new Date().toISOString().slice(0, 7);
-  const entries = await load();
+function asNumber(value: unknown): number {
+  const parsed = Number(value ?? 0);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
 
-  let chatCost = 0;
-  let imageCost = 0;
-  let factcheckCost = 0;
-  let turns = 0;
-  let tokens = 0;
-  const latencies: number[] = [];
-  const rejected = new Map<string, number>();
-  const sessions = new Map<string, { turns: number; cost_usd: number }>();
+function round6(value: number): number {
+  return Math.round(value * 1e6) / 1e6;
+}
 
-  for (const entry of entries) {
-    if (!String(entry.ts ?? "").startsWith(month)) continue;
+export interface UsageEventFields {
+  session?: string;
+  npc?: string;
+  tokens?: number;
+  cost_usd?: number;
+  latency_ms?: number;
+  cached_tokens?: number;
+  rejected?: string[];
+  path?: string;
+}
 
-    const kind = String(entry.type ?? "");
-    const cost = Number(entry.cost_usd ?? 0) || 0;
+export async function logEvent(type: string, fields: UsageEventFields = {}): Promise<void> {
+  if (!hasDatabase()) return;
 
-    if (kind === "chat" || kind === "playground") {
-      chatCost += cost;
-      turns += 1;
-      tokens += Number(entry.tokens ?? 0) || 0;
-      if (entry.latency_ms !== undefined && entry.latency_ms !== null) {
-        latencies.push(Number(entry.latency_ms));
-      }
-      const session = entry.session;
-      if (session) {
-        const key = String(session);
-        const slot = sessions.get(key) ?? { turns: 0, cost_usd: 0 };
-        slot.turns += 1;
-        slot.cost_usd += cost;
-        sessions.set(key, slot);
-      }
-    } else if (kind === "image") {
-      imageCost += cost;
-    } else if (kind === "fact_check") {
-      factcheckCost += cost;
-    }
-
-    const reasons = entry.rejected;
-    if (Array.isArray(reasons)) {
-      for (const reason of reasons) {
-        const key = String(reason);
-        rejected.set(key, (rejected.get(key) ?? 0) + 1);
-      }
-    }
+  try {
+    await db()
+      .insert(usageEvents)
+      .values({
+        ts: new Date(),
+        type,
+        session: fields.session ?? null,
+        npc: fields.npc ?? null,
+        tokens: fields.tokens === undefined ? null : Math.trunc(fields.tokens),
+        // `numeric` travels as a string so the exact decimal is preserved.
+        costUsd: String(asNumber(fields.cost_usd)),
+        latencyMs: fields.latency_ms === undefined ? null : asNumber(fields.latency_ms),
+        cachedTokens: fields.cached_tokens === undefined ? null : Math.trunc(fields.cached_tokens),
+        rejected: fields.rejected && fields.rejected.length > 0 ? fields.rejected.map(String) : null,
+        path: fields.path ?? null,
+      });
+  } catch (error) {
+    // Never fatal, never silent.
+    console.error(`usage ledger write failed (${type}): ${String(error)}`);
   }
+}
 
-  const round = (value: number) => Math.round(value * 1e6) / 1e6;
+interface TotalsRow {
+  month: string;
+  chat_cost: string | number;
+  image_cost: string | number;
+  factcheck_cost: string | number;
+  turns: string | number;
+  tokens: string | number;
+  p95: string | number | null;
+}
+
+/** Month-to-date rollup: spend by kind, turns, tokens, p95 latency, top rejections, sessions. */
+export async function aggregate(): Promise<UsageSummary> {
+  // No fallback to an empty summary: callers guard on `ledgerReady()` and answer 503. Returning
+  // zeros here would render a broken ledger as a quiet month.
+  const totalsQuery = sql`
+    select
+      to_char(date_trunc('month', now()), 'YYYY-MM') as month,
+      coalesce(sum(cost_usd) filter (where type in ('chat', 'playground')), 0) as chat_cost,
+      coalesce(sum(cost_usd) filter (where type = 'image'), 0) as image_cost,
+      coalesce(sum(cost_usd) filter (where type = 'fact_check'), 0) as factcheck_cost,
+      count(*) filter (where type in ('chat', 'playground')) as turns,
+      coalesce(sum(tokens) filter (where type in ('chat', 'playground')), 0) as tokens,
+      percentile_disc(0.95) within group (order by latency_ms)
+        filter (where type in ('chat', 'playground') and latency_ms is not null) as p95
+    from usage_events
+    where ts >= date_trunc('month', now())
+  `;
+
+  const rejectedQuery = sql`
+    select reason, count(*)::int as count
+    from (
+      select unnest(rejected) as reason
+      from usage_events
+      where ts >= date_trunc('month', now()) and rejected is not null
+    ) expanded
+    group by reason
+    order by count desc, reason asc
+    limit 5
+  `;
+
+  const sessionsQuery = sql`
+    select session, count(*)::int as turns, sum(cost_usd) as cost_usd
+    from usage_events
+    where ts >= date_trunc('month', now())
+      and type in ('chat', 'playground')
+      and session is not null
+    group by session
+    order by sum(cost_usd) desc
+    limit 10
+  `;
+
+  const [totalsRows, rejectedRows, sessionRows] = await Promise.all([
+    db().execute(totalsQuery) as unknown as Promise<TotalsRow[]>,
+    db().execute(rejectedQuery) as unknown as Promise<Array<{ reason: string; count: number }>>,
+    db().execute(sessionsQuery) as unknown as Promise<
+      Array<{ session: string; turns: number; cost_usd: string | number }>
+    >,
+  ]);
+
+  const totals = totalsRows[0];
 
   return {
-    month,
-    chat_cost_usd: round(chatCost),
-    image_cost_usd: round(imageCost),
-    factcheck_cost_usd: round(factcheckCost),
-    turns,
-    tokens,
-    p95_latency_ms: Math.round(p95(latencies) * 10) / 10,
-    top_rejected: [...rejected.entries()]
-      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-      .slice(0, 5)
-      .map(([reason, count]) => ({ reason, count })),
-    sessions: [...sessions.entries()]
-      .map(([session, slot]) => ({ session, ...slot }))
-      .sort((a, b) => b.cost_usd - a.cost_usd)
-      .slice(0, 10),
+    month: totals?.month ?? new Date().toISOString().slice(0, 7),
+    chat_cost_usd: round6(asNumber(totals?.chat_cost)),
+    image_cost_usd: round6(asNumber(totals?.image_cost)),
+    factcheck_cost_usd: round6(asNumber(totals?.factcheck_cost)),
+    turns: asNumber(totals?.turns),
+    tokens: asNumber(totals?.tokens),
+    p95_latency_ms: Math.round(asNumber(totals?.p95) * 10) / 10,
+    top_rejected: rejectedRows.map((row) => ({ reason: row.reason, count: asNumber(row.count) })),
+    sessions: sessionRows.map((row) => ({
+      session: row.session,
+      turns: asNumber(row.turns),
+      cost_usd: round6(asNumber(row.cost_usd)),
+    })),
   };
 }

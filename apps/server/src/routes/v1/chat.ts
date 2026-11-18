@@ -11,12 +11,13 @@ import {
   type ConditionState,
 } from "@hkstories/core";
 
+import { hasDatabase } from "@/db/client";
 import { loadContent } from "@/lib/content";
 import { estimateCost } from "@/lib/completion";
 import { preflight, withCors } from "@/lib/cors";
 import { buildMessages } from "@/lib/prompts";
 import { SayExtractor } from "@/lib/say-extractor";
-import { asPublicSession, chatModel, getSession, remainingOf } from "@/lib/sessions";
+import { chargeSession, chatModel, getSession, remainingOf } from "@/lib/sessions";
 import { logEvent } from "@/lib/usage";
 
 /**
@@ -79,7 +80,9 @@ export const Route = createFileRoute("/v1/chat")({
         const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
         if (!isRecord(body)) return errorStream("bad_request", "expected a JSON body");
 
-        const session = getSession(toKey(body["session_token"] ?? ""));
+        if (!hasDatabase()) return errorStream("session_store_unavailable");
+
+        const session = await getSession(toKey(body["session_token"] ?? ""));
         if (!session) return errorStream("unknown_session");
         if (remainingOf(session) <= 0) return errorStream("budget_exceeded");
 
@@ -194,8 +197,22 @@ export const Route = createFileRoute("/v1/chat")({
               const verdict = validateActions(reply.actions, { llm: npc["llm"], secrets: npc["secrets"] }, state);
 
               const used = promptTokens + estimateTokens(reply.say);
-              session.usedTokens += Math.max(0, used);
-              session.turns += 1;
+              const turnCost = estimateCost(promptTokens, 0, estimateTokens(reply.say));
+
+              // Charged with `used_tokens = used_tokens + n`, so two instances serving the same
+              // session add up rather than overwriting each other. A failure is logged and the turn
+              // is still delivered: the provider has already been paid for this reply, so refusing
+              // to show it would cost the money and lose the line as well.
+              let charged: Awaited<ReturnType<typeof chargeSession>> = null;
+              try {
+                charged = await chargeSession(session.token, used, turnCost);
+              } catch (error) {
+                console.error(`failed to charge session: ${String(error)}`);
+              }
+              const remaining = charged
+                ? remainingOf(charged)
+                : Math.max(0, remainingOf(session) - used);
+              const turn = charged ? charged.turns : session.turns + 1;
 
               // Usage ledger row (PLAN 9.2). Streaming carries no provider usage, so the cost is
               // the §7.5 price model over estimated tokens — the same figure the caps accrue.
@@ -203,7 +220,7 @@ export const Route = createFileRoute("/v1/chat")({
                 session: session.token,
                 npc: npcId,
                 tokens: used,
-                cost_usd: estimateCost(promptTokens, 0, estimateTokens(reply.say)),
+                cost_usd: turnCost,
                 latency_ms: Math.round((performance.now() - started) * 10) / 10,
                 rejected: verdict.rejected.map((entry) => entry.reason),
               });
@@ -220,8 +237,8 @@ export const Route = createFileRoute("/v1/chat")({
                   model,
                   usage: {
                     tokens: used,
-                    remaining: asPublicSession(session).remaining,
-                    turn: session.turns,
+                    remaining,
+                    turn,
                     max_actions: MAX_ACTIONS_PER_TURN,
                   },
                 }),
