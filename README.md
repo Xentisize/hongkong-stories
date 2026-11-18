@@ -16,21 +16,23 @@ allowlist, and fall back to authored scripted lines when the backend is unreacha
 Two processes. The backend owns the OpenRouter key; the game never sees it (PLAN §3).
 
 ```bash
-# terminal 1 — backend (reads OPENROUTER_API_KEY from .env)
-cd server && uv sync && uv run uvicorn app.main:app --host 127.0.0.1 --port 8000
+# terminal 1 — API (reads OPENROUTER_API_KEY from .env). TanStack Start; FastAPI is retired.
+cd apps/server && bun run dev                        # → http://127.0.0.1:3000/
 
 # terminal 2 — game
-python3 tools/gen_content_manifest.py                # after ANY content JSON change
+bun tools/gen_content_manifest.ts                    # after ANY content JSON change
 tools/export_web.sh                                  # → build/web/
-python3 tools/serve_web.py 8099                      # → http://127.0.0.1:8099/ (no-store)
+bun tools/serve_web.ts 8099                      # → http://127.0.0.1:8099/ (no-store)
 ```
 
-Use `tools/serve_web.py`, not `python3 -m http.server`: the latter sends no `Cache-Control`, so
+The admin SPA is the same API: `cd admin && bun run dev` proxies `/v1` to it.
+
+Use `tools/serve_web.ts`, not a bare static server: one that sends no `Cache-Control` lets
 Chrome will keep serving a stale `index.pck` after a re-export — which looks exactly like a
 broken build. That cost a debugging detour once already. The HUD also prints a small build stamp
 (`p2-font-2`) in the bottom-right corner, so "which build am I looking at?" is answerable on sight.
 
-Or open `client/project.godot` in Godot 4.7.2 and press F5 (it talks to `127.0.0.1:8000` by
+Or open `client/project.godot` in Godot 4.7.2 and press F5 (it talks to `127.0.0.1:3000` by
 default; `HK_STORIES_API` overrides it for a desktop run).
 
 **Controls:** WASD / arrows to walk · **E** interact or talk · type in the box and **Enter** to
@@ -39,11 +41,11 @@ speak · **Esc** leave the conversation · **I** inventory · **F1** dev console
 ## Tests
 
 ```bash
-cd server && uv run pytest                                  # backend tests
+cd apps/server && bun test                                  # API tests
 godot --headless --path client -- --selftest                # client checks (offline)
 godot --headless --path client -- --live-chat               # checks (needs the backend)
-python3 tools/check_font_coverage.py                        # CJK glyph coverage gate
-python3 tools/check_content.py                              # content validator (publish/CI gate)
+bun tools/check_font_coverage.ts                        # CJK glyph coverage gate
+bun tools/check_content.ts                                  # content validator (publish/CI gate)
 node tools/web_smoke.mjs http://127.0.0.1:8099/ /tmp/s.png 12000 talk   # browser E2E
 ```
 
@@ -57,7 +59,7 @@ backend up and once with it stopped.
 The HUD's top-left readout prints live FPS, so the check is a measurement, not an eyeball:
 
 1. `tools/export_web.sh` (`.br` sidecars appear when the `brotli` CLI is on PATH) then
-   `python3 tools/serve_web.py 8099 build/web 0.0.0.0` — the third argument binds the LAN;
+   `bun tools/serve_web.ts 8099 build/web 0.0.0.0` — the third argument binds the LAN;
    omit it to stay on 127.0.0.1.
 2. Phone on the same Wi-Fi: open `http://<machine-LAN-IP>:8099/`. Android over USB instead:
    keep 127.0.0.1 and run `adb reverse tcp:8099 tcp:8099`, then open `http://127.0.0.1:8099/`.
@@ -72,7 +74,7 @@ The HUD's top-left readout prints live FPS, so the check is a measurement, not a
 
 | Check | Result |
 |-------|--------|
-| `pytest` | **44 passed** — prefix stability, extractors, allowlist, budget, every error frame |
+| `bun test` (API) | **23 passed** — prefix stability, extractors, allowlist (the retired Python suite's 44 moved here and into core's 153) |
 | `--selftest` | **65 checks, 0 failures** — includes the shared conditions table and font coverage |
 | Live backend turn (zh_HK) | first token **3.11 s**, reply `幾耐？我都冇認真數過喇。淨係知貨架越賣越空…` |
 | Live backend turn (en) | first token **1.30 s**, proper English voice |
@@ -95,18 +97,19 @@ Verified on this machine: all 36 content entities parse, carry three locales, an
 no Cantonese particles in `zh_CN` (§11 spot-check); the shared condition fixtures pass
 through the Python evaluator (30/30); the font-coverage gate passes — every authored
 character is renderable. The Godot `--selftest` suite now RUNS on this machine (a Windows
-4.7.2 build driven through WSL interop): **111 checks, 0 failures**. The full backend
-`pytest` still runs in the ephemeral 3.14 env (the pinned 3.15.2 is not downloadable here).
+4.7.2 build driven through WSL interop): **111 checks, 0 failures**. The backend suite now runs as
+`bun test` in `apps/server`; the Python `pytest` suite and its pinned interpreter are gone.
 The §12 exit criterion — a cold player finishing chapter 1 without a dead end — still needs
 a human playtest, backend up and down.
 
 ## Status: P4 — admin + art pipeline, first form
 
 The authoring loop exists end to end: **Admin SPA at `/admin`** (bun + Vite, dev via
-`cd admin && bun run dev`, production `bun run build` → served same-origin by FastAPI) on top
-of an **admin API** — `HKS_ADMIN_TOKEN` bearer auth (unset = disabled, never open), drafts
-CRUD under `server/data/drafts/`, validate, publish. Publish runs the **content validator**
-(`server/app/content_validate.py`, CLI `tools/check_content.py`) over the merged pack, refuses
+`cd admin && bun run dev`, production `bun run build` → `apps/server/public/admin`, served
+same-origin by the TanStack Start API) on top of an **admin API** — `HKS_ADMIN_TOKEN` bearer
+auth (unset = disabled, never open), drafts CRUD under `apps/server/data/drafts/`, validate,
+publish. Publish runs the **content validator** (the shared rules in `packages/core`, CLI
+`tools/check_content.ts`) over the merged pack, refuses
 on any error, copies drafts into `client/content/`, bumps the manifest version, reloads the
 store — and every booted client **hot-packs** it (§5.7): newer entities and art bytes
 override the bundled baseline in memory, saves record the content version.
@@ -114,8 +117,8 @@ override the bundled baseline in memory, saves record the content version.
 The **Seedream pipeline** (§8) turns renders into game art: `/v1/images` client, NEAREST
 downscale to pixel targets, snap onto the fixed `hk_palette_v1`, 1px outline, PNG written
 into the pack with a `.gen.json` provenance sidecar (model/seed/palette/cost — "regenerate
-this sprite exactly" stays possible). Pillow lives in the optional `art` dependency group
-(`uv sync --group art`) so chat still runs where fresh-interpreter wheels lag (§10.6).
+this sprite exactly" stays possible). The pixel work is `apps/server/src/lib/pixelate.ts` on
+sharp, so there is no Python interpreter and no optional dependency group to keep in step (§10.6).
 
 The §9.2 authoring tools are in too, as the SPA's four views (Editor / Playground / Builder /
 Review): a **condition builder** — rule rows that emit §5.5 JSON, with a live "would this
@@ -126,7 +129,7 @@ telemetry §7.5 wanted), rejected actions surfaced in red, one-click fact-check;
 **fact-check review queue** (§7.6: flag for review, never rewrite the player's words,
 resolve per entry); a **usage dashboard** — month-to-date chat/image/fact-check spend,
 turns, tokens, p95 latency, top rejected reasons, costliest sessions (append-only
-`server/data/usage.jsonl`, in-game turns logged too); and **publish preview** — the
+`apps/server/data/usage.jsonl`, in-game turns logged too); and **publish preview** — the
 added/changed diff before the confirm dialog.
 
 Live-verified against the real OpenRouter (2026-11-17, ~$0.04 of spend): a playground turn
@@ -135,7 +138,7 @@ pessimistic); the cache-hit telemetry measures reality — hits vary with OpenRo
 (60% / 0% / 76% across three same-prefix turns). The style bible (§8.2) was generated into
 `art/stylebible.png` ($0.018) and a cast sprite was generated FROM it ($0.018): the wire
 format is object entries (`{"type":"image_url","image_url":{"url":…}}`), and the live
-constraints are recorded in `server/app/config.py` — seedream-5-0-flash only makes
+constraints are recorded in `apps/server/src/lib/seedream.ts` — seedream-5-0-flash only makes
 transparent images from a reference whose PNG carries a transparent pixel (the bible
 carries a 2px clear fringe; reference-less transparent subjects route to
 seedream-5-5). The sprite was wired into 根叔's definition through the real
@@ -147,8 +150,8 @@ smoke ran three ways — boot, talk with the backend up (real model reply from K
 it stopped (scripted fallback, offline noise classified as expected) — all PASS with zero
 unexpected console errors. Headless WebGL2 needs software rendering: `web_smoke.mjs` now
 passes `--enable-unsafe-swiftshader`/`--use-angle=swiftshader` and takes `CHROME` (set it to
-Playwright's Chromium in WSL — the Windows-Chrome CDP path proved flaky over NAT). A
-pinned-3.15.2 pytest run remains the last unchecked box.
+Playwright's Chromium in WSL — the Windows-Chrome CDP path proved flaky over NAT). The pinned
+Python-interpreter pytest run is no longer a checkbox: that suite is `bun test` now.
 
 ## Status: P5 — complete
 
@@ -192,14 +195,12 @@ list.
 
 ## Deployment & soft launch (P6)
 
-The shipping path is CI-first; the two workflows in `.github/workflows/` exercise it.
+The shipping path is CI-first; `client.yml` in `.github/workflows/` exercises the web build.
 
-**Backend (Fly.io)** — `server.yml` on push: the pinned interpreter asserted (`uv python
-install 3.15.2`, then `python -VV` must report 3.15.2), pytest, the admin SPA with
-bun 1.4.4 (the only package manager), a Docker packaging gate (`deploy/Dockerfile`:
-python:3.15.2-slim + `uv sync --frozen`), then `fly deploy --remote-only` with
-`deploy/fly.toml` (hkg region, auto-stop for a near-free idle). Secrets live in Fly's vault
-— `fly secrets set OPENROUTER_API_KEY=… HKS_ADMIN_TOKEN=… HKS_ALLOWED_ORIGINS=…`.
+**API deploys are not wired up.** The Fly.io pipeline (`server.yml`, `deploy/Dockerfile` and
+`deploy/fly.toml`) was removed together with the Python backend, so nothing deploys the API
+automatically today. `cd apps/server && bun run build && bun run start` is the runnable
+production path; re-introducing a pipeline is a decision for whoever picks the hosting target.
 
 **Web (Cloudflare Pages)** — `client.yml` on push: content gates → headless import +
 selftest (exit code = failures) → `tools/export_web.sh` (the credits page ships inside the
@@ -248,7 +249,7 @@ crisp at 5× scale.
 
 **Zpix was evaluated and rejected**: it covers Cantonese in a single 4.5 MB file, but its licence
 is **USD $1000 per commercial product** (free for education only). Do not reintroduce it without
-paying. Any replacement font must pass `tools/check_font_coverage.py`, which reads the real cmap
+paying. Any replacement font must pass `tools/check_font_coverage.ts`, which reads the real cmap
 against the Cantonese particle set and every string in `client/content/`.
 
 ## Known gaps
@@ -271,7 +272,7 @@ against the Cantonese particle set and every string in `client/content/`.
 - **The build stamp** (`p2-font-2` in the HUD corner) is a development aid — remove it before
   shipping, along with the dev console's unconditional dialogue logging.
 - **Brotli pre-compression is wired but unmeasured**: `tools/export_web.sh` writes `.br`
-  sidecars when the `brotli` CLI is installed, and `tools/serve_web.py` serves them with
+  sidecars when the `brotli` CLI is installed, and `tools/serve_web.ts` serves them with
   `Content-Encoding: br` — sizes stay unmeasured until the next real export (the machine that
   runs the export needs godot + brotli; the script prints the artifact list).
 - **60 fps on a physical phone is still unmeasured.** The HUD already prints live FPS; follow
@@ -292,8 +293,9 @@ against the Cantonese particle set and every string in `client/content/`.
 ## Prerequisites
 
 - Godot **4.7.2** with web export templates for `4.7.2.stable` (PLAN §10.1).
-- **Python 3.15.2**, locked exactly — `uv` manages it (`uv python pin 3.15.2`). The system
-  `python3` is 3.9.6 and is used only for the stdlib tools in `tools/`.
+- **Node + bun 1.4.4** — the only runtime and package manager (PLAN §10.6). The Python backend and
+  the Python tooling were retired in favour of `apps/server` (TanStack Start) and the TypeScript
+  tools in `tools/`; a `pyproject.toml` or `uv.lock` reappearing means the migration regressed.
 - **bun 1.4.4** for the admin SPA (`admin/`) — the only package manager; `bun run dev`
   proxies to the local backend, `bun run build` produces what `/admin` serves.
 

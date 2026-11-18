@@ -2,8 +2,8 @@ import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
-// Served by FastAPI at /admin from ../server/admin/dist in production; `bun run dev`
-// proxies /v1 to the local backend so the SPA works unchanged against live servers.
+// The TanStack Start API serves this build from apps/server/public/admin, and `bun run dev`
+// proxies /v1 to it so the SPA works unchanged against a live server.
 //
 // The `@/*` alias mirrors tsconfig `paths` because the shadcn CLI writes its generated
 // components with `@/lib/utils` imports — the two configs must agree or every generated
@@ -25,10 +25,14 @@ export default defineConfig({
       "@": new URL("./src", import.meta.url).pathname,
     },
   },
-  build: { outDir: "../server/admin/dist", emptyOutDir: true },
+  // Served by the TanStack Start app from its public directory at /admin/. It used to be
+  // ../server/admin/dist, which FastAPI mounted; that app is gone.
+  build: { outDir: "../apps/server/public/admin", emptyOutDir: true },
   server: {
+    // The API is the TanStack Start app during development (`bun run dev` in apps/server).
+    // FastAPI's 8000 is gone; do not resurrect it.
     proxy: {
-      "/v1": "http://127.0.0.1:8000",
+      "/v1": "http://127.0.0.1:3000",
     },
   },
 });

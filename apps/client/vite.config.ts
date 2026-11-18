@@ -8,6 +8,6 @@ export default defineConfig({
   build: { outDir: "dist", emptyOutDir: true },
   server: {
     fs: { allow: ["../.."] },
-    proxy: { "/v1": "http://127.0.0.1:8000" },
+    proxy: { "/v1": "http://127.0.0.1:3000" },
   },
 });

@@ -1,5 +1,5 @@
 {
-  "_comment": "Shared condition fixtures (PLAN 5.5, 11). Read by BOTH server/tests/test_conditions.py and the Godot client selftest, so the two evaluators cannot silently diverge. State shape matches the client's Game state keys exactly.",
+  "_comment": "Shared condition fixtures (PLAN 5.5, 11). Read by BOTH packages/core's condition test and the Godot client selftest, so the two evaluators cannot silently diverge. State shape matches the client's Game state keys exactly.",
   "cases": [
     { "label": "empty condition is true", "condition": {}, "state": {}, "expected": true },
     { "label": "null condition is true", "condition": null, "state": {}, "expected": true },

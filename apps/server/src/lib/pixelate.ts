@@ -11,9 +11,9 @@ import { HK_PALETTE_V1, OUTLINE_COLOR } from "./palette";
  * snap and the 1px outline — is plain JS over a 24x32 buffer.
  *
  * That split is deliberate. Sharp's own nearest resize and `trim()` follow libvips' rules, and
- * Pillow's differ in the rounding; doing the sampling by hand means the port can be matched to the
- * original (`tools/compare_pixelate.py`) instead of quietly producing different sprites for the
- * same render.
+ * Pillow's differ in the rounding; doing the sampling by hand means the port could be matched to
+ * the original pixel for pixel — a before/after diff was run while the Python original still
+ * existed — instead of quietly producing different sprites for the same render.
  *
  * Measured parity, from that harness: every production shape is **byte-identical** to Pillow —
  * a 1024x1024 render downscaled to a 24x32 sprite, a 24x24 prop and a 96x128 portrait all diff at

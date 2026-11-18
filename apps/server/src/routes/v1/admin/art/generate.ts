@@ -27,8 +27,8 @@ import { logEvent } from "@/lib/usage";
  * returned pack-relative path from the draft it is authoring.
  *
  * This is the route that used to keep a Python interpreter alive for Pillow. The pixel work is now
- * `lib/pixelate.ts` on sharp, and its output was diffed against the Pillow original byte for byte
- * on every production shape before adoption (`tools/compare_pixelate.py`).
+ * `lib/pixelate.ts` on sharp, and its output was diffed pixel for pixel against the Pillow original
+ * on every production shape before adoption.
  */
 
 async function exists(path: string): Promise<boolean> {

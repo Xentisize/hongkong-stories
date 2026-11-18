@@ -4,20 +4,23 @@
 build/
 *.tpz
 
-# --- Python (backend) ---
+# --- Python (offline tools only; the backend is retired) ---
 __pycache__/
 *.py[cod]
 .venv/
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
-server/data/
+
+# local API state: drafts, the fact-check queue and the usage ledger
+apps/server/data/
 
 # --- bun (admin SPA) ---
 node_modules/
-# build outputs are artifacts — CI and `bun run build` recreate them
-server/admin/dist/
+# build outputs are artifacts — `bun run build` recreates them
 apps/*/dist/
+# the admin SPA builds into the API's public directory and is served statically from there
+apps/server/public/admin/
 # bun is the only package manager (docs/PLAN.md §10.6):
 # any of these appearing means someone ran npm/yarn/pnpm by mistake.
 package-lock.json

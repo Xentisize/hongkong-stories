@@ -3,7 +3,7 @@ import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 /**
- * `client/content/manifest.json` (PLAN 5.7), the TypeScript twin of
+ * `client/content/manifest.json` (PLAN 5.7), the TypeScript replacement for the retired
  * `tools/gen_content_manifest.py`.
  *
  * Discovery has to be manifest-driven rather than a directory scan: an exported Godot build may

@@ -430,7 +430,7 @@ static func _test_door_gating(c: Checker, tree: SceneTree) -> void:
 	rebuilt.queue_free()
 
 
-## Runs the SAME fixture table as server/tests/test_conditions.py (§5.5, §11). The two
+## Runs the SAME fixture table as packages/core's condition test (§5.5, §11). The two
 ## evaluators are only trustworthy while they agree, so this table is the contract.
 static func _test_shared_condition_fixtures(c: Checker) -> void:
 	var fixture := _read_json("res://tests/fixtures/conditions.json")
@@ -455,7 +455,7 @@ static func _test_shared_condition_fixtures(c: Checker) -> void:
 		c.check("fixture: %s" % String(case.get("label", "?")), got == bool(case.get("expected", false)))
 
 
-## Font coverage (§6.5, §11), the GDScript twin of tools/check_font_coverage.py. Without this a
+## Font coverage (§6.5, §11), the GDScript twin of tools/check_font_coverage.ts. Without this a
 ## missing glyph ships as a blank box, the game looks broken, and nobody notices until a player
 ## screenshots it.
 static func _test_font_coverage(c: Checker) -> void:

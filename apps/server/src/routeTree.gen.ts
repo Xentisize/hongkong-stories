@@ -11,6 +11,8 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as HealthzRouteImport } from './routes/healthz'
+import { Route as AdminIndexRouteImport } from './routes/admin/index'
+import { Route as AdminSplatRouteImport } from './routes/admin/$'
 import { Route as V1ChatRouteImport } from './routes/v1/chat'
 import { Route as V1SessionRouteImport } from './routes/v1/session'
 import { Route as V1AdminDraftsRouteImport } from './routes/v1/admin/drafts'
@@ -39,6 +41,16 @@ const IndexRoute = IndexRouteImport.update({
 const HealthzRoute = HealthzRouteImport.update({
   id: '/healthz',
   path: '/healthz',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/admin/',
+  path: '/admin/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminSplatRoute = AdminSplatRouteImport.update({
+  id: '/admin/$',
+  path: '/admin/$',
   getParentRoute: () => rootRouteImport,
 } as any)
 const V1ChatRoute = V1ChatRouteImport.update({
@@ -142,8 +154,10 @@ const V1AdminFactcheckIdResolveRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/healthz': typeof HealthzRoute
+  '/admin/$': typeof AdminSplatRoute
   '/v1/chat': typeof V1ChatRoute
   '/v1/session': typeof V1SessionRoute
+  '/admin/': typeof AdminIndexRoute
   '/v1/admin/drafts': typeof V1AdminDraftsRouteWithChildren
   '/v1/admin/evaluate_condition': typeof V1AdminEvaluate_conditionRoute
   '/v1/admin/factcheck': typeof V1AdminFactcheckRouteWithChildren
@@ -165,8 +179,10 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/healthz': typeof HealthzRoute
+  '/admin/$': typeof AdminSplatRoute
   '/v1/chat': typeof V1ChatRoute
   '/v1/session': typeof V1SessionRoute
+  '/admin': typeof AdminIndexRoute
   '/v1/admin/drafts': typeof V1AdminDraftsRouteWithChildren
   '/v1/admin/evaluate_condition': typeof V1AdminEvaluate_conditionRoute
   '/v1/admin/factcheck': typeof V1AdminFactcheckRouteWithChildren
@@ -189,8 +205,10 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/healthz': typeof HealthzRoute
+  '/admin/$': typeof AdminSplatRoute
   '/v1/chat': typeof V1ChatRoute
   '/v1/session': typeof V1SessionRoute
+  '/admin/': typeof AdminIndexRoute
   '/v1/admin/drafts': typeof V1AdminDraftsRouteWithChildren
   '/v1/admin/evaluate_condition': typeof V1AdminEvaluate_conditionRoute
   '/v1/admin/factcheck': typeof V1AdminFactcheckRouteWithChildren
@@ -214,8 +232,10 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/healthz'
+    | '/admin/$'
     | '/v1/chat'
     | '/v1/session'
+    | '/admin/'
     | '/v1/admin/drafts'
     | '/v1/admin/evaluate_condition'
     | '/v1/admin/factcheck'
@@ -237,8 +257,10 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/healthz'
+    | '/admin/$'
     | '/v1/chat'
     | '/v1/session'
+    | '/admin'
     | '/v1/admin/drafts'
     | '/v1/admin/evaluate_condition'
     | '/v1/admin/factcheck'
@@ -260,8 +282,10 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/healthz'
+    | '/admin/$'
     | '/v1/chat'
     | '/v1/session'
+    | '/admin/'
     | '/v1/admin/drafts'
     | '/v1/admin/evaluate_condition'
     | '/v1/admin/factcheck'
@@ -284,8 +308,10 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   HealthzRoute: typeof HealthzRoute
+  AdminSplatRoute: typeof AdminSplatRoute
   V1ChatRoute: typeof V1ChatRoute
   V1SessionRoute: typeof V1SessionRoute
+  AdminIndexRoute: typeof AdminIndexRoute
   V1AdminDraftsRoute: typeof V1AdminDraftsRouteWithChildren
   V1AdminEvaluate_conditionRoute: typeof V1AdminEvaluate_conditionRoute
   V1AdminFactcheckRoute: typeof V1AdminFactcheckRouteWithChildren
@@ -315,6 +341,20 @@ declare module '@tanstack/react-router' {
       path: '/healthz'
       fullPath: '/healthz'
       preLoaderRoute: typeof HealthzRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/': {
+      id: '/admin/'
+      path: '/admin'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/$': {
+      id: '/admin/$'
+      path: '/admin/$'
+      fullPath: '/admin/$'
+      preLoaderRoute: typeof AdminSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/v1/chat': {
@@ -492,8 +532,10 @@ const V1AdminContentKindRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   HealthzRoute: HealthzRoute,
+  AdminSplatRoute: AdminSplatRoute,
   V1ChatRoute: V1ChatRoute,
   V1SessionRoute: V1SessionRoute,
+  AdminIndexRoute: AdminIndexRoute,
   V1AdminDraftsRoute: V1AdminDraftsRouteWithChildren,
   V1AdminEvaluate_conditionRoute: V1AdminEvaluate_conditionRoute,
   V1AdminFactcheckRoute: V1AdminFactcheckRouteWithChildren,

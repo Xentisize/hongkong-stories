@@ -5,7 +5,7 @@ extends Node
 ## Godot build may store `.json` as an imported resource (leaving `x.json.remap` on disk),
 ## which a DirAccess scan lists under a different name and then cannot read. The manifest is
 ## also the exact interface the P4 hot-pack endpoint serves, so this is the real design rather
-## than a workaround. Regenerate with `python3 tools/gen_content_manifest.py`.
+## than a workaround. Regenerate with `bun tools/gen_content_manifest.ts`.
 ##
 ## Reading is dual-path (imported JSON resource first, raw file second) so the same code works
 ## in the editor, headless CI, and a wasm build.

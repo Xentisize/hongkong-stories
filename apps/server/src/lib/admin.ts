@@ -23,7 +23,9 @@ export function repoRoot(): string {
 }
 
 export function adminDataDir(): string {
-  return process.env.HKS_ADMIN_DATA_DIR ?? join(repoRoot(), "server", "data");
+  // Defaults next to the server that owns it. It used to be <repo>/server/data, which after the
+  // Python backend was retired would have quietly recreated that directory on first write.
+  return process.env.HKS_ADMIN_DATA_DIR ?? join(repoRoot(), "apps", "server", "data");
 }
 
 /** An error the route layer turns into a status code instead of a 500. */

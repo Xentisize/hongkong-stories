@@ -14,14 +14,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - name: bun 1.4.4 (runs the content gate)
+        uses: oven-sh/setup-bun@v2
         with:
-          python-version: "3.12"   # stdlib tools only (content validator, font coverage)
+          bun-version: 1.4.4
+
+      # The gate imports @hkstories/core, so the workspace has to be installed first.
+      - name: Install the workspace
+        run: bun install --frozen-lockfile
 
       - name: Content validator + font coverage
         run: |
-          python3 tools/check_content.py
-          python3 tools/check_font_coverage.py
+          bun tools/check_content.ts
+          bun tools/check_font_coverage.ts
 
       - name: Cache Godot 4.7.2 + web templates
         id: godot-cache
@@ -58,7 +63,7 @@ jobs:
 
       - name: Browser smokes (boot + offline talk)
         run: |
-          python3 tools/serve_web.py 8099 & SERVER_PID=$!
+          bun tools/serve_web.ts 8099 & SERVER_PID=$!
           sleep 2
           CHROME=$(which google-chrome-stable) node tools/web_smoke.mjs \
             http://127.0.0.1:8099/ /tmp/smoke_boot.png 25000 boot
