@@ -11,6 +11,7 @@
   "scripts": {
     "test": "bun test",
     "check": "bun run --filter '*' check",
+    "db:migrate": "bun run --filter '@hkstories/server' db:migrate",
     "content:check": "bun tools/check_content.ts",
     "content:manifest": "bun tools/gen_content_manifest.ts"
   },
