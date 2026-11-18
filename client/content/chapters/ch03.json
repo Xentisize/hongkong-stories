@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "id": "ch03",
+  "_comment": "One chapter as a document (§5.4/§12): which maps it spans, which quest carries it, where a player arrives, and what unlocks the next one. References only — every entity keeps a single home, so a chapter aggregates rather than duplicates.",
+  "title": {
+    "zh_HK": "第三章：一吋水",
+    "zh_CN": "第三章：一寸水",
+    "en": "Chapter 3: An Inch of Water"
+  },
+  "quests": [
+    "ch03"
+  ],
+  "locations": [
+    "loc_kln_lane_1963",
+    "loc_kln_factory_1963"
+  ],
+  "entry": {
+    "location": "loc_kln_lane_1963",
+    "spawn": "default"
+  },
+  "transitions": [
+    {
+      "to": "ch04",
+      "requires": {
+        "quest_done": "ch03"
+      }
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "id": "ch01",
+  "_comment": "One chapter as a document (§5.4/§12): which maps it spans, which quest carries it, where a player arrives, and what unlocks the next one. References only — every entity keeps a single home, so a chapter aggregates rather than duplicates.",
+  "title": {
+    "zh_HK": "第一章：執嘢",
+    "zh_CN": "第一章：收拾",
+    "en": "Chapter 1: Clearing Out"
+  },
+  "quests": [
+    "ch01"
+  ],
+  "locations": [
+    "loc_ssp_market_street",
+    "loc_ssp_flat",
+    "loc_ssp_cha_chaan_teng",
+    "loc_p1_shop"
+  ],
+  "entry": {
+    "location": "loc_ssp_market_street",
+    "spawn": "default"
+  },
+  "transitions": [
+    {
+      "to": "ch02",
+      "requires": {
+        "quest_done": "ch01"
+      }
+    }
+  ]
+}

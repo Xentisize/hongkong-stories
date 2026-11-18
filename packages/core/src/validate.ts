@@ -135,6 +135,7 @@ export function validatePack(pack: ContentPack): Issue[] {
   const locations = pack.tables["locations"] ?? {};
   const quests = pack.tables["quests"] ?? {};
   const settings = pack.tables["settings"] ?? {};
+  const chapters = pack.tables["chapters"] ?? {};
 
   // Every rule below iterates a table, so an entity that never reached one would be checked by
   // nothing at all. This is the only place that can report it.
@@ -589,6 +590,123 @@ export function validatePack(pack: ContentPack): Issue[] {
           }
         }
       }
+    }
+  }
+
+  // ---- chapters -----------------------------------------------------------
+
+  // A chapter is the aggregation document: references only, so every entity keeps one home. What
+  // matters is that the references resolve and that its entry is *inside* it — a chapter that starts
+  // on a map it does not contain is a map nothing can reach from it.
+
+  for (const chapterId of sortedKeys(chapters)) {
+    const chapter = chapters[chapterId]!;
+    const at = `chapters/${chapterId}`;
+
+    checkLocalized(chapter["title"], `${at}.title`);
+
+    const chapterLocations = new Set<string>();
+    for (const raw of asArray(chapter["locations"])) {
+      const locationId = toKey(raw);
+      if (locationId === "") continue;
+
+      if (!Object.hasOwn(locations, locationId)) {
+        err(`${at}.locations`, `unknown location '${locationId}'`);
+        continue;
+      }
+      if (chapterLocations.has(locationId)) {
+        err(`${at}.locations`, `location '${locationId}' is listed twice`);
+      }
+      chapterLocations.add(locationId);
+    }
+    if (chapterLocations.size === 0) {
+      err(`${at}.locations`, "a chapter needs at least one location");
+    }
+
+    const chapterQuests: string[] = [];
+    for (const raw of asArray(chapter["quests"])) {
+      const questId = toKey(raw);
+      if (questId === "") continue;
+
+      if (!Object.hasOwn(quests, questId)) err(`${at}.quests`, `unknown quest '${questId}'`);
+      chapterQuests.push(questId);
+    }
+    if (chapterQuests.length === 0) err(`${at}.quests`, "a chapter needs at least one quest");
+
+    const entry = chapter["entry"];
+    if (!isRecord(entry)) {
+      err(`${at}.entry`, "entry must be an object");
+    } else {
+      const entryLocation = toKey(entry["location"] ?? "");
+      if (!chapterLocations.has(entryLocation)) {
+        err(
+          `${at}.entry.location`,
+          `entry location '${entryLocation}' is not one of this chapter's locations`,
+        );
+      } else {
+        const spawn = toKey(entry["spawn"] ?? "default");
+        const spawnPoints = locations[entryLocation]!["spawn_points"];
+        const spawns = isRecord(spawnPoints) ? spawnPoints : {};
+        if (spawn !== "default" && !Object.hasOwn(spawns, spawn)) {
+          err(`${at}.entry.spawn`, `spawn '${spawn}' not defined in '${entryLocation}'`);
+        }
+      }
+      walkConditions(entry["requires"], `${at}.entry.requires`);
+    }
+
+    const targets = new Set<string>();
+    for (const raw of asArray(chapter["transitions"])) {
+      if (!isRecord(raw)) {
+        err(`${at}.transitions`, "each transition must be an object");
+        continue;
+      }
+
+      const to = toKey(raw["to"] ?? "");
+      if (to === chapterId) {
+        err(`${at}.transitions`, "a chapter cannot transition to itself");
+      } else if (!Object.hasOwn(chapters, to)) {
+        err(`${at}.transitions`, `unknown chapter '${to}'`);
+      } else if (targets.has(to)) {
+        err(`${at}.transitions`, `chapter '${to}' is targeted twice`);
+      } else {
+        targets.add(to);
+      }
+
+      walkConditions(raw["requires"], `${at}.transitions/${to}.requires`);
+      checkLocalized(raw["text"], `${at}.transitions/${to}.text`, false);
+    }
+  }
+
+  // A location's own `era` already claims a chapter. If that chapter does not list the location, the
+  // two disagree about which maps a chapter spans — and the engine reads the chapter, not the era.
+  for (const locationId of sortedKeys(locations)) {
+    const era = toKey(locations[locationId]!["era"] ?? "");
+    if (era === "") continue;
+
+    const chapterId = era.split("_")[0] ?? "";
+    const chapter = chapters[chapterId];
+    if (!isRecord(chapter)) continue; // an era whose chapter document does not exist yet
+
+    const listed = asArray(chapter["locations"]).map((entry) => toKey(entry));
+    if (!listed.includes(locationId)) {
+      err(
+        `chapters/${chapterId}.locations`,
+        `location '${locationId}' declares era '${era}' but is not listed in this chapter`,
+      );
+    }
+  }
+
+  // A chapter quest that no chapter claims means the aggregation is incomplete.
+  for (const questId of sortedKeys(quests)) {
+    if (!questId.startsWith("ch")) continue;
+
+    const claimed = sortedKeys(chapters).some((chapterId) =>
+      asArray(chapters[chapterId]!["quests"])
+        .map((entry) => toKey(entry))
+        .includes(questId),
+    );
+    if (!claimed) {
+      warn(`quests/${questId}`, "belongs to no chapter — the chapter aggregate is incomplete");
     }
   }
 

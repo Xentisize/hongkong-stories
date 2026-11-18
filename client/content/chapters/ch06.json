@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "id": "ch06",
+  "_comment": "One chapter as a document (§5.4/§12): which maps it spans, which quest carries it, where a player arrives, and what unlocks the next one. References only — every entity keeps a single home, so a chapter aggregates rather than duplicates.",
+  "title": {
+    "zh_HK": "第六章：箱裡嘅光",
+    "zh_CN": "第六章：箱里的光",
+    "en": "Chapter 6: The Light in the Box"
+  },
+  "quests": [
+    "ch06"
+  ],
+  "locations": [
+    "loc_ssp_market_street",
+    "loc_ssp_flat",
+    "loc_ssp_cha_chaan_teng",
+    "loc_p1_shop"
+  ],
+  "entry": {
+    "location": "loc_ssp_flat",
+    "spawn": "default"
+  },
+  "transitions": []
+}

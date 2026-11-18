@@ -17,7 +17,15 @@ import { join } from "node:path";
  * would be invisible until some clients refused to hot-pack.
  */
 
-export const MANIFEST_KINDS = ["npcs", "items", "locations", "quests", "lore", "settings"] as const;
+export const MANIFEST_KINDS = [
+  "npcs",
+  "items",
+  "locations",
+  "quests",
+  "lore",
+  "settings",
+  "chapters",
+] as const;
 
 export interface ContentManifest {
   manifest_schema: number;

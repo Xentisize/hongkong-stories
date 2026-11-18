@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "id": "ch05",
+  "_comment": "One chapter as a document (§5.4/§12): which maps it spans, which quest carries it, where a player arrives, and what unlocks the next one. References only — every entity keeps a single home, so a chapter aggregates rather than duplicates.",
+  "title": {
+    "zh_HK": "第五章：未寄嘅信",
+    "zh_CN": "第五章：未寄出的信",
+    "en": "Chapter 5: The Unsent Letter"
+  },
+  "quests": [
+    "ch05"
+  ],
+  "locations": [
+    "loc_ssp_street_1996",
+    "loc_ssp_flat_1996"
+  ],
+  "entry": {
+    "location": "loc_ssp_street_1996",
+    "spawn": "default"
+  },
+  "transitions": [
+    {
+      "to": "ch06",
+      "requires": {
+        "all": [
+          {
+            "quest_done": "ch02"
+          },
+          {
+            "quest_done": "ch03"
+          },
+          {
+            "quest_done": "ch04"
+          },
+          {
+            "quest_done": "ch05"
+          }
+        ]
+      }
+    }
+  ]
+}

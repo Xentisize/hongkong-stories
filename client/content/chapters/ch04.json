@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "id": "ch04",
+  "_comment": "One chapter as a document (§5.4/§12): which maps it spans, which quest carries it, where a player arrives, and what unlocks the next one. References only — every entity keeps a single home, so a chapter aggregates rather than duplicates.",
+  "title": {
+    "zh_HK": "第四章：上樓",
+    "zh_CN": "第四章：上楼",
+    "en": "Chapter 4: Moving Up"
+  },
+  "quests": [
+    "ch04"
+  ],
+  "locations": [
+    "loc_ssp_shopfront_1979",
+    "loc_rooftop_1979"
+  ],
+  "entry": {
+    "location": "loc_ssp_shopfront_1979",
+    "spawn": "default"
+  },
+  "transitions": [
+    {
+      "to": "ch05",
+      "requires": {
+        "quest_done": "ch04"
+      }
+    }
+  ]
+}

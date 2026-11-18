@@ -517,6 +517,136 @@ describe("game settings", () => {
   });
 });
 
+describe("chapters", () => {
+  const errorPaths = (entries: Record<string, ContentEntity>) =>
+    issuesOf(entries)
+      .filter((issue) => issue.level === "error")
+      .map((issue) => issue.path);
+
+  const CHAPTER = {
+    title: LOCALIZED("第一章", "第一章", "Chapter One"),
+    quests: ["quest_q"],
+    locations: ["loc_a"],
+    entry: { location: "loc_a", spawn: "default" },
+    transitions: [] as unknown[],
+  };
+
+  const withChapters = (chapters: Array<[string, Record<string, unknown>]>) => {
+    const entries = baseEntries();
+    for (const [id, document] of chapters) {
+      entries[`chapters/${id}.json`] = { id, ...document } as ContentEntity;
+    }
+    return entries;
+  };
+
+  test("a chapter that aggregates existing entities passes", () => {
+    expect(errorPaths(withChapters([["ch1", CHAPTER]]))).toEqual([]);
+  });
+
+  test("its locations and quests must exist", () => {
+    // An unknown location also invalidates the entry, because the entry must be one of the chapter's
+    // own maps — the cascade is the rule working, so these assert membership rather than equality.
+    expect(
+      errorPaths(withChapters([["ch1", { ...CHAPTER, locations: ["loc_ghost"] }]])),
+    ).toContain("chapters/ch1.locations");
+    expect(errorPaths(withChapters([["ch1", { ...CHAPTER, quests: ["quest_ghost"] }]]))).toEqual([
+      "chapters/ch1.quests",
+    ]);
+  });
+
+  test("a chapter needs at least one location, and no duplicates", () => {
+    expect(errorPaths(withChapters([["ch1", { ...CHAPTER, locations: [] }]]))).toContain(
+      "chapters/ch1.locations",
+    );
+    expect(
+      errorPaths(withChapters([["ch1", { ...CHAPTER, locations: ["loc_a", "loc_a"] }]])),
+    ).toContain("chapters/ch1.locations");
+  });
+
+  test("the entry must be one of its own locations", () => {
+    // A chapter that starts somewhere it does not contain is a map nothing can reach from it.
+    const entries = baseEntries();
+    entries["locations/loc_b.json"] = {
+      id: "loc_b",
+      display_name: LOCALIZED("乙", "乙", "B"),
+      tilemap: ["##", "##"],
+      collision: [],
+      spawn_points: { default: [0, 0] },
+    } as ContentEntity;
+
+    const withB = withChapters([["ch1", { ...CHAPTER, entry: { location: "loc_b", spawn: "default" } }]]);
+    withB["locations/loc_b.json"] = entries["locations/loc_b.json"]!;
+
+    expect(errorPaths(withB)).toContain("chapters/ch1.entry.location");
+  });
+
+  test("the entry spawn must exist in the entry location", () => {
+    expect(
+      errorPaths(withChapters([["ch1", { ...CHAPTER, entry: { location: "loc_a", spawn: "roof" } }]])),
+    ).toEqual(["chapters/ch1.entry.spawn"]);
+  });
+
+  test("a transition must target a different, existing chapter, once", () => {
+    expect(errorPaths(withChapters([["ch1", { ...CHAPTER, transitions: [{ to: "ch1" }] }]]))).toEqual([
+      "chapters/ch1.transitions",
+    ]);
+    expect(errorPaths(withChapters([["ch1", { ...CHAPTER, transitions: [{ to: "ch9" }] }]]))).toEqual([
+      "chapters/ch1.transitions",
+    ]);
+    expect(
+      errorPaths(
+        withChapters([
+          ["ch1", { ...CHAPTER, transitions: [{ to: "ch2" }, { to: "ch2" }] }],
+          ["ch2", { ...CHAPTER, transitions: [] }],
+        ]),
+      ),
+    ).toEqual(["chapters/ch1.transitions"]);
+  });
+
+  test("a transition to another chapter resolves", () => {
+    expect(
+      errorPaths(
+        withChapters([
+          ["ch1", { ...CHAPTER, transitions: [{ to: "ch2", requires: { quest_done: "quest_q" } }] }],
+          ["ch2", { ...CHAPTER, transitions: [] }],
+        ]),
+      ),
+    ).toEqual([]);
+  });
+
+  test("a location's own era must be reflected in the chapter it names", () => {
+    const entries = withChapters([["ch9", { ...CHAPTER, locations: ["loc_a"] }]]);
+    entries["locations/loc_a.json"]!["era"] = "ch9_marker";
+
+    // loc_a declares ch9 but is listed — no drift.
+    expect(errorPaths(entries)).toEqual([]);
+
+    // Now remove it from the chapter: the two disagree about which maps ch9 spans.
+    entries["chapters/ch9.json"] = { id: "ch9", ...CHAPTER, locations: [] } as ContentEntity;
+    expect(errorPaths(entries)).toContain("chapters/ch9.locations");
+  });
+
+  test("a chapter quest nobody aggregates is a warning", () => {
+    const entries = withChapters([["ch1", CHAPTER]]);
+    entries["quests/ch99.json"] = {
+      id: "ch99",
+      title: LOCALIZED("九十九", "九十九", "Ninety-nine"),
+      entry_requires: null,
+      nodes: [{ id: "n1", next: null }],
+    } as ContentEntity;
+
+    expect(
+      issuesOf(entries).some(
+        (issue) => issue.level === "warn" && issue.message.includes("belongs to no chapter"),
+      ),
+    ).toBe(true);
+  });
+
+  test("a pack with no chapters is still valid — the kind is optional", () => {
+    expect(errorPaths(baseEntries())).toEqual([]);
+  });
+});
+
 describe("publish gating", () => {
   test("allowlist flags count as settable", () => {
     const entries = baseEntries();

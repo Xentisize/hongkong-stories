@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "id": "ch02",
+  "_comment": "One chapter as a document (§5.4/§12): which maps it spans, which quest carries it, where a player arrives, and what unlocks the next one. References only — every entity keeps a single home, so a chapter aggregates rather than duplicates.",
+  "title": {
+    "zh_HK": "第二章：開檔",
+    "zh_CN": "第二章：开档",
+    "en": "Chapter 2: Opening Day"
+  },
+  "quests": [
+    "ch02"
+  ],
+  "locations": [
+    "loc_kln_market_1955",
+    "loc_kln_huts_1955"
+  ],
+  "entry": {
+    "location": "loc_kln_market_1955",
+    "spawn": "default"
+  },
+  "transitions": [
+    {
+      "to": "ch03",
+      "requires": {
+        "quest_done": "ch02"
+      }
+    }
+  ]
+}
