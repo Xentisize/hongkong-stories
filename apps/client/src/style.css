@@ -2,11 +2,28 @@
  * paints its own pixel UI at a 384x216 viewport and must not inherit an application type scale.
  * If in-game HTML UI (dialogue, inventory) arrives later, it belongs to this stylesheet too. */
 
+/* The bundled pixel font, one face per Cantonese/Simplified glyph set. `document.fonts` in the
+ * browser check asserts these actually load — a CJK panel in a fallback face is a visible
+ * regression that no compile step catches. */
+@font-face {
+  font-family: "Fusion Pixel HK";
+  src: url("../../../client/assets/fonts/fusion-pixel-12px-monospaced-zh_hk.ttf") format("truetype");
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Fusion Pixel Hans";
+  src: url("../../../client/assets/fonts/fusion-pixel-12px-monospaced-zh_hans.ttf") format("truetype");
+  font-display: swap;
+}
+
 :root {
   color-scheme: dark;
   --ink: #e8e4d9;
   --muted: #8b8578;
   --bg: #101217;
+  /* Set by main.ts: the HK face for zh_HK, the Hans face otherwise. */
+  --game-font: "Fusion Pixel HK", ui-monospace, monospace;
 }
 
 * {
@@ -19,7 +36,7 @@ body {
   height: 100%;
   background: var(--bg);
   color: var(--ink);
-  font-family: ui-monospace, "SFMono-Regular", "Cascadia Mono", Menlo, monospace;
+  font-family: var(--game-font, ui-monospace, monospace);
   overflow: hidden;
 }
 
@@ -57,4 +74,282 @@ body {
 
 #place {
   color: var(--ink);
+}
+
+/* Interaction prompt, sitting above the panel it announces. */
+#prompt {
+  position: fixed;
+  left: 50%;
+  bottom: 10.5rem;
+  transform: translateX(-50%);
+  padding: 0.15rem 0.5rem;
+  font-size: 11px;
+  color: var(--ink);
+  background: rgb(16 18 23 / 0.88);
+  border: 1px solid #2c3038;
+  border-radius: 3px;
+  pointer-events: none;
+}
+
+#dialogue {
+  position: fixed;
+  left: 50%;
+  bottom: 1rem;
+  transform: translateX(-50%);
+  width: min(46rem, calc(100vw - 2rem));
+  max-height: 45vh;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.6rem 0.75rem;
+  background: rgb(16 18 23 / 0.96);
+  border: 1px solid #2c3038;
+  border-radius: 4px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.45);
+}
+
+/* `[hidden]` alone loses to `display: flex`, so the hidden state has to be stated. */
+#dialogue[hidden],
+#prompt[hidden] {
+  display: none;
+}
+
+#dialogue header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+#dialogue-name {
+  color: var(--ink);
+}
+
+#dialogue-log {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  overflow-y: auto;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+#dialogue-log p {
+  margin: 0;
+}
+
+#dialogue-log .user {
+  color: var(--muted);
+}
+
+#dialogue-log .npc {
+  color: var(--ink);
+}
+
+#dialogue-log .typing {
+  color: var(--ink);
+  opacity: 0.85;
+}
+
+/* An authored line shown because the model could not answer: marked, so a reader knows. */
+#dialogue-log .fallback {
+  color: #b9a06a;
+}
+
+#dialogue-log .hint {
+  color: #c2705a;
+  font-size: 11px;
+}
+
+#dialogue-form {
+  display: flex;
+}
+
+#dialogue-input {
+  flex: 1;
+  padding: 0.35rem 0.5rem;
+  font: inherit;
+  font-size: 13px;
+  color: var(--ink);
+  background: #0b0d11;
+  border: 1px solid #2c3038;
+  border-radius: 3px;
+}
+
+#dialogue-input:focus {
+  outline: 1px solid #4a5160;
+}
+
+/* A content-authored line, sitting above the prompt it answers. */
+#message {
+  position: fixed;
+  left: 50%;
+  bottom: 13rem;
+  transform: translateX(-50%);
+  max-width: min(38rem, calc(100vw - 2rem));
+  padding: 0.3rem 0.7rem;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #e8dfc8;
+  text-align: center;
+  background: rgb(28 24 16 / 0.94);
+  border: 1px solid #4a3f28;
+  border-radius: 3px;
+  pointer-events: none;
+}
+
+#message[hidden] {
+  display: none;
+}
+
+/* HUD extras: the build stamp answers "which build am I looking at?", the bag line how much is
+ * carried. Both exist so a playtester never has to open a console (§6.1). */
+#build {
+  color: #5f5a50;
+  font-size: 10px;
+}
+
+#bag {
+  color: var(--muted);
+}
+
+/* Cutscene: a dark full-screen panel. Layer order matters — above the world and HUD, below the
+ * dialogue panel and title. */
+#cutscene {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1.5rem;
+  padding: 3rem min(6rem, 12vw);
+  background: rgb(4 4 6 / 0.97);
+  z-index: 30;
+}
+
+#cutscene[hidden] {
+  display: none;
+}
+
+#cutscene-text {
+  max-width: 44rem;
+  margin: 0 auto;
+  font-size: 15px;
+  line-height: 2;
+  color: var(--ink);
+  white-space: pre-wrap;
+  text-align: center;
+  text-shadow: 0 1px 0 #000;
+}
+
+.cutscene-hint {
+  margin: 0;
+  font-size: 11px;
+  color: #6c6558;
+  text-align: center;
+}
+
+/* Title */
+#title {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  background: rgb(8 9 12 / 0.98);
+  z-index: 40;
+}
+
+#title[hidden] {
+  display: none;
+}
+
+#title h1 {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 500;
+  letter-spacing: 0.3em;
+  color: var(--ink);
+}
+
+.title-sub {
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 0.35em;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.title-actions {
+  display: flex;
+  gap: 0.6rem;
+  margin-top: 1.5rem;
+}
+
+.title-actions button {
+  padding: 0.45rem 1rem;
+  font: inherit;
+  font-size: 12px;
+  color: var(--ink);
+  background: #12151b;
+  border: 1px solid #2c3038;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.title-actions button:hover {
+  background: #1a1f27;
+}
+
+.title-actions button:disabled {
+  color: #4d4a44;
+  cursor: default;
+  background: #0d0f13;
+}
+
+/* Touch controls: a d-pad plus the interact key, only on a coarse pointer. */
+#touch {
+  position: fixed;
+  inset: auto 0 0 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding: 0.75rem;
+  pointer-events: none;
+}
+
+#touch[hidden] {
+  display: none;
+}
+
+#touch button {
+  pointer-events: auto;
+  width: 44px;
+  height: 44px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--ink);
+  background: rgb(18 21 27 / 0.84);
+  border: 1px solid #2c3038;
+  border-radius: 6px;
+  touch-action: none;
+}
+
+#touch .dpad {
+  position: fixed;
+}
+
+#touch .up { left: 3.5rem; bottom: 4rem; }
+#touch .left { left: 1.5rem; bottom: 2rem; }
+#touch .right { left: 5.5rem; bottom: 2rem; }
+#touch .down { left: 3.5rem; bottom: 0.75rem; }
+
+#touch .touch-action {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  margin-left: auto;
 }

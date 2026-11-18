@@ -3,14 +3,29 @@ import Phaser from "phaser";
 
 import {
   artFileName,
+  legendColumns,
   mapPixelSize,
   rectToPixels,
   spawnPixel,
   tileCentre,
   tileIndexGrid,
+  type LocalizedText,
   type LocationFile,
   type NpcFile,
 } from "./content";
+import {
+  decorPlacements,
+  doorPlacements,
+  exitAt,
+  exitZones,
+  facingBetween,
+  interactablePlacements,
+  openDoorTiles,
+  pickWanderTarget,
+  type DoorPlacement,
+  type ExitZone,
+  type InteractablePlacement,
+} from "./entities";
 
 /** The Godot project's viewport: 384x216 at 24 px tiles (§6.1). */
 export const VIEW_WIDTH = 384;
@@ -36,6 +51,12 @@ const DIRECTIONS: Array<[string, number]> = [
 /** Stand frame per facing, i.e. row 0 of the walk sheet. */
 const FACING_FRAME: Record<string, number> = { down: 0, right: 1, left: 2, up: 3 };
 
+/** What the player is standing next to, which is what E acts on. */
+export type WorldTarget =
+  | { kind: "npc"; id: string }
+  | { kind: "door"; id: string }
+  | { kind: "interactable"; id: string };
+
 export interface WorldAssets {
   location: LocationFile;
   tilesUrl: string;
@@ -47,11 +68,40 @@ export interface WorldAssets {
   /** Walk sheet bare file name → bundled URL. */
   npcSheetUrls: Record<string, string>;
   onPlayerMoved?: (x: number, y: number) => void;
+  /** The player pressed the interact key beside something interactive. */
+  onActivate?: (target: WorldTarget) => void;
+  /** The player walked into an exit its `requires` allowed. */
+  onExit?: (to: string, spawn: string) => void;
+  /** A gated thing refused: show the content's `blocked` line. */
+  onMessage?: (text: LocalizedText) => void;
+  /** Effects an interactable handed over — the shell owns the state. */
+  onEffects?: (effects: unknown[]) => void;
+  /** Fired once, after the scene is built — the point a restored save can be applied. */
+  onReady?: () => void;
 }
 
 interface PlacedNpc {
   id: string;
   object: Phaser.GameObjects.Sprite | Phaser.GameObjects.Rectangle;
+  /** Where the placement put it: wander is measured from here, not from the current position. */
+  home: { x: number; y: number };
+  /** Tile radius from the placement. 0 means a fixture that never moves. */
+  wander: number;
+  target: { x: number; y: number } | null;
+  /** Seconds until the next wander attempt. */
+  wait: number;
+}
+
+interface DoorRuntime {
+  placement: DoorPlacement;
+  blocker: Phaser.GameObjects.Zone | null;
+  open: boolean;
+}
+
+interface InteractableRuntime {
+  placement: InteractablePlacement;
+  object: Phaser.GameObjects.Image | Phaser.GameObjects.Rectangle | null;
+  used: boolean;
 }
 
 export class WorldScene extends Phaser.Scene {
@@ -60,11 +110,28 @@ export class WorldScene extends Phaser.Scene {
   private wasd!: Record<"up" | "down" | "left" | "right", Phaser.Input.Keyboard.Key>;
   private facing = "down";
   private npcs: PlacedNpc[] = [];
+  private doors: DoorRuntime[] = [];
+  private interactables: InteractableRuntime[] = [];
+  private exits: ExitZone[] = [];
+  /** The tile layer, so an opened door can swap its cells for floor. */
+  private layer: Phaser.Tilemaps.TilemapLayer | null = null;
+  /** A per-scene copy of the char grid, so opening a door never mutates imported content. */
+  private tiles: string[] = [];
+  /** Atlas index of the floor tile a door opens onto. */
+  private floorIndex = 0;
+  /** The exit zone the player was last inside, so entering a different one fires. */
+  private currentExit: string | null = null;
+  /** Direction from the touch d-pad, summed with the keys. */
+  private touch = { x: 0, y: 0 };
+  private interactKey!: Phaser.Input.Keyboard.Key;
+  /** False while a conversation is open, so the player stops taking orders behind the panel. */
+  private inputEnabled = true;
+  private ready = false;
 
   /** The save projection conditions read. Empty until a test or a save supplies one. */
   private gameState: ConditionState = {};
 
-  constructor(private readonly assets: WorldAssets) {
+  constructor(private assets: WorldAssets) {
     super("world");
   }
 
@@ -95,15 +162,34 @@ export class WorldScene extends Phaser.Scene {
   }
 
   create(): void {
+    // `loadLocation` rebuilds through a scene restart, and Phaser reuses the instance — so every
+    // per-map collection is emptied here rather than relying on construction.
+    this.npcs = [];
+    this.doors = [];
+    this.interactables = [];
+    this.exits = [];
+    this.currentExit = null;
+    this.ready = false;
+
     const { location } = this.assets;
     const size = location.tile_size;
+
+    // Set before anything else: every hook below asserts on the map that is actually built.
+    this.loadedLocationId = location.id;
 
     // --- terrain -----------------------------------------------------------------
     const grid = tileIndexGrid(location);
     const map = this.make.tilemap({ data: grid, tileWidth: size, tileHeight: size });
     const tileset = map.addTilesetImage("tiles", "tiles", size, size);
     if (!tileset) throw new Error("tileset failed to attach — check the atlas image key");
-    map.createLayer(0, tileset, 0, 0);
+    // Phaser 4 returns a union here; the canvas renderer hands back the standard layer.
+    this.layer = (map.createLayer(0, tileset, 0, 0) ?? null) as Phaser.Tilemaps.TilemapLayer | null;
+    this.tiles = [...location.tilemap];
+
+    // A door opens onto whatever the legend paints `.`, so a rethemed atlas keeps doors consistent
+    // instead of hard-coding atlas column 0.
+    const floor = location.legend["."];
+    this.floorIndex = floor ? floor[1] * legendColumns(location) + floor[0] : 0;
 
     // --- collision ---------------------------------------------------------------
     // Content carries explicit rect lists rather than per-tile collision flags, so these become
@@ -122,12 +208,54 @@ export class WorldScene extends Phaser.Scene {
     }
 
     // --- decor -------------------------------------------------------------------
-    for (const item of location.decor ?? []) {
-      const fileName = artFileName(item.art);
-      if (!this.assets.propUrls[fileName]) continue;
-      const point = tileCentre(location, item.tile);
-      this.add.image(point.x, point.y, `prop:${fileName}`).setDepth(point.y);
+    for (const item of decorPlacements(location)) {
+      if (!this.assets.propUrls[item.file]) continue;
+      this.add.image(item.point.x, item.point.y, `prop:${item.file}`).setDepth(item.point.y);
     }
+
+    // --- doors -------------------------------------------------------------------
+    // A door is a blocker plus a tile swap; it does not decide how it opens. `requires` goes
+    // through the shared evaluator, so a key and a flag open it by exactly the same rule.
+    for (const placement of doorPlacements(location)) {
+      const { bounds } = placement;
+      const zone = this.add.zone(
+        (bounds.x + bounds.width / 2) * size,
+        (bounds.y + bounds.height / 2) * size,
+        bounds.width * size,
+        bounds.height * size,
+      );
+      this.physics.add.existing(zone, true);
+      solids.push(zone);
+
+      const door: DoorRuntime = { placement, blocker: zone, open: false };
+      this.doors.push(door);
+
+      // A door opened in a previous session comes back open, silently.
+      const flag = placement.openFlag;
+      if (flag !== "" && (this.gameState.flags ?? {})[flag] === true) this.openDoor(door);
+    }
+
+    // --- interactables -----------------------------------------------------------
+    for (const placement of interactablePlacements(location)) {
+      const textureKey = `prop:${placement.file}`;
+
+      let object: Phaser.GameObjects.Image | Phaser.GameObjects.Rectangle;
+      if (placement.file !== "" && this.textures.exists(textureKey)) {
+        object = this.add.image(placement.point.x, placement.point.y, textureKey);
+        // Drawn up from the feet, the way `interactable.gd` places generated art.
+        object.setOrigin(0.5, 1);
+        object.setScale(placement.scale);
+      } else {
+        object = this.add.rectangle(placement.point.x, placement.point.y, size - 6, size - 6, 0xb9a06a, 0.7);
+      }
+
+      object.setDepth(placement.point.y);
+      object.setVisible(evaluate(placement.requires, this.gameState));
+      this.interactables.push({ placement, object, used: false });
+    }
+
+    // --- exits -------------------------------------------------------------------
+    this.exits = exitZones(location);
 
     // --- player ------------------------------------------------------------------
     const spawn = spawnPixel(location);
@@ -161,6 +289,7 @@ export class WorldScene extends Phaser.Scene {
       left: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A),
       right: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D),
     };
+    this.interactKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
 
     // --- animation ---------------------------------------------------------------
     for (const [direction, column] of DIRECTIONS) {
@@ -221,7 +350,15 @@ export class WorldScene extends Phaser.Scene {
       }
 
       object.setDepth(point.y);
-      this.npcs.push({ id: placement.npc, object });
+      this.npcs.push({
+        id: placement.npc,
+        object,
+        home: { x: point.x, y: point.y },
+        wander: Number(placement.wander ?? 0) || 0,
+        target: null,
+        // `npc_body.gd` opens with a random 1-3 s wait, so a street does not step in unison.
+        wait: 1 + Math.random() * 2,
+      });
     }
 
     return this.visibleNpcIds();
@@ -239,30 +376,300 @@ export class WorldScene extends Phaser.Scene {
    */
   setGameState(state: ConditionState): string[] {
     this.gameState = state;
+    this.refreshGates();
     return this.placeNpcs();
   }
 
-  update(): void {
-    const left = this.cursors.left.isDown || this.wasd.left.isDown;
-    const right = this.cursors.right.isDown || this.wasd.right.isDown;
-    const up = this.cursors.up.isDown || this.wasd.up.isDown;
-    const down = this.cursors.down.isDown || this.wasd.down.isDown;
+  /** Everything whose appearance depends on state, re-evaluated from one place. */
+  private refreshGates(): void {
+    const flags = this.gameState.flags ?? {};
 
-    const dx = (right ? 1 : 0) - (left ? 1 : 0);
-    const dy = (down ? 1 : 0) - (up ? 1 : 0);
-    const moving = dx !== 0 || dy !== 0;
+    for (const door of this.doors) {
+      const flag = door.placement.openFlag;
+      if (!door.open && flag !== "" && flags[flag] === true) this.openDoor(door);
+    }
 
-    const direction = new Phaser.Math.Vector2(dx, dy);
-    if (moving) direction.normalize().scale(PLAYER_SPEED);
-    this.player.setVelocity(direction.x, direction.y);
+    for (const entry of this.interactables) {
+      const usable = evaluate(entry.placement.requires, this.gameState) && !entry.used;
+      entry.object?.setVisible(usable);
+    }
+  }
 
-    if (moving) {
-      // Horizontal wins when both axes are held, so diagonals keep the sideways sprite.
-      this.facing = dx !== 0 ? (dx < 0 ? "left" : "right") : dy < 0 ? "up" : "down";
-      this.player.play(`walk-${this.facing}`, true);
+  /** Which NPC, door or prop the player is standing next to — what the prompt and E act on. */
+  nearestTarget(range = 30): WorldTarget | null {
+    const candidates: Array<{ target: WorldTarget; x: number; y: number }> = [
+      ...this.npcs.map((npc) => ({
+        target: { kind: "npc", id: npc.id } as WorldTarget,
+        x: npc.object.x,
+        y: npc.object.y,
+      })),
+      ...this.doors
+        .filter((door) => !door.open)
+        .map((door) => ({
+          target: { kind: "door", id: door.placement.id } as WorldTarget,
+          x: door.placement.centre.x,
+          y: door.placement.centre.y,
+        })),
+      ...this.interactables
+        .filter((entry) => entry.object?.visible === true)
+        .map((entry) => ({
+          target: { kind: "interactable", id: entry.placement.id } as WorldTarget,
+          x: entry.placement.point.x,
+          y: entry.placement.point.y,
+        })),
+    ];
+
+    let closest: WorldTarget | null = null;
+    let closestDistance = range;
+
+    for (const candidate of candidates) {
+      const distance = Phaser.Math.Distance.Between(
+        this.player.x,
+        this.player.y,
+        candidate.x,
+        candidate.y,
+      );
+      if (distance <= closestDistance) {
+        closest = candidate.target;
+        closestDistance = distance;
+      }
+    }
+
+    return closest;
+  }
+
+  /** Try a door: `requires` decides, and the content decides what to say when it refuses. */
+  activateDoor(id: string): void {
+    const door = this.doors.find((entry) => entry.placement.id === id);
+    if (!door || door.open) return;
+
+    if (!evaluate(door.placement.requires, this.gameState)) {
+      const blocked = door.placement.blocked;
+      if (blocked !== null) this.assets.onMessage?.(blocked);
+      return;
+    }
+
+    const opened = door.placement.opened;
+    if (opened !== null) this.assets.onMessage?.(opened);
+
+    // Setting the flag is the shell's job — it owns the save. This opens the door either way.
+    if (door.placement.openFlag !== "") {
+      this.assets.onEffects?.([{ type: "set_flag", flag: door.placement.openFlag, value: true }]);
+    }
+    this.openDoor(door);
+  }
+
+  /** Use an interactable: hand its effects over and retire it if it is a one-shot. */
+  activateInteractable(id: string): void {
+    const entry = this.interactables.find((item) => item.placement.id === id);
+    if (!entry || entry.object?.visible !== true) return;
+
+    this.assets.onEffects?.(entry.placement.effects);
+
+    if (entry.placement.once) {
+      entry.used = true;
+      entry.object.setVisible(false);
+    }
+  }
+
+  /** Swap a door's tiles for floor and drop its blocker. Idempotent, like `_open_silently`. */
+  private openDoor(door: DoorRuntime): void {
+    if (door.open) return;
+    door.open = true;
+
+    door.blocker?.destroy();
+    door.blocker = null;
+
+    this.tiles = openDoorTiles(this.tiles, door.placement.tiles, ".");
+    for (const [x, y] of door.placement.tiles) {
+      this.layer?.putTileAt(this.floorIndex, x, y);
+    }
+  }
+
+  /**
+   * Move the wanderers.
+   *
+   * `npc_body.gd` shuffles every few seconds to a random walkable tile inside the placement's
+   * radius, gliding at 20 px/s and snapping on arrival. Radius 0 is a fixture, and a conversation
+   * holds the whole street still — an NPC that drifts away mid-sentence is a target you cannot talk
+   * to.
+   */
+  private updateNpcs(deltaMs: number): void {
+    const seconds = deltaMs / 1000;
+    const size = this.assets.location.tile_size;
+
+    for (const npc of this.npcs) {
+      if (!this.inputEnabled || npc.wander <= 0) continue;
+
+      if (npc.target === null) {
+        npc.wait -= seconds;
+        if (npc.wait > 0) continue;
+
+        const home: [number, number] = [
+          Math.floor(npc.home.x / size),
+          Math.floor(npc.home.y / size),
+        ];
+        const tile = pickWanderTarget(home, npc.wander, (x, y) => this.isWalkable(x, y));
+
+        if (tile === null) {
+          // Nothing walkable within reach: idle, then try again. A cornered NPC stays put rather
+          // than sliding through a wall.
+          npc.wait = 2 + Math.random() * 2;
+          continue;
+        }
+
+        npc.target = { x: (tile[0] + 0.5) * size, y: (tile[1] + 0.5) * size };
+        this.faceNpc(npc, npc.target);
+      }
+
+      const step = 20 * seconds;
+      const dx = npc.target.x - npc.object.x;
+      const dy = npc.target.y - npc.object.y;
+      const distance = Math.hypot(dx, dy);
+
+      if (distance <= step || distance < 1.5) {
+        npc.object.setPosition(npc.target.x, npc.target.y);
+        npc.target = null;
+        npc.wait = 2 + Math.random() * 3;
+      } else {
+        npc.object.setPosition(
+          npc.object.x + (dx / distance) * step,
+          npc.object.y + (dy / distance) * step,
+        );
+      }
+
+      npc.object.setDepth(npc.object.y);
+    }
+  }
+
+  private faceNpc(npc: PlacedNpc, target: { x: number; y: number }): void {
+    const facing = facingBetween(npc.object, target);
+    if (npc.object instanceof Phaser.GameObjects.Sprite) {
+      npc.object.setFrame(FACING_FRAME[facing] ?? 0);
+    }
+  }
+
+  /** Wander only steps onto tiles inside the map that no collision rect covers. */
+  private isWalkable(tileX: number, tileY: number): boolean {
+    const { location } = this.assets;
+    const row = location.tilemap[tileY];
+    if (row === undefined || tileX < 0 || tileX >= row.length) return false;
+
+    for (const [x, y, width, height] of location.collision) {
+      if (tileX >= x && tileX < x + width && tileY >= y && tileY < y + height) return false;
+    }
+    return true;
+  }
+
+  /** Exits fire on entry, once per visit, and only where `requires` allows. */
+  private updateExits(): void {
+    const zone = exitAt(this.exits, this.player.x, this.player.y);
+    const entered = zone?.id ?? null;
+
+    // `body_entered` semantics: the trigger is the zone under the player *changing*. A boolean
+    // "in no zone" latch would miss walking straight from one zone into the next, which is exactly
+    // how adjacent exits on a street meet.
+    if (entered === this.currentExit) return;
+    this.currentExit = entered;
+    if (zone === null) return;
+
+    if (evaluate(zone.requires, this.gameState)) {
+      this.assets.onExit?.(zone.to, zone.spawn);
+      return;
+    }
+    if (zone.blocked !== null) this.assets.onMessage?.(zone.blocked);
+  }
+
+  /** Stops the player taking input while a conversation panel is open. */
+  setInputEnabled(enabled: boolean): void {
+    this.inputEnabled = enabled;
+  }
+
+  /** A touch d-pad sets a direction; releasing it clears the vector. */
+  setTouchDirection(x: number, y: number): void {
+    this.touch = { x, y };
+  }
+
+  /** Swap the map and rebuild. Textures are already loaded, so a restart is all it takes. */
+  loadLocation(location: LocationFile): void {
+    this.assets.location = location;
+    this.scene.restart();
+  }
+
+  /** Which map is built right now — not the one requested, which matters across a restart. */
+  private loadedLocationId = "";
+
+  /** The map that has finished building, so a caller can wait for a swap to complete. */
+  locationId(): string {
+    return this.loadedLocationId;
+  }
+
+  /** Teleport the player. A test hook, in the same spirit as `setGameState`: walking is agenda. */
+  movePlayer(x: number, y: number): void {
+    this.player.setPosition(x, y);
+    this.player.setVelocity(0, 0);
+  }
+
+  /** The character painted at a tile, which is how a door swap becomes observable. */
+  tileAt(x: number, y: number): string {
+    return this.tiles[y]?.[x] ?? "";
+  }
+
+  /** The content's own prompt for a target, so the HUD never invents wording. */
+  labelFor(target: WorldTarget): LocalizedText | null {
+    if (target.kind === "door") {
+      return this.doors.find((door) => door.placement.id === target.id)?.placement.prompt ?? null;
+    }
+    if (target.kind === "interactable") {
+      return (
+        this.interactables.find((entry) => entry.placement.id === target.id)?.placement.prompt ?? null
+      );
+    }
+    return null;
+  }
+
+  update(_time: number, deltaMs: number): void {
+    // The scene is fully built by the first update, which is the earliest a restored save can be
+    // applied without racing `create()`.
+    if (!this.ready) {
+      this.ready = true;
+      this.assets.onReady?.();
+    }
+
+    if (this.inputEnabled) {
+      const left = this.cursors.left.isDown || this.wasd.left.isDown;
+      const right = this.cursors.right.isDown || this.wasd.right.isDown;
+      const up = this.cursors.up.isDown || this.wasd.up.isDown;
+      const down = this.cursors.down.isDown || this.wasd.down.isDown;
+
+      const dx = (right ? 1 : 0) - (left ? 1 : 0) + this.touch.x;
+      const dy = (down ? 1 : 0) - (up ? 1 : 0) + this.touch.y;
+      const moving = dx !== 0 || dy !== 0;
+
+      const direction = new Phaser.Math.Vector2(dx, dy);
+      if (moving) direction.normalize().scale(PLAYER_SPEED);
+      this.player.setVelocity(direction.x, direction.y);
+
+      if (moving) {
+        // Horizontal wins when both axes are held, so diagonals keep the sideways sprite.
+        this.facing = dx !== 0 ? (dx < 0 ? "left" : "right") : dy < 0 ? "up" : "down";
+        this.player.play(`walk-${this.facing}`, true);
+      } else {
+        this.player.play(`idle-${this.facing}`, true);
+      }
+
+      if (Phaser.Input.Keyboard.JustDown(this.interactKey)) {
+        const target = this.nearestTarget();
+        if (target) this.assets.onActivate?.(target);
+      }
     } else {
+      // Held keys would otherwise keep queuing movement behind the dialogue panel.
+      this.player.setVelocity(0, 0);
       this.player.play(`idle-${this.facing}`, true);
     }
+
+    this.updateNpcs(deltaMs);
+    this.updateExits();
 
     // Y-sorting: the player is in front of everything above them and behind everything below.
     this.player.setDepth(this.player.y);

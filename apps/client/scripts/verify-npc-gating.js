@@ -18,6 +18,9 @@ async page => {
   }
   if (!ready) throw new Error("world scene never became active with NPCs placed");
 
+  // The title gates play; the check starts the game the way a player does.
+  await page.evaluate(() => window.__hks.start());
+
   const visible = () => page.evaluate(() => window.__hks.visibleNpcIds());
   const setState = (state) =>
     page.evaluate((next) => window.__hks.setGameState(next), state);

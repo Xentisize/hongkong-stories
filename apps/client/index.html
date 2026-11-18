@@ -7,10 +7,64 @@
   </head>
   <body>
     <div id="stage"></div>
+
     <header id="hud">
       <span id="place">…</span>
       <span id="coords"></span>
+      <span id="bag"></span>
+      <span id="build">p6-phaser</span>
     </header>
+
+    <!-- Interaction prompt: what E would do right now. -->
+    <div id="prompt" hidden></div>
+
+    <!-- A content-authored line the world hands up: a locked exit, a refused door. -->
+    <div id="message" hidden></div>
+
+    <!--
+      Cutscene panel: quest nodes of type "cutscene" show one or more localized lines here and wait
+      for the player. The quest machine does not advance past them on its own.
+    -->
+    <section id="cutscene" hidden>
+      <div id="cutscene-text"></div>
+      <p class="cutscene-hint">按 E / 空白鍵繼續 · press E or Space</p>
+    </section>
+
+    <!--
+      The conversation panel. In-game text is DOM rather than canvas for the reason the HUD is:
+      the browser renders CJK with the bundled pixel font and its fallback chain, and there is no
+      glyph rasterisation to get wrong at 12 px.
+    -->
+    <section id="dialogue" hidden aria-live="polite">
+      <header>
+        <span id="dialogue-name"></span>
+        <span id="dialogue-budget"></span>
+      </header>
+      <div id="dialogue-log"></div>
+      <form id="dialogue-form" autocomplete="off">
+        <input id="dialogue-input" type="text" placeholder="問吓佢嘢… / ask anything" />
+      </form>
+    </section>
+
+    <!-- Title: gates the world until the player starts. -->
+    <section id="title" hidden>
+      <h1>香港故事</h1>
+      <p class="title-sub">Hong Kong Stories</p>
+      <div class="title-actions">
+        <button id="title-new" type="button">新遊戲 · New game</button>
+        <button id="title-continue" type="button">繼續 · Continue</button>
+      </div>
+    </section>
+
+    <!-- Touch controls: only shown on a coarse pointer. -->
+    <div id="touch" hidden>
+      <button class="dpad up" data-dir="up" type="button" aria-label="up">▲</button>
+      <button class="dpad left" data-dir="left" type="button" aria-label="left">◀</button>
+      <button class="dpad right" data-dir="right" type="button" aria-label="right">▶</button>
+      <button class="dpad down" data-dir="down" type="button" aria-label="down">▼</button>
+      <button class="touch-action" data-action="interact" type="button" aria-label="interact">E</button>
+    </div>
+
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
