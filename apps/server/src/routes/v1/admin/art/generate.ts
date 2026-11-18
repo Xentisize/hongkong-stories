@@ -4,9 +4,9 @@ import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 
 import { createFileRoute } from "@tanstack/react-router";
 
-import { isRecord, toKey } from "@hkstories/core";
+import { isRecord, resolveArtMedium, resolveArtStyle, toKey } from "@hkstories/core";
 
-import { errorResponse, fail, requireAdmin } from "@/lib/admin";
+import { errorResponse, fail, mergedPack, requireAdmin } from "@/lib/admin";
 import { contentDir } from "@/lib/content";
 import { PALETTE_NAME } from "@/lib/palette";
 import { processArt } from "@/lib/pixelate";
@@ -76,7 +76,19 @@ export const Route = createFileRoute("/v1/admin/art/generate")({
 
           const [aspect, target, background] = TARGETS[kind];
           const outlined = OUTLINED.has(kind);
-          const prompt = buildPrompt(kind, desc);
+
+          // The look is two independent settings in the pack's settings document — the pixel style
+          // and the 2D medium — so a creator picks each once and both anchor every generation.
+          // Drafts count: an unsaved choice applies at once, which is what makes "try a style"
+          // cheap. An unknown id falls back per axis.
+          const { pack } = await mergedPack();
+          const settingsDoc = pack.tables["settings"]?.["game"];
+          const art = isRecord(settingsDoc) && isRecord(settingsDoc["art"]) ? settingsDoc["art"] : {};
+          const styleId = art["style"];
+          const mediumId = art["medium"];
+          const style = resolveArtStyle(styleId);
+          const medium = resolveArtMedium(mediumId);
+          const prompt = buildPrompt(kind, desc, { style: styleId, medium: mediumId });
           const root = resolve(contentDir());
 
           // §8.2 consistency levers: the style bible rides along as input_references[0] on every
@@ -153,6 +165,10 @@ export const Route = createFileRoute("/v1/admin/art/generate")({
             prompt_id: promptId,
             model,
             seed: generated.seed,
+            // Which look anchored this generation: regenerating "exactly" needs both axes, the same
+            // way it needs the seed and the palette.
+            art_style: style.id,
+            art_medium: medium.id,
             resolution: "1K",
             aspect_ratio: aspect,
             background,

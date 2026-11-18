@@ -7,6 +7,8 @@
  * the admin can show them verbatim and a later increment can make them editable.
  */
 
+import { composeArtPrompt, resolveArtMedium, resolveArtStyle } from "@hkstories/core";
+
 export type ArtKind =
   | "sprite"
   | "portrait"
@@ -34,41 +36,60 @@ export const TARGETS: Record<ArtKind, readonly [string, readonly [number, number
 /** Only cut-out subjects get the 1px outline; a full-bleed scene or a map tile has no silhouette. */
 export const OUTLINED: ReadonlySet<ArtKind> = new Set(["sprite", "portrait", "prop", "icon"]);
 
+/**
+ * Per-kind templates: **subject and framing only**.
+ *
+ * They used to open with "pixel art", which was true while a pixel tier was the only look on offer —
+ * and a contradiction once a creator can choose hand-drawn, flat vector or paper craft, because the
+ * prompt would then say "2D paper-craft style, pixel art sprite of …". The look now comes from the
+ * chosen style's master fragment (`artStyle.ts`); these lines describe what the subject is, how it is
+ * framed, and the project palette every asset must end up on.
+ */
 export const TEMPLATES: Record<ArtKind, string> = {
   sprite:
-    "pixel art sprite of {desc}, hk_palette_v1 palette, 24px tile scale, " +
-    "side/front view, T-pose-adjacent stance, flat cel shading, no outline glow, " +
-    "no text, plain transparent background, posterized 4 shades per hue",
+    "sprite of {desc}, hk_palette_v1 palette, side/front view, T-pose-adjacent stance, " +
+    "no text, plain transparent background",
   portrait:
-    "pixel art bust portrait of {desc}, facing viewer, transparent background, " +
-    "hk_palette_v1 palette, 96x128 framing, flat cel shading, no text",
+    "bust portrait of {desc}, facing viewer, transparent background, " +
+    "hk_palette_v1 palette, 96x128 framing, no text",
   prop:
-    "pixel art {desc}, isometric-free flat top-down-RPG style, hk_palette_v1 palette, " +
-    "24px scale, single object, transparent background, no shadow baked in, no text",
+    "{desc}, flat top-down-RPG view, hk_palette_v1 palette, single object, " +
+    "transparent background, no shadow baked in, no text",
   backdrop:
-    "pixel art top-down street scene of {desc}, 16:9, muted hk_palette_v1 palette, " +
+    "top-down street scene of {desc}, 16:9, muted hk_palette_v1 palette, " +
     "walkable ground plane, no characters, no text, no UI",
   tile:
-    "pixel art {desc}, hk_palette_v1 palette, fills the entire square edge to edge, " +
-    "tileable texture, flat shading, no border, no outline, no text, no drop shadow",
+    "{desc}, hk_palette_v1 palette, fills the entire square edge to edge, " +
+    "tileable texture, no border, no outline, no text, no drop shadow",
   icon:
-    "cute pixel-art game icon of {desc}, hk_palette_v1 palette, centered on a clear " +
+    "game icon of {desc}, hk_palette_v1 palette, centered on a clear " +
     "transparent background, chunky readable shapes at 24px, no text, no drop shadow",
   stylebible:
     // §8.2: the style bible is a street scene WITH three cast characters at final palette — it is
     // what every later generation references for style consistency.
-    "pixel art style bible: a 2027 Sham Shui Po street scene, top-down view, three " +
+    "style bible scene: a 2027 Sham Shui Po street scene, top-down view, three " +
     "characters in the street (a cha chaan teng owner in an apron, a retiree with a " +
     "bird cage, a delivery rider with a helmet), {desc}, hk_palette_v1 palette, " +
-    "24px tile scale, flat cel shading, no text, plain transparent background",
+    "no text, plain transparent background",
 };
 
 export function isArtKind(value: string): value is ArtKind {
   return value in TARGETS;
 }
 
-export function buildPrompt(kind: ArtKind, desc: string): string {
-  return TEMPLATES[kind].replace("{desc}", desc.trim());
+export function buildPrompt(
+  kind: ArtKind,
+  desc: string,
+  look: { style?: unknown; medium?: unknown } = {},
+): string {
+  // The look is two independent settings — the pixel style and the 2D medium — and both anchor the
+  // prompt. Each resolves on its own, so an unknown id on one axis cannot break the other.
+  return composeArtPrompt(
+    resolveArtStyle(look.style),
+    resolveArtMedium(look.medium),
+    TEMPLATES[kind],
+    desc,
+  );
 }
 
 /** Pack-relative path the generated PNG is served at (the client hot-pack reads it). */
