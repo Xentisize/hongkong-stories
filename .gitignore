@@ -21,6 +21,8 @@ node_modules/
 apps/*/dist/
 # the admin SPA builds into the API's public directory and is served statically from there
 apps/server/public/admin/
+apps/server/public/play/
+apps/client/dist-demo/
 # bun is the only package manager (docs/PLAN.md §10.6):
 # any of these appearing means someone ran npm/yarn/pnpm by mistake.
 package-lock.json

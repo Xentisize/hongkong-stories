@@ -18,15 +18,22 @@ the game ships.
 ### The demo
 
 ```bash
-bun run build                      # in apps/client
-bun tools/serve_demo.ts            # repo root: the bundle + /v1, one origin, :8100
-playwright-cli --raw run-code --filename=apps/client/scripts/verify-demo.js http://127.0.0.1:8100/
+bun run demo:build                 # repo root: builds the client for /play/ into the API's static dir
+cd apps/server && bun run dev      # → http://127.0.0.1:3000/play
 ```
 
-`tools/serve_demo.ts` serves `dist/` and proxies `/v1` to the API (default `:3000`), so what opens is
-the artifact a deploy publishes rather than a dev server. It streams `/v1/chat` through unbuffered —
-the dialogue would stall for the whole turn otherwise — and sends `no-store`, because a demo that
-serves a cached bundle shows the wrong build.
+**The API serves the demo**, so the game and its `/v1` share an origin — which is the only shape that
+works when deployed: a static host on its own leaves the bundle calling `/v1` on an origin with no API,
+and the game boots into the authored fallback instead of the model.
+
+`bun run demo:build` (`tools/assemble_demo.ts`) builds with `--base=/play/` so the chunks resolve
+under the path, and copies the result to `apps/server/public/play`. In a build the same files arrive
+in `dist/client/play`, and `routes/play.ts` serves the entry point from whichever exists — a bare
+static directory cannot answer an extension-less `/play`.
+
+Two alternatives, for completeness: `bun tools/serve_demo.ts` serves `dist/` and proxies `/v1` on a
+separate port (useful when the API lives elsewhere), and the deploy publishes the bundle to a Pages
+preview alias — which needs a public API to be playable.
 
 ## The content contract
 

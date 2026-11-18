@@ -12,6 +12,8 @@
     "test": "bun test",
     "check": "bun run --filter '*' check",
     "db:migrate": "bun run --filter '@hkstories/server' db:migrate",
+    "demo:build": "bun tools/assemble_demo.ts",
+    "demo": "bun tools/assemble_demo.ts && bun run --filter '@hkstories/server' dev",
     "content:check": "bun tools/check_content.ts",
     "content:manifest": "bun tools/gen_content_manifest.ts"
   },
