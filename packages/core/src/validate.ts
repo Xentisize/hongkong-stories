@@ -86,6 +86,14 @@ export interface ContentPack {
   tables: Record<string, Record<string, ContentEntity>>;
   version?: number;
   contentHash?: string;
+  /**
+   * Manifest paths whose entity carried no usable `id`, so it never reached a table.
+   *
+   * Without this, such a file simply does not exist as far as every rule below is concerned: the
+   * settings document vanished this way on its first run. Validation has to be able to say so,
+   * because the publish refusal uses this function and never sees the manifest.
+   */
+  dropped?: string[];
 }
 
 /** Build a pack from `path → parsed JSON` entries, as read from `manifest.json`'s file list. */
@@ -94,16 +102,23 @@ export function packFromEntries(
   manifest: Record<string, unknown> = {},
 ): ContentPack {
   const tables: Record<string, Record<string, ContentEntity>> = {};
+  const dropped: string[] = [];
+
   for (const [path, entity] of Object.entries(entries)) {
     const kind = path.includes("/") ? path.slice(0, path.indexOf("/")) : path;
     const id = toKey(entity["id"] ?? "");
-    if (id === "") continue;
+    if (id === "") {
+      dropped.push(path);
+      continue;
+    }
     (tables[kind] ??= {})[id] = entity;
   }
+
   return {
     tables,
     version: toInt(manifest["version"]),
     contentHash: toKey(manifest["content_hash"] ?? ""),
+    dropped,
   };
 }
 
@@ -120,6 +135,12 @@ export function validatePack(pack: ContentPack): Issue[] {
   const locations = pack.tables["locations"] ?? {};
   const quests = pack.tables["quests"] ?? {};
   const settings = pack.tables["settings"] ?? {};
+
+  // Every rule below iterates a table, so an entity that never reached one would be checked by
+  // nothing at all. This is the only place that can report it.
+  for (const path of pack.dropped ?? []) {
+    err(path, "entity has no 'id' — it is dropped from the pack, so no rule validates it");
+  }
 
   const flagsSettable = new Set<string>();
 
@@ -486,15 +507,28 @@ export function validatePack(pack: ContentPack): Issue[] {
           err(`${at}.splash.art`, "splash.art must be a content-relative path");
         }
 
-        const duration = Number(splash["duration_ms"] ?? 0);
-        if (!Number.isInteger(duration) || duration < 0 || duration > 10_000) {
-          err(`${at}.splash.duration_ms`, "duration_ms must be an integer between 0 and 10000");
+        // A number, not something `Number()` can turn into one: `null` and `""` both coerce to 0,
+        // so a cleared field would silently mean a zero-millisecond splash.
+        const duration = splash["duration_ms"];
+        if (
+          typeof duration !== "number" ||
+          !Number.isInteger(duration) ||
+          duration < 0 ||
+          duration > 10_000
+        ) {
+          err(`${at}.splash.duration_ms`, "duration_ms must be a whole number between 0 and 10000");
         }
 
         if (splash["skippable"] !== undefined && typeof splash["skippable"] !== "boolean") {
           err(`${at}.splash.skippable`, "skippable must be a boolean");
         }
       }
+    }
+
+    // Every other block errors when it is the wrong shape; credits folding into an empty list
+    // would ship a game with a blank credits screen and nothing in the log.
+    if (document["credits"] !== undefined && !Array.isArray(document["credits"])) {
+      err(`${at}.credits`, "credits must be a list");
     }
 
     for (const credit of asArray(document["credits"])) {
@@ -517,7 +551,9 @@ export function validatePack(pack: ContentPack): Issue[] {
         err(`${at}.defaults`, "defaults must be an object");
       } else {
         const locale = toKey(defaults["locale"] ?? "auto");
-        if (!["auto", "zh_HK", "zh_CN", "en"].includes(locale)) {
+        // `auto` plus the shared list: a second copy of the locale codes would go stale the moment
+        // a locale is added, and then a valid pack would be refused here.
+        if (!["auto", ...LOCALES].includes(locale)) {
           err(`${at}.defaults.locale`, `unknown locale '${locale}'`);
         }
 
@@ -525,10 +561,10 @@ export function validatePack(pack: ContentPack): Issue[] {
           const raw = defaults[key];
           if (raw === undefined) continue;
 
-          // A bus gain runs from silence to unity; anything outside that is a typo, not a taste.
-          const decibels = Number(raw);
-          if (!Number.isFinite(decibels) || decibels > 0 || decibels < -60) {
-            err(`${at}.defaults.${key}`, `${key} must be between -60 and 0`);
+          // A bus gain runs from silence to unity, and `null`/`""` coerce to 0 — unity gain, the
+          // loudest legal value. A cleared field must not mean "play at full volume".
+          if (typeof raw !== "number" || !Number.isFinite(raw) || raw > 0 || raw < -60) {
+            err(`${at}.defaults.${key}`, `${key} must be a number between -60 and 0`);
           }
         }
       }
@@ -539,14 +575,16 @@ export function validatePack(pack: ContentPack): Issue[] {
       if (!isRecord(start)) {
         err(`${at}.start`, "start must be an object");
       } else {
+        // `in` walks the prototype chain, so "constructor" would pass as a location id and the
+        // client would then index a function. Own properties only.
         const location = toKey(start["location"] ?? "");
-        if (!(location in locations)) {
+        if (!Object.hasOwn(locations, location)) {
           err(`${at}.start.location`, `unknown location '${location}'`);
         } else {
           const spawn = toKey(start["spawn"] ?? "default");
           const spawnPoints = locations[location]!["spawn_points"];
           const spawns = isRecord(spawnPoints) ? spawnPoints : {};
-          if (spawn !== "default" && !(spawn in spawns)) {
+          if (spawn !== "default" && !Object.hasOwn(spawns, spawn)) {
             err(`${at}.start.spawn`, `spawn '${spawn}' not defined in '${location}'`);
           }
         }

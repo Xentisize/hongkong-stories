@@ -65,6 +65,28 @@ export async function computeManifest(
   };
 }
 
+/**
+ * Why a committed manifest no longer describes the pack, or an empty list when it does.
+ *
+ * Pure so the gate's rule can be tested: the failure it prevents — an author edits content, the hash
+ * does not move, and every booted client keeps the old pack — is invisible without one.
+ */
+export function manifestDrift(
+  committed: { content_hash?: unknown; files?: unknown },
+  fresh: ContentManifest,
+): string[] {
+  const drift: string[] = [];
+
+  if (committed.content_hash !== fresh.content_hash) {
+    drift.push(`content_hash ${String(committed.content_hash)} ≠ ${fresh.content_hash}`);
+  }
+  if (JSON.stringify(committed.files) !== JSON.stringify(fresh.files)) {
+    drift.push(`the file list differs (${fresh.files.length} files hashed)`);
+  }
+
+  return drift;
+}
+
 export async function regenerateManifest(
   contentDir: string,
   options: { bump: boolean } = { bump: false },

@@ -480,6 +480,38 @@ describe("game settings", () => {
     );
   });
 
+  test("a document that loses its id is reported, not silently ignored", () => {
+    // The regression that started this: `packFromEntries` drops id-less entries, so without a
+    // report the document exists only to be loaded by the client and checked by nothing.
+    const entries = baseEntries();
+    entries["settings/game.json"] = { title: VALID.title } as ContentEntity;
+
+    expect(errorPaths(entries)).toContain("settings/game.json");
+  });
+
+  test("credits must be a list when present", () => {
+    expect(errorPaths(withSettings({ ...VALID, credits: { role: "Studio" } }))).toEqual([
+      "settings/game.credits",
+    ]);
+  });
+
+  test("a bus gain must be a number, not a value that coerces into range", () => {
+    // `Number(null)` and `Number("")` are 0 — unity gain, the loudest legal value — so coercing
+    // here would turn a cleared field into "play at full volume".
+    expect(errorPaths(withSettings({ ...VALID, defaults: { music_db: null } }))).toEqual([
+      "settings/game.defaults.music_db",
+    ]);
+    expect(errorPaths(withSettings({ ...VALID, defaults: { sfx_db: "" } }))).toEqual([
+      "settings/game.defaults.sfx_db",
+    ]);
+  });
+
+  test("a splash duration must be a number too", () => {
+    expect(
+      errorPaths(withSettings({ ...VALID, splash: { art: "a.png", duration_ms: null } })),
+    ).toEqual(["settings/game.splash.duration_ms"]);
+  });
+
   test("the settings block is optional: a pack without one is still playable", () => {
     expect(errorPaths(baseEntries())).toEqual([]);
   });
