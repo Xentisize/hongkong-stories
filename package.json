@@ -1,0 +1,15 @@
+{
+  "name": "hongkong-stories",
+  "private": true,
+  "type": "module",
+  "packageManager": "bun@1.4.4",
+  "workspaces": [
+    "packages/*",
+    "admin",
+    "apps/*"
+  ],
+  "scripts": {
+    "test": "bun test",
+    "check": "bun run --filter '*' check"
+  }
+}

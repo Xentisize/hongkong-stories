@@ -1,0 +1,21 @@
+{
+  "name": "@hkstories/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Engine-agnostic game rules: condition evaluator, effect interpreter, content validation, locale chain. One implementation shared by the client, the server and the admin.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "bun test",
+    "check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.1.0",
+    "typescript": "^5.6.0"
+  },
+  "dependencies": {
+    "zod": "^4.6.7"
+  }
+}

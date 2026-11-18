@@ -15,8 +15,9 @@ server/data/
 
 # --- bun (admin SPA) ---
 node_modules/
-# the SPA build output is a build artifact — CI and `bun run build` recreate it
+# build outputs are artifacts — CI and `bun run build` recreate them
 server/admin/dist/
+apps/*/dist/
 # bun is the only package manager (docs/PLAN.md §10.6):
 # any of these appearing means someone ran npm/yarn/pnpm by mistake.
 package-lock.json
@@ -39,3 +40,6 @@ Thumbs.db
 
 # --- agent tooling (AtomCode hooks/MCP/skills are per-machine, not project source) ---
 .atomcode/
+
+# --- browser verification (playwright-cli snapshots/logs are run output) ---
+.playwright-cli/
