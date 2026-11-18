@@ -19,6 +19,54 @@ export const BASE_LAYER_ID = "base";
 /** The character an overlay uses to paint nothing. */
 export const TRANSPARENT_TILE = " ";
 
+/**
+ * How many pixels one atlas cell occupies, derived from the image and the legend's column count.
+ *
+ * The atlas is self-describing on purpose: a redraw at 2× detail changes only the PNG, and every
+ * renderer slices by `width / columns` instead of assuming the world's `tile_size`. That is what
+ * lets the art resolution rise without touching a single location document.
+ */
+export function atlasCellSize(atlasWidth: number, columns: number): number {
+  if (!Number.isFinite(atlasWidth) || atlasWidth <= 0) return 0;
+  if (!Number.isFinite(columns) || columns <= 0) return 0;
+  return Math.round(atlasWidth / columns);
+}
+
+/**
+ * How a legend frame is drawn, when it is not drawn straight from the atlas.
+ *
+ * A rotated or flipped tile cannot be spelled by the *cell* — the cell holds a character — so the
+ * transform rides on the legend entry: `"r": [2, 0, "rot90"]`. That keeps the tilemap a plain grid
+ * of characters (the format every client and the validator already read) while letting the palette
+ * offer rotated and mirrored variants.
+ */
+export const TILE_TRANSFORMS = ["rot90", "rot180", "rot270", "flipX", "flipY", "flipXY"] as const;
+
+export type TileTransform = (typeof TILE_TRANSFORMS)[number];
+
+export function isTileTransform(value: unknown): value is TileTransform {
+  return typeof value === "string" && (TILE_TRANSFORMS as readonly string[]).includes(value);
+}
+
+export interface LegendFrame {
+  col: number;
+  row: number;
+  /** `null` for a plain `[col, row]` frame. */
+  transform: TileTransform | null;
+}
+
+/** One legend entry as a frame, or `null` when it is not a frame at all. */
+export function legendFrame(entry: unknown): LegendFrame | null {
+  if (!Array.isArray(entry) || entry.length < 2) return null;
+  const [col, row, transform] = entry;
+  if (!Number.isInteger(col) || !Number.isInteger(row)) return null;
+  return {
+    col: col as number,
+    row: row as number,
+    transform: isTileTransform(transform) ? transform : null,
+  };
+}
+
 export interface TileLayer {
   id: string;
   tilemap: string[];

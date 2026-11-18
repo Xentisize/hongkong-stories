@@ -100,11 +100,33 @@ export {
 } from "./assets";
 
 export {
+  ART_MEDIA,
+  ART_STYLES,
+  DEFAULT_ART_MEDIUM,
+  DEFAULT_ART_STYLE,
+  composeArtPrompt,
+  isArtMediumId,
+  isArtStyleId,
+  resolveArtMedium,
+  resolveArtStyle,
+  type ArtLook,
+  type ArtMediumId,
+  type ArtStyleId,
+  type ArtStyleRules,
+} from "./artStyle";
+
+export {
   BASE_LAYER_ID,
+  TILE_TRANSFORMS,
   TRANSPARENT_TILE,
+  atlasCellSize,
+  isTileTransform,
   layerTileAt,
+  legendFrame,
   tileLayers,
+  type LegendFrame,
   type TileLayer,
+  type TileTransform,
 } from "./tiles";
 
 export {

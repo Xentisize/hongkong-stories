@@ -20,8 +20,9 @@
  * over the network is the caller's business, which is what lets it run in a browser.
  */
 
+import { ART_MEDIA, ART_STYLES, isArtMediumId, isArtStyleId } from "./artStyle";
 import { isRecord, pyBool, toInt, toKey } from "./state";
-import { TRANSPARENT_TILE } from "./tiles";
+import { TILE_TRANSFORMS, TRANSPARENT_TILE, isTileTransform } from "./tiles";
 
 export const LOCALES = ["zh_HK", "zh_CN", "en"] as const;
 
@@ -379,6 +380,32 @@ export function validatePack(pack: ContentPack): Issue[] {
     const widths = new Set(rows.map((row) => String(row).length));
     if (widths.size > 1) warn(`${at}.tilemap`, "rows have differing lengths");
 
+    // ---- legend -------------------------------------------------------------
+    // A frame is `[col, row]`, optionally followed by a transform. The transform lives here rather
+    // than in the grid because a cell holds a character, and an unknown name is a typo that would
+    // paint the wrong tile or nothing at all.
+    const legendDef = location["legend"];
+    if (legendDef !== undefined) {
+      if (!isRecord(legendDef)) {
+        err(`${at}.legend`, "legend must map characters to [col, row] frames");
+      } else {
+        for (const [char, entry] of Object.entries(legendDef)) {
+          const frameAt = `${at}.legend/${char}`;
+          if (!Array.isArray(entry) || entry.length < 2 || entry.length > 3) {
+            err(frameAt, "a frame is [col, row] or [col, row, transform]");
+            continue;
+          }
+          if (!Number.isInteger(entry[0]) || !Number.isInteger(entry[1])) {
+            err(frameAt, "col and row must be whole numbers");
+            continue;
+          }
+          if (entry.length === 3 && !isTileTransform(entry[2])) {
+            err(frameAt, `unknown transform '${String(entry[2])}' — use ${TILE_TRANSFORMS.join(", ")}`);
+          }
+        }
+      }
+    }
+
     // ---- layers -------------------------------------------------------------
     // An overlay is drawn over the base grid, so it must cover exactly the same footprint: a
     // shorter row silently shifts every tile after it, which reads as "the art is wrong" rather
@@ -592,6 +619,29 @@ export function validatePack(pack: ContentPack): Issue[] {
     checkLocalized(document["subtitle"], `${at}.subtitle`, false);
 
     if (document["splash"] !== undefined) checkSplash(document["splash"], `${at}.splash`);
+
+    // The art look is two independent settings whose fragments are embedded into every generation,
+    // so an unknown id on either axis is worth saying out loud — but it warns rather than errors: a
+    // newer pack may name a style this build does not know, and generation falls back per axis.
+    if (document["art"] !== undefined) {
+      const art = document["art"];
+      if (!isRecord(art)) {
+        err(`${at}.art`, "art must be an object");
+      } else {
+        if (art["style"] !== undefined && !isArtStyleId(art["style"])) {
+          warn(
+            `${at}.art.style`,
+            `unknown art style '${String(art["style"])}' — known: ${ART_STYLES.map((style) => style.id).join(", ")}`,
+          );
+        }
+        if (art["medium"] !== undefined && !isArtMediumId(art["medium"])) {
+          warn(
+            `${at}.art.medium`,
+            `unknown art medium '${String(art["medium"])}' — known: ${ART_MEDIA.map((medium) => medium.id).join(", ")}`,
+          );
+        }
+      }
+    }
 
     // Every other block errors when it is the wrong shape; credits folding into an empty list
     // would ship a game with a blank credits screen and nothing in the log.
