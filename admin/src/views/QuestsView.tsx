@@ -18,6 +18,7 @@ import { api, ApiError } from "@/api";
 import { JsonField } from "@/components/JsonField";
 import { InheritanceField } from "@/components/InheritanceField";
 import { LocaleGap } from "@/components/LocaleGap";
+import { QuestFlow } from "@/components/QuestFlow";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,6 +34,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { describeError } from "@/lib/errors";
+import { moveAfter, reconnect } from "@/lib/questFlow";
 import { asLocalized, writeLocale, type LocalizedTable } from "@/lib/localized";
 import { queryKeys, useKindIds } from "@/lib/queries";
 import { useUndoable, useUndoKeys } from "@/lib/undo";
@@ -80,6 +82,8 @@ export function QuestsView({ token }: { token: string }) {
   const questIds = useKindIds(token, "quests");
 
   const [selected, setSelected] = useState<string | null>(null);
+  /** Which node the flow view has selected — the row editors follow it. */
+  const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const undoable = useUndoable<QuestDoc>(null);
   const doc = undoable.doc;
   useUndoKeys(undoable.undo, undoable.redo);
@@ -221,7 +225,26 @@ export function QuestsView({ token }: { token: string }) {
       toast.error("刪唔到：任務至少要有一個節點 / the last node cannot be removed");
       return;
     }
+    if (selectedNode === id) setSelectedNode(null);
     apply(next);
+  }
+
+  /** Drag a node's port onto another node: one `next` link, refused if it would close a loop. */
+  function relinkNode(from: string, to: string | null) {
+    if (doc === null) return;
+    const next = reconnect(doc, from, to);
+    if (next === null) {
+      toast.error("唔可以咁連：會造成循環 / that link would create a loop");
+      return;
+    }
+    apply(next);
+  }
+
+  /** Drag a node onto another: the visible order becomes the chain. */
+  function dragNode(dragged: string, target: string) {
+    if (doc === null) return;
+    const next = moveAfter(doc, dragged, target);
+    if (next !== null) apply(next);
   }
 
   function nudge(id: string, delta: number) {
@@ -234,6 +257,7 @@ export function QuestsView({ token }: { token: string }) {
     if (doc === null) return false;
     const next = renameNode(doc, from, to);
     if (next === null) return false;
+    if (selectedNode === from) setSelectedNode(to);
     apply(next);
     return true;
   }
@@ -425,8 +449,25 @@ export function QuestsView({ token }: { token: string }) {
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
+                <QuestFlow
+                  doc={doc}
+                  selected={selectedNode}
+                  onSelect={setSelectedNode}
+                  onReconnect={relinkNode}
+                  onMoveAfter={dragNode}
+                />
+                <p className="text-[10px] leading-relaxed text-muted-foreground">
+                  拖動節點改次序；拖右邊圓點去另一個節點連線，拖到空白就喺度結束。
+                  <br />
+                  Drag a node to reorder it; drag its port onto another node to link it, or onto empty
+                  space to end the chain there. The editor below follows the selection.
+                </p>
+
                 {nodes.map((node, index) => {
                   const id = nodeId(node);
+                  // The flow chart is the navigator now: only the selected node's form is expanded,
+                  // instead of every node's editor stacked on one page.
+                  if (selectedNode !== null && id !== selectedNode) return null;
                   const type = node.type === "cutscene" ? "cutscene" : "objective";
                   const pages = pagesOf(node.text);
                   const nextValue = typeof node.next === "string" && node.next !== "" ? node.next : "end";
