@@ -40,6 +40,18 @@ export interface NpcFile {
     portrait?: string;
     frames?: unknown;
   };
+  /**
+   * The offline ladder (§7.8): authored lines the client falls back to when the API cannot answer.
+   * `greeting` is what an unreachable backend shows; `lines` and `exit` cover the rest of the
+   * conversation.
+   */
+  scripted_fallback?: {
+    greeting?: LocalizedText;
+    lines?: LocalizedText[];
+    exit?: LocalizedText;
+  };
+  /** Model overrides the server honours — carried here so a client never invents its own defaults. */
+  llm?: Record<string, unknown>;
 }
 
 export interface LocationFile {
@@ -52,6 +64,8 @@ export interface LocationFile {
   tilemap: string[];
   collision: Array<[number, number, number, number]>;
   spawn_points: Record<string, [number, number]>;
+  /** Ambience bed, e.g. `audio/kln_1963.wav`. Absent or empty means "keep the current bed". */
+  music?: string;
   decor?: Array<{ art: string; tile: [number, number] }>;
   npcs?: Array<{
     npc: string;
@@ -66,6 +80,20 @@ export interface LocationFile {
     art?: string;
     scale?: number;
     requires?: unknown;
+    /** Removed after one use — a sign you pick up is not a sign you can pick up twice. */
+    once?: boolean;
+    prompt?: LocalizedText;
+    on_interact?: unknown[];
+  }>;
+  doors?: Array<{
+    id: string;
+    tiles: Array<[number, number]>;
+    requires?: unknown;
+    /** Set when the door opens, so it stays open across sessions. */
+    open_flag?: string;
+    prompt?: LocalizedText;
+    blocked?: LocalizedText;
+    opened?: LocalizedText;
   }>;
   exits?: Array<{
     id: string;
@@ -73,6 +101,7 @@ export interface LocationFile {
     to: string;
     spawn?: string;
     requires?: unknown;
+    blocked?: LocalizedText;
   }>;
 }
 
