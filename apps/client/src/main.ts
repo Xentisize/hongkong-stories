@@ -22,8 +22,8 @@ import { Dialogue, type DialogueView } from "./dialogue";
 import { apiBase, openSession, type Session } from "./net";
 import { QuestMachine, cutsceneLines, type QuestNode } from "./quests";
 import { emptySave, encodeSave, type SavePayload } from "./save";
-import { activeChapter, chapterEntry, orderChapters, type ChapterDoc } from "./chapters";
-import { localeFrom, resolveSettings } from "./settings";
+import { activeChapter, chapterEntry, orderChapters, planAdvance, type ChapterDoc } from "./chapters";
+import { localeFrom, resolveSettings, resolveSplash, type ResolvedSplash } from "./settings";
 import { GameState, persist, restore } from "./state";
 import { VIEW_HEIGHT, VIEW_WIDTH, WorldScene, type WorldTarget } from "./world";
 
@@ -443,24 +443,39 @@ let activeChapterId = "";
 function followChapters(): void {
   if (!game.scene.isActive("world")) return;
 
-  const chapter = activeChapter(chapters, state.conditionState());
-  const id = chapter?.id ?? "";
-  if (id === "") return;
-
+  // First call records where the player already is: a resumed save must not be moved because its
+  // chapter happens to sort later.
   if (activeChapterId === "") {
-    activeChapterId = id;
+    activeChapterId = String(activeChapter(chapters, state.conditionState())?.id ?? "");
     return;
   }
-  if (id === activeChapterId) return;
 
-  activeChapterId = id;
+  // **The declared transition is what moves them.** A chapter's exit is data — `{to, requires}` —
+  // so a finished quest counts only insofar as a transition names it.
+  const advance = planAdvance(chapters, activeChapterId, state.conditionState(), (condition) =>
+    evaluate(condition, state.conditionState()),
+  );
+  if (advance === null) return;
 
-  const entry = chapterEntry(chapter);
-  if (entry === null) return;
-  // Already there (an exit may have carried them in): do not reload the map under them.
-  if (scene().locationId() === entry.location) return;
+  activeChapterId = String(advance.target.id ?? "");
 
-  loadLocation(entry.location, entry.spawn);
+  // The announcement: an authored departure line wins, otherwise the chapter's own title.
+  const line = advance.text ?? advance.target.title;
+  if (line) showMessage(line);
+
+  const enter = () => {
+    const entry = chapterEntry(advance.target);
+    if (entry === null) return;
+    // Already there (an exit may have carried them in): do not reload the map under them.
+    if (scene().locationId() === entry.location) return;
+
+    loadLocation(entry.location, entry.spawn);
+  };
+
+  // A chapter may carry its own opening image; the game's splash is a boot-time thing.
+  const splash = resolveSplash(advance.target.splash);
+  if (splash !== null) playSplash(splash, enter);
+  else enter();
 }
 
 let messageTimer: number | null = null;
@@ -537,7 +552,7 @@ formEl?.addEventListener("submit", (event) => {
 window.addEventListener("keydown", (event) => {
   // The splash sits above everything until its time is up.
   if (splashEl !== null && !splashEl.hidden) {
-    if (settings.splash?.skippable !== false) {
+    if (splashSkippable) {
       event.preventDefault();
       finishSplash();
     }
@@ -706,13 +721,19 @@ function contentArtUrl(path: string): string | undefined {
 }
 
 let splashTimer: number | null = null;
+/** What to do when the current splash ends: open the title at boot, move a chapter along after. */
+let splashDone: (() => void) | null = null;
+let splashSkippable = true;
 
 /** The splash's time is up, or the player skipped it. */
 function finishSplash(): void {
   if (splashTimer !== null) clearTimeout(splashTimer);
   splashTimer = null;
   if (splashEl) splashEl.hidden = true;
-  showTitle();
+
+  const done = splashDone;
+  splashDone = null;
+  done?.();
 }
 
 /**
@@ -721,17 +742,16 @@ function finishSplash(): void {
  * Art that is not in the bundle would be a black screen waiting to happen, so the console says so
  * and the title opens instead: a missing picture must not cost the player their game.
  */
-function showSplash(): void {
-  const splash = settings.splash;
+function playSplash(splash: ResolvedSplash | null, onDone: () => void): void {
   if (splash === null || splashEl === null || splashArt === null) {
-    showTitle();
+    onDone();
     return;
   }
 
   const url = contentArtUrl(splash.art);
   if (url === undefined) {
     console.warn(`[hks] splash art is not in the bundle: ${splash.art}`);
-    showTitle();
+    onDone();
     return;
   }
 
@@ -743,6 +763,8 @@ function showSplash(): void {
   };
   splashArt.src = url;
   splashEl.hidden = false;
+  splashDone = onDone;
+  splashSkippable = splash.skippable;
   if (splash.skippable) splashEl.addEventListener("click", finishSplash, { once: true });
   splashTimer = window.setTimeout(finishSplash, splash.durationMs);
 }
@@ -887,6 +909,8 @@ export interface TestHook {
   shell: () => { title: string; subtitle: string; splashVisible: boolean; credits: number };
   /** The chapter the save currently puts the player in. */
   chapterId: () => string;
+  /** That chapter's title, localized the way the shell localizes it. */
+  chapterLabel: () => string;
   /** Start a clean game — the title screen's own "new game". */
   newGame: () => void;
 }
@@ -922,10 +946,14 @@ const hook: TestHook = {
     credits: settings.credits.length,
   }),
   chapterId: () => activeChapterId,
+  chapterLabel: () => {
+    const chapter = chapters.find((entry) => entry.id === activeChapterId) ?? null;
+    return chapter?.title ? localize(chapter.title, locale) : "";
+  },
   newGame: () => startGame(false),
 };
 
 (window as unknown as { __hks?: TestHook }).__hks = hook;
 
 // Boot through the splash to the title: a player clicks, and the checks call `start()`.
-showSplash();
+playSplash(settings.splash, showTitle);

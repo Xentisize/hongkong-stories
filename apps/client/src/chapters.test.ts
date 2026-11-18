@@ -9,6 +9,7 @@ import {
   chapterTransition,
   nextChapter,
   orderChapters,
+  planAdvance,
   questDone,
   type ChapterDoc,
 } from "./chapters";
@@ -151,5 +152,55 @@ describe("succession", () => {
       if (transition === null) continue;
       expect(transition.to).toBe(nextChapter(ALL, String(chapter.id))?.id);
     }
+  });
+});
+
+describe("advancing", () => {
+  const plan = (currentId: string, quests: Record<string, { done?: boolean }> = {}) => {
+    const current = state(quests);
+    return planAdvance(ALL, currentId, current, evaluate(current));
+  };
+
+  test("a declared transition moves the player when its condition passes", () => {
+    const advance = plan("ch01", { ch01: { done: true } });
+    expect(advance?.target.id).toBe("ch02");
+    expect(advance?.transition?.to).toBe("ch02");
+  });
+
+  test("nothing moves while the transition's condition is unsatisfied", () => {
+    expect(plan("ch01")).toBeNull();
+  });
+
+  test("a terminal chapter never advances, however finished its quest is", () => {
+    // ch03 declares no transition: finishing its quest is not the same as leaving it.
+    expect(plan("ch03", { ch01: { done: true }, ch02: { done: true }, ch03: { done: true } })).toBeNull();
+  });
+
+  test("an authored departure line rides along", () => {
+    const withText: ChapterDoc = {
+      ...CH01,
+      transitions: [{ to: "ch02", requires: { quest_done: "ch01" }, text: { en: "the tape ends" } }],
+    };
+    const current = state({ ch01: { done: true } });
+    const advance = planAdvance([withText, CH02], "ch01", current, evaluate(current));
+
+    expect(advance?.text).toEqual({ en: "the tape ends" });
+  });
+
+  test("a save already further along adopts the chapter its quests imply", () => {
+    // No transition passes (ch01 is recorded as current, its quest is done, so ch01->ch02 would
+    // fire) — the recovery path is for a chapter whose own transition does not fire.
+    const recorded: ChapterDoc = { ...CH01, transitions: [{ to: "ch02", requires: { flag: "never" } }] };
+    const current = state({ ch01: { done: true }, ch02: { done: true } });
+    const advance = planAdvance([recorded, CH02, CH03], "ch01", current, evaluate(current));
+
+    expect(advance?.target.id).toBe("ch03");
+    expect(advance?.transition).toBeNull();
+  });
+
+  test("recovery never moves a player backwards", () => {
+    const current = state({ ch01: { done: true } });
+    // Recorded as ch02 but only ch01 is done: staying put, not rewinding to ch01.
+    expect(planAdvance([CH01, CH02, CH03], "ch02", current, evaluate(current))).toBeNull();
   });
 });

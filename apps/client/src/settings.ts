@@ -23,6 +23,12 @@ export interface GameSettingsDoc {
   start?: { location?: string; spawn?: string };
 }
 
+export interface ResolvedSplash {
+  art: string;
+  durationMs: number;
+  skippable: boolean;
+}
+
 export interface ResolvedSettings {
   title: Record<string, string>;
   subtitle: Record<string, string>;
@@ -73,17 +79,8 @@ function boundedDuration(value: unknown): number {
 export function resolveSettings(raw: unknown): ResolvedSettings {
   const doc = record(raw) as GameSettingsDoc;
 
-  const splashDoc = record(doc.splash);
-  const art = typeof splashDoc["art"] === "string" ? splashDoc["art"].trim() : "";
-  const splash =
-    art === ""
-      ? null
-      : {
-          art,
-          // A splash that never ends is a bug, not a mood: clamp to something a player can outwait.
-          durationMs: boundedDuration(splashDoc["duration_ms"]),
-          skippable: splashDoc["skippable"] !== false,
-        };
+  // A splash that never ends is a bug, not a mood; `resolveSplash` owns that clamp.
+  const splash = resolveSplash(doc.splash);
 
   const credits: CreditEntry[] = [];
   if (Array.isArray(doc.credits)) {
@@ -117,6 +114,24 @@ export function resolveSettings(raw: unknown): ResolvedSettings {
       sfxDb: decibels(defaultsDoc["sfx_db"], DEFAULT_SFX_DB),
     },
     start: startLocation === "" ? null : { location: startLocation, spawn },
+  };
+}
+
+/**
+ * Resolve one splash block — the game's, or a chapter's own opening image.
+ *
+ * Shared so both are clamped the same way: a splash from either source must not be able to trap a
+ * player behind a black screen.
+ */
+export function resolveSplash(value: unknown): ResolvedSplash | null {
+  const splashDoc = record(value);
+  const art = typeof splashDoc["art"] === "string" ? splashDoc["art"].trim() : "";
+  if (art === "") return null;
+
+  return {
+    art,
+    durationMs: boundedDuration(splashDoc["duration_ms"]),
+    skippable: splashDoc["skippable"] !== false,
   };
 }
 

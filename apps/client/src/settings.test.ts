@@ -5,6 +5,7 @@ import {
   DEFAULT_SFX_DB,
   localeFrom,
   resolveSettings,
+  resolveSplash,
 } from "./settings";
 
 /**
@@ -120,5 +121,38 @@ describe("localized text", () => {
       title: { zh_HK: "香港故事", zh_CN: "  ", en: "Hong Kong Stories" },
     });
     expect(settings.title).toEqual({ zh_HK: "香港故事", en: "Hong Kong Stories" });
+  });
+});
+
+describe("resolveSplash", () => {
+  test("a chapter and the game resolve an image the same way", () => {
+    // The game's splash and a chapter's own image go through one function, so neither can be the
+    // one that traps a player behind a black screen.
+    expect(resolveSplash({ art: "art/backdrops/x.png", duration_ms: 1200, skippable: false })).toEqual({
+      art: "art/backdrops/x.png",
+      durationMs: 1200,
+      skippable: false,
+    });
+  });
+
+  test("an omitted duration is a default, not zero", () => {
+    expect(resolveSplash({ art: "art/backdrops/x.png" })?.durationMs).toBe(2400);
+  });
+
+  test("a duration that is not a number falls back instead of coercing", () => {
+    for (const value of [null, "", true, "soon", Number.NaN]) {
+      expect(resolveSplash({ art: "art/backdrops/x.png", duration_ms: value })?.durationMs).toBe(2400);
+    }
+  });
+
+  test("a duration is clamped to something outliveable", () => {
+    expect(resolveSplash({ art: "a.png", duration_ms: 999_999 })?.durationMs).toBe(10_000);
+    expect(resolveSplash({ art: "a.png", duration_ms: -5 })?.durationMs).toBe(0);
+  });
+
+  test("no art means no splash", () => {
+    expect(resolveSplash(undefined)).toBeNull();
+    expect(resolveSplash({})).toBeNull();
+    expect(resolveSplash({ art: "   " })).toBeNull();
   });
 });

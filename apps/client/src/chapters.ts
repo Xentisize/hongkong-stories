@@ -20,6 +20,8 @@ import type { ConditionState } from "@hkstories/core";
 export interface ChapterTransition {
   to?: string;
   requires?: unknown;
+  /** An optional departure line the shell shows when this transition fires. */
+  text?: Record<string, string>;
 }
 
 export interface ChapterEntry {
@@ -35,6 +37,8 @@ export interface ChapterDoc {
   locations?: string[];
   entry?: ChapterEntry;
   transitions?: ChapterTransition[];
+  /** An opening image for this chapter alone; the game's own splash lives in settings. */
+  splash?: unknown;
 }
 
 export interface ResolvedEntry {
@@ -107,6 +111,55 @@ export function chapterEntry(chapter: ChapterDoc | null): ResolvedEntry | null {
       : "default";
 
   return { location, spawn };
+}
+
+export interface ChapterAdvance {
+  target: ChapterDoc;
+  /** The transition that fired, or null when the move came from the save being further along. */
+  transition: ChapterTransition | null;
+  /** An authored departure line, when the transition carries one. */
+  text?: Record<string, string>;
+}
+
+/**
+ * Whether the player should move on, and where to.
+ *
+ * **The declared transition is what moves them.** A chapter's exit is data — `{to, requires}` — so
+ * finishing a quest only counts insofar as a transition names that condition; content without a
+ * transition is content the player stays in. That is why the field existed and why it was wrong to
+ * advance on quest records alone.
+ *
+ * The one exception is recovery: a save that is *already* further along than the recorded chapter
+ * (a loaded slot, an imported code) adopts the chapter its quests imply, so a resumed game does not
+ * start out one chapter behind itself.
+ */
+export function planAdvance(
+  chapters: ChapterDoc[],
+  currentId: string,
+  state: ConditionState,
+  evaluate: (condition: unknown) => boolean,
+): ChapterAdvance | null {
+  const ordered = orderChapters(chapters);
+  const indexOf = (id: string) => ordered.findIndex((chapter) => chapter.id === id);
+
+  const current = ordered.find((chapter) => chapter.id === currentId) ?? null;
+  const transition = current === null ? null : chapterTransition(current, evaluate);
+  const derived = activeChapter(ordered, state);
+
+  let targetId = typeof transition?.to === "string" ? transition.to : "";
+
+  if (targetId === "" && derived !== null) {
+    const derivedId = String(derived.id);
+    // Only ever forwards: a chapter the player is recorded as being in is not taken away from them.
+    if (currentId === "" || indexOf(derivedId) > indexOf(currentId)) targetId = derivedId;
+  }
+
+  if (targetId === "" || targetId === currentId) return null;
+
+  const target = ordered.find((chapter) => chapter.id === targetId) ?? null;
+  if (target === null) return null;
+
+  return { target, transition, text: transition?.text };
 }
 
 /** Which chapter comes after this one, if any — by id order, matching `orderChapters`. */
