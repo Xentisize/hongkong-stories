@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as HealthzRouteImport } from './routes/healthz'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AdminSplatRouteImport } from './routes/admin/$'
+import { Route as V1SplatRouteImport } from './routes/v1/$'
 import { Route as V1ChatRouteImport } from './routes/v1/chat'
 import { Route as V1SessionRouteImport } from './routes/v1/session'
 import { Route as V1AdminDraftsRouteImport } from './routes/v1/admin/drafts'
@@ -52,6 +53,11 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
 const AdminSplatRoute = AdminSplatRouteImport.update({
   id: '/admin/$',
   path: '/admin/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const V1SplatRoute = V1SplatRouteImport.update({
+  id: '/v1/$',
+  path: '/v1/$',
   getParentRoute: () => rootRouteImport,
 } as any)
 const V1ChatRoute = V1ChatRouteImport.update({
@@ -161,6 +167,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/healthz': typeof HealthzRoute
   '/admin/$': typeof AdminSplatRoute
+  '/v1/$': typeof V1SplatRoute
   '/v1/chat': typeof V1ChatRoute
   '/v1/session': typeof V1SessionRoute
   '/admin/': typeof AdminIndexRoute
@@ -187,6 +194,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/healthz': typeof HealthzRoute
   '/admin/$': typeof AdminSplatRoute
+  '/v1/$': typeof V1SplatRoute
   '/v1/chat': typeof V1ChatRoute
   '/v1/session': typeof V1SessionRoute
   '/admin': typeof AdminIndexRoute
@@ -214,6 +222,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/healthz': typeof HealthzRoute
   '/admin/$': typeof AdminSplatRoute
+  '/v1/$': typeof V1SplatRoute
   '/v1/chat': typeof V1ChatRoute
   '/v1/session': typeof V1SessionRoute
   '/admin/': typeof AdminIndexRoute
@@ -242,6 +251,7 @@ export interface FileRouteTypes {
     | '/'
     | '/healthz'
     | '/admin/$'
+    | '/v1/$'
     | '/v1/chat'
     | '/v1/session'
     | '/admin/'
@@ -268,6 +278,7 @@ export interface FileRouteTypes {
     | '/'
     | '/healthz'
     | '/admin/$'
+    | '/v1/$'
     | '/v1/chat'
     | '/v1/session'
     | '/admin'
@@ -294,6 +305,7 @@ export interface FileRouteTypes {
     | '/'
     | '/healthz'
     | '/admin/$'
+    | '/v1/$'
     | '/v1/chat'
     | '/v1/session'
     | '/admin/'
@@ -321,6 +333,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   HealthzRoute: typeof HealthzRoute
   AdminSplatRoute: typeof AdminSplatRoute
+  V1SplatRoute: typeof V1SplatRoute
   V1ChatRoute: typeof V1ChatRoute
   V1SessionRoute: typeof V1SessionRoute
   AdminIndexRoute: typeof AdminIndexRoute
@@ -368,6 +381,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/$'
       fullPath: '/admin/$'
       preLoaderRoute: typeof AdminSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/v1/$': {
+      id: '/v1/$'
+      path: '/v1/$'
+      fullPath: '/v1/$'
+      preLoaderRoute: typeof V1SplatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/v1/chat': {
@@ -553,6 +573,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   HealthzRoute: HealthzRoute,
   AdminSplatRoute: AdminSplatRoute,
+  V1SplatRoute: V1SplatRoute,
   V1ChatRoute: V1ChatRoute,
   V1SessionRoute: V1SessionRoute,
   AdminIndexRoute: AdminIndexRoute,
