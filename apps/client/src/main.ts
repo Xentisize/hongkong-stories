@@ -22,6 +22,7 @@ import { Dialogue, type DialogueView } from "./dialogue";
 import { apiBase, openSession, type Session } from "./net";
 import { QuestMachine, cutsceneLines, type QuestNode } from "./quests";
 import { emptySave, encodeSave, type SavePayload } from "./save";
+import { activeChapter, chapterEntry, orderChapters, type ChapterDoc } from "./chapters";
 import { localeFrom, resolveSettings } from "./settings";
 import { GameState, persist, restore } from "./state";
 import { VIEW_HEIGHT, VIEW_WIDTH, WorldScene, type WorldTarget } from "./world";
@@ -42,6 +43,21 @@ import { VIEW_HEIGHT, VIEW_WIDTH, WorldScene, type WorldTarget } from "./world";
 const settings = resolveSettings(gameSettings);
 
 /**
+ * Chapters: the aggregation documents (§5.4/§12), one per chapter of the game.
+ *
+ * They are what makes "which maps belong to a chapter, and what unlocks the next one" data rather
+ * than a convention — and they are the only thing that ever carries the player into an era map,
+ * which the content previously never did.
+ */
+const chapterModules = import.meta.glob("../../../client/content/chapters/*.json", {
+  eager: true,
+  import: "default",
+}) as Record<string, ChapterDoc>;
+
+const chapters = orderChapters(Object.values(chapterModules));
+const firstChapterEntry = chapterEntry(chapters[0] ?? null);
+
+/**
  * Every location, so an exit has a destination.
  *
  * A shipped client fetches these from the API hot-pack instead; bundled imports are what makes the
@@ -57,8 +73,11 @@ for (const file of Object.values(locationModules)) {
   if (file?.id) locationsById[file.id] = file;
 }
 
-// The pack names where a new game starts; the street below is only the fallback.
-const START_LOCATION = settings.start?.location ?? "loc_ssp_market_street";
+// A new game starts where the pack says: the settings document is an explicit override, the first
+// chapter's own entry is the default, and the street below is only the last resort.
+const START_LOCATION =
+  settings.start?.location ?? firstChapterEntry?.location ?? "loc_ssp_market_street";
+const START_SPAWN = settings.start?.spawn ?? firstChapterEntry?.spawn;
 const location = locationsById[START_LOCATION] ?? Object.values(locationsById)[0]!;
 let currentLocationId = location.id;
 
@@ -134,6 +153,8 @@ const state = new GameState(restore() ?? emptySave(), {
     // pass runs before the world is redrawn, not after.
     machine.schedule();
     if (game.scene.isActive("world")) scene().setGameState(state.conditionState());
+    // A finished chapter is a move: the pass above is what makes the next one active.
+    followChapters();
     updateHud();
   },
 });
@@ -219,7 +240,7 @@ const game = new Phaser.Game({
       npcDefs,
       npcSheetUrls,
       // A new game starts where the pack says, not wherever the map's default point happens to be.
-      spawn: settings.start?.spawn,
+      spawn: START_SPAWN,
       onPlayerMoved: (x, y) => {
         if (coords) coords.textContent = `${x.toFixed(0)}, ${y.toFixed(0)}`;
         updatePrompt();
@@ -409,6 +430,39 @@ function loadLocation(id: string, spawn?: string): void {
   audio.enterLocation(next);
 }
 
+/**
+ * The chapter the save says the player is in, and the move that follows from it.
+ *
+ * `activeChapter` is derived from quest records, so finishing a chapter's quest advances it — and
+ * that is the moment to carry the player to the next chapter's entry. The first call only records
+ * where the player already is: a resumed save must not be teleported because its chapter happens to
+ * sort later.
+ */
+let activeChapterId = "";
+
+function followChapters(): void {
+  if (!game.scene.isActive("world")) return;
+
+  const chapter = activeChapter(chapters, state.conditionState());
+  const id = chapter?.id ?? "";
+  if (id === "") return;
+
+  if (activeChapterId === "") {
+    activeChapterId = id;
+    return;
+  }
+  if (id === activeChapterId) return;
+
+  activeChapterId = id;
+
+  const entry = chapterEntry(chapter);
+  if (entry === null) return;
+  // Already there (an exit may have carried them in): do not reload the map under them.
+  if (scene().locationId() === entry.location) return;
+
+  loadLocation(entry.location, entry.spawn);
+}
+
 let messageTimer: number | null = null;
 
 /** A content-authored line in the HUD: a blocked door, a locked exit, a picked-up prop. */
@@ -507,7 +561,7 @@ window.addEventListener("keydown", (event) => {
 
 // --- quests, cutscene, title, touch ---------------------------------------------------------
 
-const machine = new QuestMachine(state.save.quests, {
+const machine = new QuestMachine(() => state.save.quests, {
   nodes: (questId) => questsById[questId]?.nodes ?? [],
   evaluate: (condition) => evaluate(condition, state.conditionState()),
   applyEffects: (effects) => {
@@ -620,11 +674,18 @@ function startGame(continueSave: boolean): void {
     splashTimer = null;
   }
   scene().setInputEnabled(true);
+
+  // A new game begins at the start point — not wherever the previous session left the player.
+  if (!continueSave && START_LOCATION !== currentLocationId) {
+    loadLocation(START_LOCATION, START_SPAWN);
+  }
+
   scene().setGameState(state.conditionState());
   // Started from a click, which is the gesture an AudioContext needs to leave "suspended".
   audio.enterLocation(locationsById[currentLocationId]);
   updateHud();
   machine.schedule();
+  followChapters();
 }
 
 /**
@@ -824,6 +885,10 @@ export interface TestHook {
   audioTrack: () => string;
   /** What the shell is showing, so a check can assert the pack drove it. */
   shell: () => { title: string; subtitle: string; splashVisible: boolean; credits: number };
+  /** The chapter the save currently puts the player in. */
+  chapterId: () => string;
+  /** Start a clean game — the title screen's own "new game". */
+  newGame: () => void;
 }
 
 const hook: TestHook = {
@@ -856,6 +921,8 @@ const hook: TestHook = {
     splashVisible: splashEl !== null && !splashEl.hidden,
     credits: settings.credits.length,
   }),
+  chapterId: () => activeChapterId,
+  newGame: () => startGame(false),
 };
 
 (window as unknown as { __hks?: TestHook }).__hks = hook;

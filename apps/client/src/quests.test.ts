@@ -42,7 +42,7 @@ function harness(
     onWarning: (message) => void events.push(`warning:${message}`),
   };
 
-  return { machine: new QuestMachine(state, hooks), events, state };
+  return { machine: new QuestMachine(() => state, hooks), events, state };
 }
 
 describe("advancing", () => {
@@ -184,7 +184,7 @@ describe("on_complete effects", () => {
 
     let calls = 0;
     const h = harness(graph, state, { conditions: { met: true } });
-    const machine = new QuestMachine(state, {
+    const machine = new QuestMachine(() => state, {
       nodes: (questId) => graph[questId as keyof typeof graph] ?? [],
       evaluate: () => true,
       applyEffects: () => {

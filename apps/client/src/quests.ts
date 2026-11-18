@@ -54,8 +54,15 @@ export class QuestMachine {
   private dirty = false;
   private awaiting: { quest: string; node: string } | null = null;
 
+  /**
+   * `questsOf` is a function, not the bag itself.
+   *
+   * The bag is replaced wholesale when a save is swapped in ("new game", or importing a code), and a
+   * captured reference would leave the machine advancing quests in an object nobody reads any more:
+   * the pass runs, finds nothing to do, and the game silently stops progressing.
+   */
   constructor(
-    private readonly quests: Record<string, unknown>,
+    private readonly questsOf: () => Record<string, unknown>,
     private readonly hooks: QuestHooks,
   ) {}
 
@@ -100,7 +107,7 @@ export class QuestMachine {
     while (progressed && rounds < MAX_ROUNDS) {
       rounds += 1;
       progressed = false;
-      for (const questId of Object.keys(this.quests)) {
+      for (const questId of Object.keys(this.questsOf())) {
         if (this.advance(questId)) progressed = true;
       }
     }
@@ -168,7 +175,7 @@ export class QuestMachine {
   }
 
   private record(questId: string): QuestRecord | null {
-    const raw = this.quests[questId];
+    const raw = this.questsOf()[questId];
     if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return null;
     return raw as QuestRecord;
   }
