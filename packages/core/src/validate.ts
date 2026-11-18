@@ -480,6 +480,36 @@ export function validatePack(pack: ContentPack): Issue[] {
     }
   }
 
+  /** One splash block, shared by the game settings and by a chapter's own opening image. */
+  const checkSplash = (value: unknown, path: string): void => {
+    if (!isRecord(value)) {
+      err(path, "splash must be an object");
+      return;
+    }
+
+    const art = toKey(value["art"] ?? "");
+    // Content-relative, like every other art path: absolute or traversing paths are how a pack reads
+    // files it has no business reading.
+    if (art === "" || art.startsWith("/") || art.includes("..")) {
+      err(`${path}.art`, "splash.art must be a content-relative path");
+    }
+
+    // A number, not something `Number()` can turn into one: `null` and `""` both coerce to 0.
+    const duration = value["duration_ms"];
+    if (
+      typeof duration !== "number" ||
+      !Number.isInteger(duration) ||
+      duration < 0 ||
+      duration > 10_000
+    ) {
+      err(`${path}.duration_ms`, "duration_ms must be a whole number between 0 and 10000");
+    }
+
+    if (value["skippable"] !== undefined && typeof value["skippable"] !== "boolean") {
+      err(`${path}.skippable`, "skippable must be a boolean");
+    }
+  };
+
   // ---- settings -----------------------------------------------------------
 
   // One document per pack, and the client reads exactly one id. Accepting others would let an author
@@ -496,35 +526,7 @@ export function validatePack(pack: ContentPack): Issue[] {
     checkLocalized(document["title"], `${at}.title`);
     checkLocalized(document["subtitle"], `${at}.subtitle`, false);
 
-    const splash = document["splash"];
-    if (splash !== undefined) {
-      if (!isRecord(splash)) {
-        err(`${at}.splash`, "splash must be an object");
-      } else {
-        const art = toKey(splash["art"] ?? "");
-        // Content-relative, like every other art path: absolute or traversing paths are how a pack
-        // reads files it has no business reading.
-        if (art === "" || art.startsWith("/") || art.includes("..")) {
-          err(`${at}.splash.art`, "splash.art must be a content-relative path");
-        }
-
-        // A number, not something `Number()` can turn into one: `null` and `""` both coerce to 0,
-        // so a cleared field would silently mean a zero-millisecond splash.
-        const duration = splash["duration_ms"];
-        if (
-          typeof duration !== "number" ||
-          !Number.isInteger(duration) ||
-          duration < 0 ||
-          duration > 10_000
-        ) {
-          err(`${at}.splash.duration_ms`, "duration_ms must be a whole number between 0 and 10000");
-        }
-
-        if (splash["skippable"] !== undefined && typeof splash["skippable"] !== "boolean") {
-          err(`${at}.splash.skippable`, "skippable must be a boolean");
-        }
-      }
-    }
+    if (document["splash"] !== undefined) checkSplash(document["splash"], `${at}.splash`);
 
     // Every other block errors when it is the wrong shape; credits folding into an empty list
     // would ship a game with a blank credits screen and nothing in the log.
@@ -604,6 +606,7 @@ export function validatePack(pack: ContentPack): Issue[] {
     const at = `chapters/${chapterId}`;
 
     checkLocalized(chapter["title"], `${at}.title`);
+    if (chapter["splash"] !== undefined) checkSplash(chapter["splash"], `${at}.splash`);
 
     const chapterLocations = new Set<string>();
     for (const raw of asArray(chapter["locations"])) {

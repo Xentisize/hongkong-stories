@@ -642,6 +642,22 @@ describe("chapters", () => {
     ).toBe(true);
   });
 
+  test("a chapter may carry its own splash, validated by the shared rule", () => {
+    const valid = withChapters([
+      ["ch1", { ...CHAPTER, splash: { art: "art/backdrops/ch1.png", duration_ms: 1500, skippable: true } }],
+    ]);
+    expect(errorPaths(valid)).toEqual([]);
+
+    // The same containment and range rules as the game's splash: a chapter's image is not a way
+    // around them.
+    expect(
+      errorPaths(withChapters([["ch1", { ...CHAPTER, splash: { art: "../secret.png", duration_ms: 10 } }]])),
+    ).toEqual(["chapters/ch1.splash.art"]);
+    expect(
+      errorPaths(withChapters([["ch1", { ...CHAPTER, splash: { art: "a.png", duration_ms: null } }]])),
+    ).toEqual(["chapters/ch1.splash.duration_ms"]);
+  });
+
   test("a pack with no chapters is still valid — the kind is optional", () => {
     expect(errorPaths(baseEntries())).toEqual([]);
   });
