@@ -6,17 +6,21 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { useMeta } from "@/lib/queries";
+import { ArtView } from "@/views/ArtView";
 import { BuilderView } from "@/views/BuilderView";
 import { EditorView } from "@/views/EditorView";
 import { MapView } from "@/views/MapView";
 import { PlaygroundView } from "@/views/PlaygroundView";
 import { ReviewView } from "@/views/ReviewView";
+import { SettingsView } from "@/views/SettingsView";
 
-export type ViewId = "editor" | "map" | "playground" | "builder" | "review";
+export type ViewId = "editor" | "map" | "settings" | "art" | "playground" | "builder" | "review";
 
 const VIEWS: Array<{ id: ViewId; label: string }> = [
   { id: "editor", label: "编辑 Editor" },
   { id: "map", label: "地图 Map" },
+  { id: "settings", label: "設定 Settings" },
+  { id: "art", label: "美術 Art" },
   { id: "playground", label: "调试 Playground" },
   { id: "builder", label: "条件 Builder" },
   { id: "review", label: "审阅 Review" },
@@ -88,6 +92,14 @@ export function App() {
             view clear the editor's unsaved warning. The map reports its own state on its Save button. */}
         <Panel visible={active === "map"}>
           <MapView token={token} />
+        </Panel>
+        {/* Settings owns its own unsaved badge, like the map: the shared header badge stays the
+            editor's, so a clean settings draft cannot clear the editor's warning. */}
+        <Panel visible={active === "settings"}>
+          <SettingsView token={token} />
+        </Panel>
+        <Panel visible={active === "art"}>
+          <ArtView token={token} />
         </Panel>
         <Panel visible={active === "playground"}>
           <PlaygroundView token={token} />

@@ -58,6 +58,7 @@ export const api = {
   entity: (kind: string, id: string) => request("GET", `/v1/admin/content/${kind}/${id}`),
   validate: () => request("POST", "/v1/admin/validate"),
   publish: () => request("POST", "/v1/admin/publish"),
+  artTemplates: () => request("GET", "/v1/admin/art/templates"),
   generateArt: (body: unknown) => request("POST", "/v1/admin/art/generate", body),
   evaluateCondition: (body: unknown) => request("POST", "/v1/admin/evaluate_condition", body),
   publishPreview: () => request("GET", "/v1/admin/publish_preview"),

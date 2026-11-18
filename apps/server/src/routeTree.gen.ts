@@ -27,6 +27,7 @@ import { Route as V1AdminUsageRouteImport } from './routes/v1/admin/usage'
 import { Route as V1AdminValidateRouteImport } from './routes/v1/admin/validate'
 import { Route as V1ContentFileRouteImport } from './routes/v1/content/$file'
 import { Route as V1AdminArtGenerateRouteImport } from './routes/v1/admin/art/generate'
+import { Route as V1AdminArtTemplatesRouteImport } from './routes/v1/admin/art/templates'
 import { Route as V1AdminContentKindRouteImport } from './routes/v1/admin/content/$kind'
 import { Route as V1AdminFactcheckCheckRouteImport } from './routes/v1/admin/factcheck/check'
 import { Route as V1AssetsFileSplatRouteImport } from './routes/v1/assets/file/$'
@@ -126,6 +127,11 @@ const V1AdminArtGenerateRoute = V1AdminArtGenerateRouteImport.update({
   path: '/v1/admin/art/generate',
   getParentRoute: () => rootRouteImport,
 } as any)
+const V1AdminArtTemplatesRoute = V1AdminArtTemplatesRouteImport.update({
+  id: '/v1/admin/art/templates',
+  path: '/v1/admin/art/templates',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const V1AdminContentKindRoute = V1AdminContentKindRouteImport.update({
   id: '/v1/admin/content/$kind',
   path: '/v1/admin/content/$kind',
@@ -182,6 +188,7 @@ export interface FileRoutesByFullPath {
   '/v1/admin/validate': typeof V1AdminValidateRoute
   '/v1/content/$file': typeof V1ContentFileRoute
   '/v1/admin/art/generate': typeof V1AdminArtGenerateRoute
+  '/v1/admin/art/templates': typeof V1AdminArtTemplatesRoute
   '/v1/admin/content/$kind': typeof V1AdminContentKindRouteWithChildren
   '/v1/admin/factcheck/check': typeof V1AdminFactcheckCheckRoute
   '/v1/assets/file/$': typeof V1AssetsFileSplatRoute
@@ -209,6 +216,7 @@ export interface FileRoutesByTo {
   '/v1/admin/validate': typeof V1AdminValidateRoute
   '/v1/content/$file': typeof V1ContentFileRoute
   '/v1/admin/art/generate': typeof V1AdminArtGenerateRoute
+  '/v1/admin/art/templates': typeof V1AdminArtTemplatesRoute
   '/v1/admin/content/$kind': typeof V1AdminContentKindRouteWithChildren
   '/v1/admin/factcheck/check': typeof V1AdminFactcheckCheckRoute
   '/v1/assets/file/$': typeof V1AssetsFileSplatRoute
@@ -237,6 +245,7 @@ export interface FileRoutesById {
   '/v1/admin/validate': typeof V1AdminValidateRoute
   '/v1/content/$file': typeof V1ContentFileRoute
   '/v1/admin/art/generate': typeof V1AdminArtGenerateRoute
+  '/v1/admin/art/templates': typeof V1AdminArtTemplatesRoute
   '/v1/admin/content/$kind': typeof V1AdminContentKindRouteWithChildren
   '/v1/admin/factcheck/check': typeof V1AdminFactcheckCheckRoute
   '/v1/assets/file/$': typeof V1AssetsFileSplatRoute
@@ -266,6 +275,7 @@ export interface FileRouteTypes {
     | '/v1/admin/validate'
     | '/v1/content/$file'
     | '/v1/admin/art/generate'
+    | '/v1/admin/art/templates'
     | '/v1/admin/content/$kind'
     | '/v1/admin/factcheck/check'
     | '/v1/assets/file/$'
@@ -293,6 +303,7 @@ export interface FileRouteTypes {
     | '/v1/admin/validate'
     | '/v1/content/$file'
     | '/v1/admin/art/generate'
+    | '/v1/admin/art/templates'
     | '/v1/admin/content/$kind'
     | '/v1/admin/factcheck/check'
     | '/v1/assets/file/$'
@@ -320,6 +331,7 @@ export interface FileRouteTypes {
     | '/v1/admin/validate'
     | '/v1/content/$file'
     | '/v1/admin/art/generate'
+    | '/v1/admin/art/templates'
     | '/v1/admin/content/$kind'
     | '/v1/admin/factcheck/check'
     | '/v1/assets/file/$'
@@ -348,6 +360,7 @@ export interface RootRouteChildren {
   V1AdminValidateRoute: typeof V1AdminValidateRoute
   V1ContentFileRoute: typeof V1ContentFileRoute
   V1AdminArtGenerateRoute: typeof V1AdminArtGenerateRoute
+  V1AdminArtTemplatesRoute: typeof V1AdminArtTemplatesRoute
   V1AdminContentKindRoute: typeof V1AdminContentKindRouteWithChildren
   V1AssetsFileSplatRoute: typeof V1AssetsFileSplatRoute
   V1ContentFileSplatRoute: typeof V1ContentFileSplatRoute
@@ -481,6 +494,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof V1AdminArtGenerateRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/v1/admin/art/templates': {
+      id: '/v1/admin/art/templates'
+      path: '/v1/admin/art/templates'
+      fullPath: '/v1/admin/art/templates'
+      preLoaderRoute: typeof V1AdminArtTemplatesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/v1/admin/content/$kind': {
       id: '/v1/admin/content/$kind'
       path: '/v1/admin/content/$kind'
@@ -588,6 +608,7 @@ const rootRouteChildren: RootRouteChildren = {
   V1AdminValidateRoute: V1AdminValidateRoute,
   V1ContentFileRoute: V1ContentFileRoute,
   V1AdminArtGenerateRoute: V1AdminArtGenerateRoute,
+  V1AdminArtTemplatesRoute: V1AdminArtTemplatesRoute,
   V1AdminContentKindRoute: V1AdminContentKindRouteWithChildren,
   V1AssetsFileSplatRoute: V1AssetsFileSplatRoute,
   V1ContentFileSplatRoute: V1ContentFileSplatRoute,

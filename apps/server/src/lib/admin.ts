@@ -15,7 +15,8 @@ import { loadContent } from "@/lib/content";
  * the client — model slugs stay server-side constants.
  */
 
-export const DRAFT_KINDS = ["npcs", "items", "locations", "quests"] as const;
+/** Entity kinds that can be drafted. `settings` is a singleton, but the machinery is the same. */
+export const DRAFT_KINDS = ["npcs", "items", "locations", "quests", "settings"] as const;
 
 /** `vite dev` runs with cwd = apps/server. */
 export function repoRoot(): string {

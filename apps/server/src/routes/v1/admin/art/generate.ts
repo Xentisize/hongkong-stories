@@ -64,6 +64,16 @@ export const Route = createFileRoute("/v1/admin/art/generate")({
           const desc = String(body["desc"] ?? "").trim();
           if (!desc) fail(422, "desc is required");
 
+          // A seed is either a number or nothing: `Number("abc")` is NaN, and a NaN seed reaches the
+          // provider as a field it cannot honour — a 502 that blames the model for our input.
+          const rawSeed = body["seed"];
+          const seed =
+            rawSeed === undefined || rawSeed === null
+              ? undefined
+              : Number.isFinite(Number(rawSeed))
+                ? Number(rawSeed)
+                : fail(422, "seed must be a number");
+
           const [aspect, target, background] = TARGETS[kind];
           const outlined = OUTLINED.has(kind);
           const prompt = buildPrompt(kind, desc);
@@ -114,9 +124,7 @@ export const Route = createFileRoute("/v1/admin/art/generate")({
               prompt,
               aspectRatio: aspect,
               background,
-              seed: body["seed"] === undefined || body["seed"] === null
-                ? undefined
-                : Number(body["seed"]),
+              seed,
               inputReferences: references,
             });
           } catch (error) {
