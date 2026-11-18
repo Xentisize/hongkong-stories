@@ -13,10 +13,15 @@ allowlist, and fall back to authored scripted lines when the backend is unreacha
 
 ## Quick start
 
-Two processes. The backend owns the OpenRouter key; the game never sees it (PLAN §3).
+The API owns the OpenRouter key; the game never sees it (PLAN §3).
 
 ```bash
-# terminal 1 — API (reads OPENROUTER_API_KEY from .env). TanStack Start; FastAPI is retired.
+# once — install the workspace, then apply the database migrations
+# (DATABASE_URL lives in .env; content and tooling work without one)
+bun install
+bun run db:migrate
+
+# terminal 1 — API (reads OPENROUTER_API_KEY and DATABASE_URL from .env)
 cd apps/server && bun run dev                        # → http://127.0.0.1:3000/
 
 # terminal 2 — game
@@ -27,9 +32,12 @@ bun tools/serve_web.ts 8099                      # → http://127.0.0.1:8099/ (n
 
 The admin SPA is the same API: `cd admin && bun run dev` proxies `/v1` to it.
 
-Use `tools/serve_web.ts`, not a bare static server: one that sends no `Cache-Control` lets
-Chrome will keep serving a stale `index.pck` after a re-export — which looks exactly like a
-broken build. That cost a debugging detour once already. The HUD also prints a small build stamp
+The API needs Postgres for sessions, chat budgets, the usage ledger and the fact-check queue.
+Content stays in git — the database holds only mutable state, and `bun run db:migrate` is
+idempotent, so running it again is always safe.
+
+Use `tools/serve_web.ts`, not a bare static server: one that sends no `Cache-Control` lets Chrome
+keep serving a stale `index.pck` after a re-export — which looks exactly like a broken build. That cost a debugging detour once already. The HUD also prints a small build stamp
 (`p2-font-2`) in the bottom-right corner, so "which build am I looking at?" is answerable on sight.
 
 Or open `client/project.godot` in Godot 4.7.2 and press F5 (it talks to `127.0.0.1:3000` by
@@ -48,6 +56,11 @@ bun tools/check_font_coverage.ts                        # CJK glyph coverage gat
 bun tools/check_content.ts                                  # content validator (publish/CI gate)
 node tools/web_smoke.mjs http://127.0.0.1:8099/ /tmp/s.png 12000 talk   # browser E2E
 ```
+
+The API tests need `DATABASE_URL`: they create a throwaway schema, migrate it, and never touch
+`public`. The `--selftest` counts recorded further down are per-phase figures — the six
+placement-writer checks were removed with the `npc_placement` plugin, so older numbers read higher
+than a current run.
 
 `web_smoke` in `talk` mode injects real key events over CDP, walks to the NPC, presses E, and
 reports the game's `[Dialogue]` line — so it distinguishes *the model answered* from *the
@@ -95,7 +108,8 @@ identify the album, so the chapter never dead-ends with the backend down).
 
 Verified on this machine: all 36 content entities parse, carry three locales, and contain
 no Cantonese particles in `zh_CN` (§11 spot-check); the shared condition fixtures pass
-through the Python evaluator (30/30); the font-coverage gate passes — every authored
+through `@hkstories/core`, the evaluator the game and the API both use (30/30); the
+font-coverage gate passes — every authored
 character is renderable. The Godot `--selftest` suite now RUNS on this machine (a Windows
 4.7.2 build driven through WSL interop): **111 checks, 0 failures**. The backend suite now runs as
 `bun test` in `apps/server`; the Python `pytest` suite and its pinned interpreter are gone.
@@ -120,10 +134,12 @@ into the pack with a `.gen.json` provenance sidecar (model/seed/palette/cost —
 this sprite exactly" stays possible). The pixel work is `apps/server/src/lib/pixelate.ts` on
 sharp, so there is no Python interpreter and no optional dependency group to keep in step (§10.6).
 
-The §9.2 authoring tools are in too, as the SPA's four views (Editor / Playground / Builder /
-Review): a **condition builder** — rule rows that emit §5.5 JSON, with a live "would this
-pass?" evaluated by the server's Python evaluator (never a drifting TS copy) against an
-editable state mock; a **persona playground** — chat with the unsaved draft through the real
+The §9.2 authoring tools are in too, as the SPA's five views (Editor / Map / Playground /
+Builder / Review): a **map editor** — a location tree, a tile palette, a paintable canvas with
+MAP / EVENT / COLLISION modes and drag-and-drop placement, writing through the same draft path; a
+**condition builder** — rule rows that emit §5.5 JSON, with a live "would this pass?" evaluated by
+`@hkstories/core` (the same evaluator the game and the API use) against an editable state mock; a
+**persona playground** — chat with the unsaved draft through the real
 pipeline, per-turn REAL tokens/cost/latency via OpenRouter's `usage.include` (the cache-hit
 telemetry §7.5 wanted), rejected actions surfaced in red, one-click fact-check; a
 **fact-check review queue** (§7.6: flag for review, never rewrite the player's words,
@@ -177,9 +193,9 @@ thank-you.
 Systems shipped: **save-code export/import** (§6.4 — length-prefixed deflate, `savecode` /
 `code` dev commands, a selftest round-trip that also refuses mangled codes), the **Audio
 autoload** with five synthesized ambience beds (4.0 MB of WAV, content `music` fields wired,
-seamless looping), **touch controls** (a virtual d-pad plus E/I, touchscreen-only), and the
-**NPC-placement editor plugin** (§9.1 — `addons/npc_placement`: a JSON write-back core the
-selftest exercises plus an `@tool` dock for the editor).
+seamless looping), **touch controls** (a virtual d-pad plus E/I, touchscreen-only), and a **map editor** (§9.1) that
+lives in the admin web app rather than a Godot `@tool` dock — the `addons/npc_placement` plugin and
+its write-back core retired once the admin covered both of its modes.
 
 Verified on this machine: 53 entities validate with 0 errors, the font-coverage gate passes
 over every new era string, three-locale parity holds with zero Cantonese particles in
@@ -221,11 +237,11 @@ provider; telemetry is counts only.
 
 A design pass borrowed four RPG Maker patterns (2026-11); where each landed:
 
-1. **The three-panel map & asset editor** — the **Map Editor** plugin (`addons/npc_placement`,
-   editor-only): a location tree grouped by era, a tile palette under it, a paintable map
-   canvas with the crucial **MAP/EVENT toggle**, an inspector for the selected event, and
-   write-back through `location_writer.gd` — the same core the headless selftest exercises
-   (tiles + placements wholesale; doors preserved; regenerate the manifest after writes).
+1. **The three-panel map & asset editor** — shipped in the **admin web app**
+   (`admin/src/views/MapView.tsx`): a location tree, a tile palette under it, a paintable canvas
+   with the **MAP/EVENT** toggle plus a **collision** mode, an inspector for the selected event, and
+   write-back through the same draft → validate → publish path as every other entity. It replaced
+   the Godot `addons/npc_placement` `@tool` plugin, which was retired along with its writer.
 2. **The conditional state system** — **NPC event pages** (`states` in an NPC JSON): an
    ordered array where the first `requires` that passes activates a page that patches the
    persona, extends the lore ("WHAT CHANGED RECENTLY"), and overrides the offline ladder.
@@ -293,6 +309,8 @@ against the Cantonese particle set and every string in `client/content/`.
 ## Prerequisites
 
 - Godot **4.7.2** with web export templates for `4.7.2.stable` (PLAN §10.1).
+- **Postgres** and a `DATABASE_URL` in `.env`, for sessions, chat budgets and the two ledgers
+  (`bun run db:migrate` once). Content, the gates and the tools need no database at all.
 - **Node + bun 1.4.4** — the only runtime and package manager (PLAN §10.6). The Python backend and
   the Python tooling were retired in favour of `apps/server` (TanStack Start) and the TypeScript
   tools in `tools/`; a `pyproject.toml` or `uv.lock` reappearing means the migration regressed.
