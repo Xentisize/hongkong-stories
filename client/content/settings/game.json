@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "id": "game",
+  "_comment": "Game-level settings (§6.1): what the shell shows before play, and the defaults it starts from. One document per pack, and every value here is something a creator is expected to change.",
+  "title": {
+    "zh_HK": "香港故事",
+    "zh_CN": "香港故事",
+    "en": "Hong Kong Stories"
+  },
+  "subtitle": {
+    "zh_HK": "我哋條街",
+    "zh_CN": "我们这条街",
+    "en": "Our Street"
+  },
+  "splash": {
+    "art": "art/backdrops/splash_cute.png",
+    "duration_ms": 2400,
+    "skippable": true
+  },
+  "credits": [
+    {
+      "role": {
+        "zh_HK": "故事",
+        "zh_CN": "故事",
+        "en": "Story"
+      },
+      "names": ["Hong Kong Stories"]
+    },
+    {
+      "role": {
+        "zh_HK": "美術",
+        "zh_CN": "美术",
+        "en": "Art"
+      },
+      "names": ["Seedream art pass"]
+    }
+  ],
+  "defaults": {
+    "locale": "auto",
+    "music_db": -12,
+    "sfx_db": -6
+  },
+  "start": {
+    "location": "loc_ssp_market_street",
+    "spawn": "default"
+  }
+}

@@ -1,7 +1,7 @@
 {
   "manifest_schema": 1,
   "version": 1,
-  "content_hash": "30ae06ee1810",
+  "content_hash": "3aa943d1ac8b",
   "files": [
     "npcs/npc_ch01_ken.json",
     "npcs/npc_ch01_ming.json",
@@ -55,6 +55,7 @@
     "quests/ch05.json",
     "quests/ch06.json",
     "quests/q_test_chain.json",
-    "quests/q_test_gated.json"
+    "quests/q_test_gated.json",
+    "settings/game.json"
   ]
 }

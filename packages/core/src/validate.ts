@@ -119,6 +119,7 @@ export function validatePack(pack: ContentPack): Issue[] {
   const items = pack.tables["items"] ?? {};
   const locations = pack.tables["locations"] ?? {};
   const quests = pack.tables["quests"] ?? {};
+  const settings = pack.tables["settings"] ?? {};
 
   const flagsSettable = new Set<string>();
 
@@ -454,6 +455,102 @@ export function validatePack(pack: ContentPack): Issue[] {
       }
       walkConditions(exitDef["requires"], `${at}.exits/${exitId}.requires`);
       checkLocalized(exitDef["blocked"], `${at}.exits/${exitId}.blocked`, false);
+    }
+  }
+
+  // ---- settings -----------------------------------------------------------
+
+  // One document per pack, and the client reads exactly one id. Accepting others would let an author
+  // edit a file nothing loads, which is worse than a loud failure here.
+  for (const settingsId of sortedKeys(settings)) {
+    const document = settings[settingsId]!;
+    const at = `settings/${settingsId}`;
+
+    if (settingsId !== "game") {
+      err(at, "the settings document must be named 'game'");
+      continue;
+    }
+
+    checkLocalized(document["title"], `${at}.title`);
+    checkLocalized(document["subtitle"], `${at}.subtitle`, false);
+
+    const splash = document["splash"];
+    if (splash !== undefined) {
+      if (!isRecord(splash)) {
+        err(`${at}.splash`, "splash must be an object");
+      } else {
+        const art = toKey(splash["art"] ?? "");
+        // Content-relative, like every other art path: absolute or traversing paths are how a pack
+        // reads files it has no business reading.
+        if (art === "" || art.startsWith("/") || art.includes("..")) {
+          err(`${at}.splash.art`, "splash.art must be a content-relative path");
+        }
+
+        const duration = Number(splash["duration_ms"] ?? 0);
+        if (!Number.isInteger(duration) || duration < 0 || duration > 10_000) {
+          err(`${at}.splash.duration_ms`, "duration_ms must be an integer between 0 and 10000");
+        }
+
+        if (splash["skippable"] !== undefined && typeof splash["skippable"] !== "boolean") {
+          err(`${at}.splash.skippable`, "skippable must be a boolean");
+        }
+      }
+    }
+
+    for (const credit of asArray(document["credits"])) {
+      if (!isRecord(credit)) {
+        err(`${at}.credits`, "each credit must be an object");
+        continue;
+      }
+
+      checkLocalized(credit["role"], `${at}.credits.role`, false);
+
+      const names = asArray(credit["names"]);
+      if (names.length === 0 || names.some((name) => toKey(name).trim() === "")) {
+        err(`${at}.credits.names`, "each credit needs at least one non-empty name");
+      }
+    }
+
+    const defaults = document["defaults"];
+    if (defaults !== undefined) {
+      if (!isRecord(defaults)) {
+        err(`${at}.defaults`, "defaults must be an object");
+      } else {
+        const locale = toKey(defaults["locale"] ?? "auto");
+        if (!["auto", "zh_HK", "zh_CN", "en"].includes(locale)) {
+          err(`${at}.defaults.locale`, `unknown locale '${locale}'`);
+        }
+
+        for (const key of ["music_db", "sfx_db"]) {
+          const raw = defaults[key];
+          if (raw === undefined) continue;
+
+          // A bus gain runs from silence to unity; anything outside that is a typo, not a taste.
+          const decibels = Number(raw);
+          if (!Number.isFinite(decibels) || decibels > 0 || decibels < -60) {
+            err(`${at}.defaults.${key}`, `${key} must be between -60 and 0`);
+          }
+        }
+      }
+    }
+
+    const start = document["start"];
+    if (start !== undefined) {
+      if (!isRecord(start)) {
+        err(`${at}.start`, "start must be an object");
+      } else {
+        const location = toKey(start["location"] ?? "");
+        if (!(location in locations)) {
+          err(`${at}.start.location`, `unknown location '${location}'`);
+        } else {
+          const spawn = toKey(start["spawn"] ?? "default");
+          const spawnPoints = locations[location]!["spawn_points"];
+          const spawns = isRecord(spawnPoints) ? spawnPoints : {};
+          if (spawn !== "default" && !(spawn in spawns)) {
+            err(`${at}.start.spawn`, `spawn '${spawn}' not defined in '${location}'`);
+          }
+        }
+      }
     }
   }
 

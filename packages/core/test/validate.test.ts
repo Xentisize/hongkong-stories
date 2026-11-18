@@ -386,6 +386,105 @@ describe("collision geometry", () => {
   });
 });
 
+describe("game settings", () => {
+  /** Paths, not messages: the path is what tells an author which field to fix. */
+  const errorPaths = (entries: Record<string, ContentEntity>) =>
+    issuesOf(entries)
+      .filter((issue) => issue.level === "error")
+      .map((issue) => issue.path);
+
+  const VALID = {
+    title: LOCALIZED("香港故事", "香港故事", "Hong Kong Stories"),
+    subtitle: LOCALIZED("我哋條街", "我们这条街", "Our Street"),
+    splash: { art: "art/backdrops/splash_cute.png", duration_ms: 2400, skippable: true },
+    credits: [{ role: LOCALIZED("故事", "故事", "Story"), names: ["Studio"] }],
+    defaults: { locale: "auto", music_db: -12, sfx_db: -6 },
+    start: { location: "loc_a", spawn: "default" },
+  };
+
+  const withSettings = (document: Record<string, unknown>, id = "game") => {
+    const entries = baseEntries();
+    entries[`settings/${id}.json`] = { id, ...document } as ContentEntity;
+    return entries;
+  };
+
+  test("a complete document passes", () => {
+    expect(errorPaths(withSettings(VALID))).toEqual([]);
+  });
+
+  test("the document must be named game, because that is the one the client reads", () => {
+    expect(errorPaths(withSettings({ title: VALID.title }, "other"))).toEqual(["settings/other"]);
+  });
+
+  test("a title is required, and a partial one is not a title", () => {
+    expect(errorPaths(withSettings({ ...VALID, title: undefined }))).toContain("settings/game.title");
+    expect(errorPaths(withSettings({ ...VALID, title: { en: "Only English" } }))).toContain(
+      "settings/game.title",
+    );
+  });
+
+  test("the splash art path must be content-relative", () => {
+    expect(
+      errorPaths(withSettings({ ...VALID, splash: { art: "../secret.png", duration_ms: 10 } })),
+    ).toEqual(["settings/game.splash.art"]);
+    expect(
+      errorPaths(withSettings({ ...VALID, splash: { art: "/etc/passwd", duration_ms: 10 } })),
+    ).toEqual(["settings/game.splash.art"]);
+  });
+
+  test("the splash duration is bounded, because a ten-hour splash is a bug", () => {
+    expect(
+      errorPaths(withSettings({ ...VALID, splash: { art: "a.png", duration_ms: 99_999 } })),
+    ).toEqual(["settings/game.splash.duration_ms"]);
+    expect(errorPaths(withSettings({ ...VALID, splash: { art: "a.png", duration_ms: 1.5 } }))).toEqual([
+      "settings/game.splash.duration_ms",
+    ]);
+  });
+
+  test("skippable is a boolean when present", () => {
+    expect(
+      errorPaths(withSettings({ ...VALID, splash: { art: "a.png", duration_ms: 10, skippable: "yes" } })),
+    ).toEqual(["settings/game.splash.skippable"]);
+  });
+
+  test("a credit needs a name", () => {
+    expect(errorPaths(withSettings({ ...VALID, credits: [{ role: VALID.credits[0]!.role }] }))).toEqual([
+      "settings/game.credits.names",
+    ]);
+    expect(errorPaths(withSettings({ ...VALID, credits: [{ names: ["  "] }] }))).toEqual([
+      "settings/game.credits.names",
+    ]);
+  });
+
+  test("the default locale must be one the game can resolve", () => {
+    expect(errorPaths(withSettings({ ...VALID, defaults: { locale: "fr" } }))).toEqual([
+      "settings/game.defaults.locale",
+    ]);
+  });
+
+  test("a bus gain runs from silence to unity", () => {
+    expect(errorPaths(withSettings({ ...VALID, defaults: { music_db: 12 } }))).toEqual([
+      "settings/game.defaults.music_db",
+    ]);
+    expect(errorPaths(withSettings({ ...VALID, defaults: { sfx_db: -120 } }))).toEqual([
+      "settings/game.defaults.sfx_db",
+    ]);
+  });
+
+  test("the start location and spawn must exist", () => {
+    expect(errorPaths(withSettings({ ...VALID, start: { location: "loc_nowhere" } }))).toEqual([
+      "settings/game.start.location",
+    ]);
+    expect(errorPaths(withSettings({ ...VALID, start: { location: "loc_a", spawn: "roof" } }))).toEqual(
+      ["settings/game.start.spawn"],
+    );
+  });
+
+  test("the settings block is optional: a pack without one is still playable", () => {
+    expect(errorPaths(baseEntries())).toEqual([]);
+  });
+});
+
 describe("publish gating", () => {
   test("allowlist flags count as settable", () => {
     const entries = baseEntries();

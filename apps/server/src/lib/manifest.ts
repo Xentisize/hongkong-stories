@@ -17,7 +17,7 @@ import { join } from "node:path";
  * would be invisible until some clients refused to hot-pack.
  */
 
-export const MANIFEST_KINDS = ["npcs", "items", "locations", "quests", "lore"] as const;
+export const MANIFEST_KINDS = ["npcs", "items", "locations", "quests", "lore", "settings"] as const;
 
 export interface ContentManifest {
   manifest_schema: number;
@@ -26,9 +26,16 @@ export interface ContentManifest {
   files: string[];
 }
 
-export async function regenerateManifest(
+/**
+ * Hash the pack without touching disk.
+ *
+ * Split from `regenerateManifest` so the content gate can ask "is the committed manifest still what
+ * these bytes hash to?" — a question nobody was asking, which is how the committed hash drifted away
+ * from the committed content without a single failure.
+ */
+export async function computeManifest(
   contentDir: string,
-  options: { bump: boolean } = { bump: false },
+  options: { version?: number } = {},
 ): Promise<ContentManifest> {
   const files: string[] = [];
   const digest = createHash("sha256");
@@ -50,8 +57,21 @@ export async function regenerateManifest(
     }
   }
 
-  let version = 1;
+  return {
+    manifest_schema: 1,
+    version: options.version ?? 1,
+    content_hash: digest.digest("hex").slice(0, 12),
+    files,
+  };
+}
+
+export async function regenerateManifest(
+  contentDir: string,
+  options: { bump: boolean } = { bump: false },
+): Promise<ContentManifest> {
   const manifestPath = join(contentDir, "manifest.json");
+
+  let version = 1;
   if (options.bump) {
     try {
       const existing = JSON.parse(await readFile(manifestPath, "utf8")) as { version?: unknown };
@@ -61,12 +81,7 @@ export async function regenerateManifest(
     }
   }
 
-  const manifest: ContentManifest = {
-    manifest_schema: 1,
-    version,
-    content_hash: digest.digest("hex").slice(0, 12),
-    files,
-  };
+  const manifest = await computeManifest(contentDir, { version });
 
   await mkdir(contentDir, { recursive: true });
   await writeFile(manifestPath, JSON.stringify(manifest, null, 2) + "\n", "utf8");
