@@ -5,7 +5,7 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { validatePack } from "@hkstories/core";
 
-import { draftFiles, errorResponse, mergedPack, requireAdmin } from "@/lib/admin";
+import { draftExtension, draftFiles, errorResponse, mergedPack, requireAdmin } from "@/lib/admin";
 import { contentDir, counts, loadContent } from "@/lib/content";
 import { regenerateManifest } from "@/lib/manifest";
 
@@ -56,7 +56,8 @@ export const Route = createFileRoute("/v1/admin/publish")({
             await mkdir(targetDir, { recursive: true });
             // Copied verbatim, so an author's formatting survives publication.
             const text = await readFile(draft.path, "utf8");
-            await writeFile(join(targetDir, `${draft.id}.json`), text, "utf8");
+            const extension = draftExtension(draft.kind);
+            await writeFile(join(targetDir, `${draft.id}.${extension}`), text, "utf8");
             published += 1;
           }
 

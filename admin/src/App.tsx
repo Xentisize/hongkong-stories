@@ -10,8 +10,11 @@ import { ArtView } from "@/views/ArtView";
 import { ChaptersView } from "@/views/ChaptersView";
 import { BuilderView } from "@/views/BuilderView";
 import { EditorView } from "@/views/EditorView";
+import { ItemsView } from "@/views/ItemsView";
+import { LoreView } from "@/views/LoreView";
 import { MapView } from "@/views/MapView";
 import { PlaygroundView } from "@/views/PlaygroundView";
+import { QuestsView } from "@/views/QuestsView";
 import { ReviewView } from "@/views/ReviewView";
 import { SettingsView } from "@/views/SettingsView";
 
@@ -20,6 +23,9 @@ export type ViewId =
   | "map"
   | "settings"
   | "chapters"
+  | "items"
+  | "quests"
+  | "lore"
   | "art"
   | "playground"
   | "builder"
@@ -30,6 +36,9 @@ const VIEWS: Array<{ id: ViewId; label: string }> = [
   { id: "map", label: "地图 Map" },
   { id: "settings", label: "設定 Settings" },
   { id: "chapters", label: "章節 Chapters" },
+  { id: "items", label: "物品 Items" },
+  { id: "quests", label: "任務 Quests" },
+  { id: "lore", label: "典故 Lore" },
   { id: "art", label: "美術 Art" },
   { id: "playground", label: "调试 Playground" },
   { id: "builder", label: "条件 Builder" },
@@ -110,6 +119,17 @@ export function App() {
         </Panel>
         <Panel visible={active === "chapters"}>
           <ChaptersView token={token} />
+        </Panel>
+        {/* Items and quests own their unsaved badges for the same reason settings does: the header
+            badge is the editor's, and a clean draft elsewhere must not clear it. */}
+        <Panel visible={active === "items"}>
+          <ItemsView token={token} />
+        </Panel>
+        <Panel visible={active === "quests"}>
+          <QuestsView token={token} />
+        </Panel>
+        <Panel visible={active === "lore"}>
+          <LoreView token={token} />
         </Panel>
         <Panel visible={active === "art"}>
           <ArtView token={token} />

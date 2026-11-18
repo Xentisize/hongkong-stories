@@ -29,6 +29,7 @@ import {
   type MapNpc,
 } from "@/lib/map";
 import { MapCanvas, type EditorMode, type EditorTool } from "@/views/map/MapCanvas";
+import { LocationPanel } from "@/views/map/LocationPanel";
 
 /**
  * Map editor (PLAN 6.3, 9.2) — the three-panel layout.
@@ -513,6 +514,12 @@ export function MapView({ token, onDirtyChange }: { token: string; onDirtyChange
               tileSize={tileSize}
               npcs={doc.npcs ?? []}
               collision={collisionRects}
+              decor={Array.isArray(doc.decor) ? (doc.decor as Array<{ art?: string; tile?: [number, number] }>) : []}
+              interactables={
+                Array.isArray(doc.interactables)
+                  ? (doc.interactables as Array<{ id?: string; tile?: [number, number] }>)
+                  : []
+              }
               atlas={atlasImage}
               mode={mode}
               brush={brush}
@@ -681,16 +688,6 @@ export function MapView({ token, onDirtyChange }: { token: string; onDirtyChange
               </div>
             ) : (
               <div className="space-y-3">
-                <div>
-                  <p className="text-muted-foreground">地图 Map</p>
-                  <p className="font-mono text-sm">{String(doc.id)}</p>
-                  {doc.display_name ? (
-                    <p className="text-muted-foreground">
-                      {doc.display_name["zh_HK"] ?? doc.display_name["en"] ?? ""}
-                    </p>
-                  ) : null}
-                </div>
-
                 <div className="space-y-1">
                   <p className="text-muted-foreground">尺寸 Size</p>
                   <p className="font-mono">{size.width} × {size.height} tiles @ {tileSize}px</p>
@@ -713,14 +710,14 @@ export function MapView({ token, onDirtyChange }: { token: string; onDirtyChange
                   ) : null}
                 </div>
 
-                {doc.spawn_points ? (
-                  <div>
-                    <p className="mb-1 text-muted-foreground">出生点 Spawn points</p>
-                    <pre className="max-h-20 overflow-auto rounded bg-muted/40 p-2 text-[11px]">
-                      {JSON.stringify(doc.spawn_points, null, 2)}
-                    </pre>
-                  </div>
-                ) : null}
+                {/* Name, context, ambience, spawn points, doors, exits, interactables and decor —
+                    the document around the canvas, edited on the same undo stack as a brush stroke. */}
+                <LocationPanel
+                  doc={doc}
+                  apply={apply}
+                  locationIds={locations.data ?? []}
+                  cursor={cursor}
+                />
 
                 {mode === "event" ? (
                   <div className="space-y-2 rounded border border-dashed p-2">

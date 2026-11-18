@@ -134,11 +134,24 @@ into the pack with a `.gen.json` provenance sidecar (model/seed/palette/cost —
 this sprite exactly" stays possible). The pixel work is `apps/server/src/lib/pixelate.ts` on
 sharp, so there is no Python interpreter and no optional dependency group to keep in step (§10.6).
 
-The §9.2 authoring tools are in too, as the SPA's five views (Editor / Map / Playground /
-Builder / Review): a **map editor** — a location tree, a tile palette, a paintable canvas with
-MAP / EVENT / COLLISION modes and drag-and-drop placement, writing through the same draft path; a
+The §9.2 authoring tools are in too, as the SPA's eleven views (Editor / Map / Settings /
+Chapters / Items / Quests / Lore / Art / Playground / Builder / Review): a **map editor** — a location
+tree, a tile palette, a paintable canvas with MAP / EVENT / COLLISION modes and drag-and-drop
+placement, writing through the same draft path, plus a location inspector for name/context/ambience,
+spawn points, doors, exits, interactables and decor (props and pressable objects carry markers on the
+canvas); a **chapters editor** — the aggregation document,
+with every reference picked from what the pack actually contains; an **items editor** — localized
+name/description, icon and lore picked from the shipped files, stack size, category, and the
+`use_requires`/`on_use`/`on_acquire` blocks; a
+**quests editor** — the node chain with add/delete/rename/relink, each edit keeping `next` honest
+(reordering rows does not relink, so a branched arc survives a tidy-up), objectives and cutscene
+pages edited per locale; a **lore editor** — markdown pages drafted beside the pack and published
+verbatim (they are authoring reference: the runtime reads an NPC's inline `lore`, not the file yet); a
 **condition builder** — rule rows that emit §5.5 JSON, with a live "would this pass?" evaluated by
-`@hkstories/core` (the same evaluator the game and the API use) against an editable state mock; a
+`@hkstories/core` (the same evaluator the game and the API use) against an editable state mock. The
+row editor and the effect-row editor are shared components (`components/RuleEditor`,
+`components/EffectListEditor`, vocabulary in `lib/rules`), so the builder and the map inspector cannot
+drift into two rule languages; a
 **persona playground** — chat with the unsaved draft through the real
 pipeline, per-turn REAL tokens/cost/latency via OpenRouter's `usage.include` (the cache-hit
 telemetry §7.5 wanted), rejected actions surfaced in red, one-click fact-check; a

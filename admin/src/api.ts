@@ -31,20 +31,35 @@ async function request(method: string, path: string, body?: unknown): Promise<un
     init.body = JSON.stringify(body);
   }
   const response = await fetch(path, init);
-  if (!response.ok) {
-    let detail: unknown = response.statusText;
-    try {
-      const parsed = await response.json();
-      detail = parsed?.detail ?? parsed;
-    } catch {
-      // keep statusText
-    }
-    throw new ApiError(response.status, detail);
-  }
+  if (!response.ok) throw await toApiError(response);
   if (response.status === 204) {
     return null;
   }
   return response.json();
+}
+
+/** Same contract as `request`, for the two endpoints that speak markdown instead of JSON. */
+async function requestText(method: string, path: string, body?: string): Promise<string> {
+  const headers: Record<string, string> = { Authorization: `Bearer ${getToken()}` };
+  const init: RequestInit = { method, headers };
+  if (body !== undefined) {
+    headers["Content-Type"] = "text/markdown; charset=utf-8";
+    init.body = body;
+  }
+  const response = await fetch(path, init);
+  if (!response.ok) throw await toApiError(response);
+  return response.text();
+}
+
+async function toApiError(response: Response): Promise<ApiError> {
+  let detail: unknown = response.statusText;
+  try {
+    const parsed = await response.json();
+    detail = parsed?.detail ?? parsed;
+  } catch {
+    // keep statusText
+  }
+  return new ApiError(response.status, detail);
 }
 
 export const api = {
@@ -56,6 +71,11 @@ export const api = {
   deleteDraft: (kind: string, id: string) => request("DELETE", `/v1/admin/drafts/${kind}/${id}`),
   entities: (kind: string) => request("GET", `/v1/admin/content/${kind}`),
   entity: (kind: string, id: string) => request("GET", `/v1/admin/content/${kind}/${id}`),
+  /** Lore pages are markdown, so they are read and written as text rather than as entities. */
+  loreBaseline: (id: string) => requestText("GET", `/v1/admin/content/lore/${encodeURIComponent(id)}`),
+  loreDraft: (id: string) => requestText("GET", `/v1/admin/drafts/lore/${encodeURIComponent(id)}`),
+  putLoreDraft: (id: string, text: string) =>
+    requestText("PUT", `/v1/admin/drafts/lore/${encodeURIComponent(id)}`, text),
   validate: () => request("POST", "/v1/admin/validate"),
   publish: () => request("POST", "/v1/admin/publish"),
   artTemplates: () => request("GET", "/v1/admin/art/templates"),

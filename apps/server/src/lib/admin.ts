@@ -16,7 +16,26 @@ import { loadContent } from "@/lib/content";
  */
 
 /** Entity kinds that can be drafted. `settings` is a singleton, but the machinery is the same. */
-export const DRAFT_KINDS = ["npcs", "items", "locations", "quests", "settings", "chapters"] as const;
+export const DRAFT_KINDS = [
+  "npcs",
+  "items",
+  "locations",
+  "quests",
+  "settings",
+  "chapters",
+  "lore",
+] as const;
+
+/**
+ * What a draft of this kind is written as.
+ *
+ * Lore is the exception in the pack: one markdown page per era, not an entity table. Storing it as
+ * `.md` keeps publish a verbatim copy instead of a JSON round-trip that would reformat an author's
+ * prose.
+ */
+export function draftExtension(kind: string): "json" | "md" {
+  return kind === "lore" ? "md" : "json";
+}
 
 /** `vite dev` runs with cwd = apps/server. */
 export function repoRoot(): string {
@@ -80,7 +99,7 @@ export function draftPath(kind: string, id: string): string {
     fail(400, `unknown kind '${kind}'`);
   }
   if (!id || id.includes("/") || id.startsWith(".")) fail(400, "bad id");
-  return join(adminDataDir(), "drafts", kind, `${id}.json`);
+  return join(adminDataDir(), "drafts", kind, `${id}.${draftExtension(kind)}`);
 }
 
 export interface DraftFile {
@@ -105,12 +124,13 @@ export async function draftFiles(): Promise<DraftFile[]> {
   const files: DraftFile[] = [];
   for (const kind of kindNames) {
     const dir = join(base, kind);
+    const suffix = `.${draftExtension(kind)}`;
     for (const name of await readdir(dir)) {
-      if (!name.endsWith(".json")) continue;
+      if (!name.endsWith(suffix)) continue;
       const path = join(dir, name);
       files.push({
         kind,
-        id: name.slice(0, -".json".length),
+        id: name.slice(0, -suffix.length),
         path,
         updated: Math.floor((await stat(path)).mtimeMs / 1000),
       });
@@ -134,6 +154,9 @@ export async function mergedPack(): Promise<ContentPack> {
   for (const [kind, rows] of Object.entries(pack.tables)) tables[kind] = { ...rows };
 
   for (const draft of await draftFiles()) {
+    // Lore is markdown, not an entity table: it has no `id` field and the validator never sees it.
+    if (draftExtension(draft.kind) !== "json") continue;
+
     let entity: unknown;
     try {
       entity = JSON.parse(await readFile(draft.path, "utf8"));

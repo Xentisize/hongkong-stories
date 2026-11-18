@@ -25,6 +25,10 @@ export interface MapCanvasProps {
   tileSize: number;
   npcs: MapNpc[];
   collision: CollisionRect[];
+  /** Set dressing — drawn as hollow squares in event mode, so overlap is visible. */
+  decor: Array<{ art?: string; tile?: [number, number] }>;
+  /** Pressable objects — drawn as diamonds in event mode. */
+  interactables: Array<{ id?: string; tile?: [number, number] }>;
   atlas: HTMLImageElement | null;
   mode: EditorMode;
   /** Character written in map mode. */
@@ -49,7 +53,21 @@ export interface MapCanvasProps {
 const UNKNOWN_TILE = "#7f1d1d";
 
 export function MapCanvas(props: MapCanvasProps) {
-  const { tilemap, legend, tileSize, npcs, collision, atlas, mode, brush, zoom, selected, tool } = props;
+  const {
+    tilemap,
+    legend,
+    tileSize,
+    npcs,
+    collision,
+    decor,
+    interactables,
+    atlas,
+    mode,
+    brush,
+    zoom,
+    selected,
+    tool,
+  } = props;
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const painting = useRef(false);
   const lastCell = useRef<string | null>(null);
@@ -167,6 +185,36 @@ export function MapCanvas(props: MapCanvasProps) {
         context.textBaseline = "middle";
         context.fillText(entry.npc.replace(/^npc_/, "").slice(0, 3), cx, cy);
       }
+
+      // Set dressing and pressable objects get their own shapes, hollow so a cell carrying one of
+      // each — or one of each plus an NPC — stays readable. Without them the only way to find an
+      // object is to read the inspector list and count cells.
+      for (const entry of decor) {
+        if (!Array.isArray(entry.tile)) continue;
+        const [dx, dy] = entry.tile;
+        const pad = Math.max(2, scale * 0.22);
+        context.strokeStyle = "rgba(52,211,153,0.9)";
+        context.lineWidth = Math.max(1, scale * 0.07);
+        context.strokeRect(dx * scale + pad, dy * scale + pad, scale - pad * 2, scale - pad * 2);
+      }
+
+      for (const entry of interactables) {
+        if (!Array.isArray(entry.tile)) continue;
+        const [ix, iy] = entry.tile;
+        const cx = ix * scale + scale / 2;
+        const cy = iy * scale + scale / 2;
+        const radius = Math.max(4, scale * 0.26);
+
+        context.beginPath();
+        context.moveTo(cx, cy - radius);
+        context.lineTo(cx + radius, cy);
+        context.lineTo(cx, cy + radius);
+        context.lineTo(cx - radius, cy);
+        context.closePath();
+        context.strokeStyle = "rgba(251,191,36,0.95)";
+        context.lineWidth = Math.max(1, scale * 0.09);
+        context.stroke();
+      }
     }
 
     // Selection.
@@ -176,7 +224,7 @@ export function MapCanvas(props: MapCanvasProps) {
       context.lineWidth = 2;
       context.strokeRect(sx * scale + 1, sy * scale + 1, scale - 2, scale - 2);
     }
-  }, [tilemap, legend, tileSize, npcs, collision, atlas, mode, zoom, selected, width, height]);
+  }, [tilemap, legend, tileSize, npcs, collision, decor, interactables, atlas, mode, zoom, selected, width, height]);
 
   useEffect(draw, [draw]);
 
