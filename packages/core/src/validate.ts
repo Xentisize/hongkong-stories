@@ -355,6 +355,48 @@ export function validatePack(pack: ContentPack): Issue[] {
     const widths = new Set(rows.map((row) => String(row).length));
     if (widths.size > 1) warn(`${at}.tilemap`, "rows have differing lengths");
 
+    // Collision rects are what the client actually walks into. They were hand-authored JSON that
+    // nothing checked, and the map editor can write them now — so the gate has to refuse a rect that
+    // sits outside its map (a wall nobody can reach, or a cell the author thought was solid) or one
+    // that covers nothing at all.
+    const collision = location["collision"];
+    if (collision !== undefined) {
+      if (!Array.isArray(collision)) {
+        err(`${at}.collision`, "collision must be an array of [x, y, w, h] rects");
+      } else {
+        let mapWidth = 0;
+        for (const row of rows) mapWidth = Math.max(mapWidth, String(row).length);
+        const mapHeight = rows.length;
+
+        for (const entry of collision) {
+          if (!Array.isArray(entry) || entry.length !== 4) {
+            err(`${at}.collision`, "each rect must be [x, y, w, h]");
+            continue;
+          }
+
+          const x = Number(entry[0]);
+          const y = Number(entry[1]);
+          const w = Number(entry[2]);
+          const h = Number(entry[3]);
+
+          if (![x, y, w, h].every(Number.isInteger)) {
+            err(`${at}.collision`, `rect [${entry.join(", ")}] must use whole tile coordinates`);
+            continue;
+          }
+          if (w <= 0 || h <= 0) {
+            err(`${at}.collision`, `rect [${x}, ${y}, ${w}, ${h}] covers no tiles`);
+            continue;
+          }
+          if (x < 0 || y < 0 || x + w > mapWidth || y + h > mapHeight) {
+            err(
+              `${at}.collision`,
+              `rect [${x}, ${y}, ${w}, ${h}] is outside the ${mapWidth}x${mapHeight} map`,
+            );
+          }
+        }
+      }
+    }
+
     for (const placement of asArray(location["npcs"])) {
       if (!isRecord(placement)) {
         err(`${at}.npcs`, "placement must be an object");

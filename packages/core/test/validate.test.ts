@@ -345,6 +345,47 @@ describe("warnings do not block publishing", () => {
   });
 });
 
+describe("collision geometry", () => {
+  // loc_a is a 2x2 map; each case sets exactly one collision value on it.
+  const withCollision = (collision: unknown) => {
+    const entries = baseEntries();
+    entries["locations/loc_a.json"]!["collision"] = collision as never;
+    return entries;
+  };
+
+  test("rects inside the map are accepted", () => {
+    expect(messagesFor(withCollision([[0, 0, 2, 1], [0, 1, 1, 1]]), "error")).toEqual([]);
+  });
+
+  test("a rect that runs past the map is refused, and says how big the map is", () => {
+    const errors = messagesFor(withCollision([[1, 1, 5, 5]]), "error");
+    expect(errors.some((message) => message.includes("outside the 2x2 map"))).toBe(true);
+  });
+
+  test("a rect covering no tiles is refused", () => {
+    expect(messagesFor(withCollision([[0, 0, 0, 1]]), "error").some((m) => m.includes("covers no tiles"))).toBe(
+      true,
+    );
+  });
+
+  test("a malformed rect is refused", () => {
+    expect(messagesFor(withCollision([[0, 0, 1]]), "error")).toEqual(["each rect must be [x, y, w, h]"]);
+    expect(
+      messagesFor(withCollision([[0, 0, 1.5, 1]]), "error").some((m) => m.includes("whole tile coordinates")),
+    ).toBe(true);
+  });
+
+  test("collision present but not an array is refused", () => {
+    expect(
+      messagesFor(withCollision("nope"), "error").some((m) => m.includes("must be an array")),
+    ).toBe(true);
+  });
+
+  test("a location with no collision block passes", () => {
+    expect(messagesFor(baseEntries(), "error")).toEqual([]);
+  });
+});
+
 describe("publish gating", () => {
   test("allowlist flags count as settable", () => {
     const entries = baseEntries();
