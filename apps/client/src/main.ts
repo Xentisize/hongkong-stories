@@ -18,6 +18,8 @@ import "./style.css";
 import { AudioDirector, WebAudioSink, gainFor } from "./audio";
 import { artFileName, type LocalizedText, type LocationFile, type NpcFile } from "./content";
 import { fetchManifest, planRefresh, type PackStatus } from "./content-pack";
+import { attachPreviewBridge } from "./preview-bridge";
+import { previewEnabled, previewPack } from "./preview-boot";
 import { Dialogue, type DialogueView } from "./dialogue";
 import { apiBase, openSession, type Session } from "./net";
 import { QuestMachine, cutsceneLines, type QuestNode } from "./quests";
@@ -42,6 +44,24 @@ import { VIEW_HEIGHT, VIEW_WIDTH, WorldScene, type WorldTarget } from "./world";
 
 /** Game settings from the pack: splash, title, credits, defaults and where a new game starts. */
 const settings = resolveSettings(gameSettings);
+
+/**
+ * Preview: the studio embeds this client with `?preview=1&token=…`, and `preview-boot` has already
+ * fetched the pack the author is *editing*. The bundled lookups below are replaced in place, before
+ * anything derives a start location from them, so the running game is the draft rather than the
+ * published pack — which is the whole point of the WYSIWYG view.
+ */
+function adoptPreviewTable<T>(target: Record<string, T>, kind: string): void {
+  const table = previewPack?.tables[kind];
+  if (table === null || table === undefined || typeof table !== "object") return;
+  for (const key of Object.keys(target)) delete target[key];
+  Object.assign(target, table as Record<string, T>);
+}
+
+const previewSettings = previewPack?.tables["settings"]?.["game"];
+if (previewSettings !== undefined && previewSettings !== null && typeof previewSettings === "object") {
+  Object.assign(settings, resolveSettings(previewSettings as Parameters<typeof resolveSettings>[0]));
+}
 
 /**
  * Chapters: the aggregation documents (§5.4/§12), one per chapter of the game.
@@ -92,6 +112,10 @@ for (const file of Object.values(locationModules)) {
   if (file?.id) locationsById[file.id] = file;
 }
 
+// Before the start location is derived: the draft decides where a new game begins.
+adoptPreviewTable(itemsById, "items");
+adoptPreviewTable(locationsById, "locations");
+
 // A new game starts where the pack says: the settings document is an explicit override, the first
 // chapter's own entry is the default, and the street below is only the last resort.
 const START_LOCATION =
@@ -121,6 +145,9 @@ const npcDefs: Record<string, NpcFile> = {};
 for (const def of Object.values(npcModules)) {
   if (def?.id) npcDefs[def.id] = def;
 }
+
+adoptPreviewTable(questsById, "quests");
+adoptPreviewTable(npcDefs, "npcs");
 
 /** Walk sheets keyed by bare file name; NPCs without art are simply absent. */
 const walkSheetModules = import.meta.glob("../../../client/content/art/npcs/*_walk.png", {
@@ -288,6 +315,46 @@ const game = new Phaser.Game({
 });
 
 const scene = () => game.scene.getScene("world") as WorldScene;
+
+// --- preview bridge ------------------------------------------------------------------------
+//
+// Only in the studio's embed. Clicks become selections carrying the tile and whoever stands there,
+// which is what lets the author edit by pointing at the game instead of scanning a list.
+
+if (previewEnabled) {
+  attachPreviewBridge({
+    canvas: () => game.canvas,
+    toTile: (clientX, clientY) => {
+      const current = locationsById[currentLocationId];
+      const canvas = game.canvas;
+      if (!current || !canvas) return null;
+      const rect = canvas.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) return null;
+
+      const x = (clientX - rect.left) * (canvas.width / rect.width);
+      const y = (clientY - rect.top) * (canvas.height / rect.height);
+      const point = scene()?.cameras?.main?.getWorldPoint(x, y);
+      if (!point) return null;
+
+      const size = typeof current.tile_size === "number" ? current.tile_size : 24;
+      return [Math.floor(point.x / size), Math.floor(point.y / size)];
+    },
+    entityAt: (tile) => {
+      const current = locationsById[currentLocationId];
+      const placed = Array.isArray(current?.npcs) ? current.npcs : [];
+      const hit = placed.find(
+        (entry) =>
+          Array.isArray(entry.tile) && entry.tile[0] === tile[0] && entry.tile[1] === tile[1],
+      );
+      return hit ? { type: "npc", id: String(hit.npc ?? "") } : null;
+    },
+    location: () => currentLocationId,
+    post: (message) => globalThis.parent.postMessage(message, "*"),
+    onGoto: (id, spawn) => loadLocation(id, spawn),
+    onPause: () => game.scene.pause("world"),
+    onResume: () => game.scene.resume("world"),
+  });
+}
 
 // --- dialogue ------------------------------------------------------------------------------
 
