@@ -1,0 +1,13 @@
+{
+  "generator": "tools/gen_tile_atlas.ts",
+  "palette": "hk_palette_v1",
+  "cell": 48,
+  "columns": 4,
+  "tiles": [
+    "grass",
+    "water",
+    "roof",
+    "window"
+  ],
+  "note": "Extra tiles, not referenced by any legend yet: to use one, add a legend entry pointing at its column in an atlas whose columns match the document's legend."
+}

@@ -1,0 +1,13 @@
+{
+  "generator": "tools/gen_tile_atlas.ts",
+  "palette": "hk_palette_v1",
+  "cell": 48,
+  "columns": 4,
+  "tiles": [
+    "floor",
+    "alt",
+    "wall",
+    "door"
+  ],
+  "note": "Deterministic: the same script and cell size always produce these bytes. Four columns, matching every legend ([0,0] floor, [1,0] alt, [2,0] wall, [3,0] door) — a renderer derives the cell as width / columns."
+}

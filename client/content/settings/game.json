@@ -2,6 +2,11 @@
   "schema_version": 1,
   "id": "game",
   "_comment": "Game-level settings (§6.1): what the shell shows before play, and the defaults it starts from. One document per pack, and every value here is something a creator is expected to change.",
+  "art": {
+    "_comment": "The style bible, as two independent settings: the pixel style and the 2D medium. Both are embedded into every image generation (see packages/core/src/artStyle.ts).",
+    "style": "hk16",
+    "medium": "natural"
+  },
   "title": {
     "zh_HK": "香港故事",
     "zh_CN": "香港故事",
