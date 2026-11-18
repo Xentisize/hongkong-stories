@@ -410,3 +410,189 @@ body {
 #credits .credit-names {
   margin-bottom: 0.5rem;
 }
+
+/* The bag: a list on the left, the selected item on the right, opened with I or the HUD button. */
+#bag {
+  padding: 0 0.35rem;
+  font: inherit;
+  color: var(--muted);
+  background: none;
+  border: 1px solid #2c3038;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+#bag:hover {
+  color: var(--ink);
+}
+
+#inventory {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(44rem, calc(100vw - 2rem));
+  max-height: min(30rem, calc(100vh - 4rem));
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.7rem 0.85rem;
+  background: rgb(12 14 19 / 0.97);
+  border: 1px solid #2c3038;
+  border-radius: 4px;
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.5);
+  z-index: 25;
+}
+
+#inventory[hidden] {
+  display: none;
+}
+
+#inventory header {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+#inventory-title {
+  color: var(--ink);
+  letter-spacing: 0.2em;
+}
+
+#inventory-held {
+  margin-left: auto;
+}
+
+#inventory-close {
+  width: 22px;
+  height: 22px;
+  font: inherit;
+  font-size: 11px;
+  color: var(--muted);
+  background: #12151b;
+  border: 1px solid #2c3038;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+#inventory-body {
+  display: grid;
+  grid-template-columns: 14rem minmax(0, 1fr);
+  gap: 0.75rem;
+  overflow: hidden;
+}
+
+#inventory-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  overflow-y: auto;
+  border-right: 1px solid #22262e;
+  padding-right: 0.5rem;
+}
+
+#inventory-list button {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.25rem 0.4rem;
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  color: var(--ink);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+#inventory-list button:hover {
+  background: #171b22;
+}
+
+#inventory-list button[aria-selected="true"] {
+  background: #1d232c;
+  border-color: #33404f;
+}
+
+#inventory-list .count {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+#inventory-list .held {
+  color: #b9a06a;
+  font-size: 10px;
+}
+
+#inventory-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  overflow-y: auto;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+#inventory-detail h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+#inventory-detail .meta {
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+#inventory-detail .desc {
+  margin: 0;
+  color: var(--muted);
+  white-space: pre-wrap;
+}
+
+#inventory-detail .locked {
+  margin: 0;
+  color: #c2705a;
+  font-size: 11px;
+}
+
+#inventory-detail .actions {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.25rem;
+}
+
+#inventory-detail .actions button {
+  padding: 0.3rem 0.7rem;
+  font: inherit;
+  font-size: 11px;
+  color: var(--ink);
+  background: #12151b;
+  border: 1px solid #2c3038;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+#inventory-detail .actions button:disabled {
+  color: #4d4a44;
+  cursor: default;
+}
+
+#inventory-detail .empty {
+  margin: 0;
+  color: var(--muted);
+}
+
+.inventory-hint {
+  margin: 0;
+  font-size: 10px;
+  color: #5f5a50;
+  text-align: right;
+}

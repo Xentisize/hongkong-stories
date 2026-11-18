@@ -61,6 +61,10 @@ echo "=== world interaction ==="
 WORLD="$(playwright-cli --raw run-code --filename="$PWD/scripts/verify-world.js" 2>&1 || true)"
 echo "$WORLD"
 
+echo "=== inventory ==="
+INVENTORY="$(playwright-cli --raw run-code --filename="$PWD/scripts/verify-inventory.js" 2>&1 || true)"
+echo "$INVENTORY"
+
 echo "=== chapters ==="
 CHAPTERS="$(playwright-cli --raw run-code --filename="$PWD/scripts/verify-chapters.js" 2>&1 || true)"
 echo "$CHAPTERS"
@@ -70,6 +74,7 @@ QUEST="$(playwright-cli --raw run-code --filename="$PWD/scripts/verify-quest.js"
 echo "$QUEST"
 
 SHELL_PASS=false
+INVENTORY_PASS=false
 CHAPTERS_PASS=false
 GATING_PASS=false
 DIALOGUE_PASS=false
@@ -77,14 +82,15 @@ WORLD_PASS=false
 QUEST_PASS=false
 grep -q "VERDICT:PASS" <<<"$SHELL_OUT" && SHELL_PASS=true
 grep -q "VERDICT:PASS" <<<"$CHAPTERS" && CHAPTERS_PASS=true
+grep -q "VERDICT:PASS" <<<"$INVENTORY" && INVENTORY_PASS=true
 grep -q "VERDICT:PASS" <<<"$OUTPUT" && GATING_PASS=true
 grep -q "VERDICT:PASS" <<<"$DIALOGUE" && DIALOGUE_PASS=true
 grep -q "VERDICT:PASS" <<<"$WORLD" && WORLD_PASS=true
 grep -q "VERDICT:PASS" <<<"$QUEST" && QUEST_PASS=true
 
-if [ "$SHELL_PASS" = true ] && [ "$CHAPTERS_PASS" = true ] && [ "$GATING_PASS" = true ] && [ "$DIALOGUE_PASS" = true ] && [ "$WORLD_PASS" = true ] && [ "$QUEST_PASS" = true ]; then
+if [ "$SHELL_PASS" = true ] && [ "$INVENTORY_PASS" = true ] && [ "$CHAPTERS_PASS" = true ] && [ "$GATING_PASS" = true ] && [ "$DIALOGUE_PASS" = true ] && [ "$WORLD_PASS" = true ] && [ "$QUEST_PASS" = true ]; then
   exit 0
 fi
 
-echo "browser verification FAILED (shell=$SHELL_PASS chapters=$CHAPTERS_PASS gating=$GATING_PASS dialogue=$DIALOGUE_PASS world=$WORLD_PASS quest=$QUEST_PASS)" >&2
+echo "browser verification FAILED (shell=$SHELL_PASS inventory=$INVENTORY_PASS chapters=$CHAPTERS_PASS gating=$GATING_PASS dialogue=$DIALOGUE_PASS world=$WORLD_PASS quest=$QUEST_PASS)" >&2
 exit 1

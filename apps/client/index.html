@@ -14,7 +14,7 @@
     <header id="hud">
       <span id="place">…</span>
       <span id="coords"></span>
-      <span id="bag"></span>
+      <button id="bag" type="button" title="物品 / Inventory">🎒</button>
       <span id="build">p6-phaser</span>
     </header>
 
@@ -47,6 +47,24 @@
       <form id="dialogue-form" autocomplete="off">
         <input id="dialogue-input" type="text" placeholder="問吓佢嘢… / ask anything" />
       </form>
+    </section>
+
+    <!--
+      Inventory: the bag, with a detail pane. Mirrors the Godot HUD's panel — list, detail, Use
+      (gated by the item's own requirements, explained in the content's words), Hold, and an empty
+      state that says the bag is empty rather than showing nothing.
+    -->
+    <section id="inventory" hidden aria-label="inventory">
+      <header>
+        <span id="inventory-title">物品</span>
+        <span id="inventory-held"></span>
+        <button id="inventory-close" type="button" aria-label="close">✕</button>
+      </header>
+      <div id="inventory-body">
+        <div id="inventory-list"></div>
+        <div id="inventory-detail"></div>
+      </div>
+      <p class="inventory-hint">I / Esc 關閉 · click an item for details</p>
     </section>
 
     <!-- Splash: the pack's own opening image. Skippable, and gone once its time is up. -->

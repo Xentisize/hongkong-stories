@@ -23,6 +23,7 @@ import { apiBase, openSession, type Session } from "./net";
 import { QuestMachine, cutsceneLines, type QuestNode } from "./quests";
 import { emptySave, encodeSave, type SavePayload } from "./save";
 import { activeChapter, chapterEntry, orderChapters, planAdvance, type ChapterDoc } from "./chapters";
+import { heldLabel, inventoryRows, planUse, type ItemDef } from "./inventory";
 import { localeFrom, resolveSettings, resolveSplash, type ResolvedSplash } from "./settings";
 import { GameState, persist, restore } from "./state";
 import { VIEW_HEIGHT, VIEW_WIDTH, WorldScene, type WorldTarget } from "./world";
@@ -56,6 +57,24 @@ const chapterModules = import.meta.glob("../../../client/content/chapters/*.json
 
 const chapters = orderChapters(Object.values(chapterModules));
 const firstChapterEntry = chapterEntry(chapters[0] ?? null);
+
+/**
+ * Item definitions.
+ *
+ * The bag needs them for names and descriptions, and `applyEffects` needs them for `stack_max` — which
+ * is why `contentLookup.item` below is no longer a stub returning nothing: an `add_item` effect was
+ * silently falling back to the default cap.
+ */
+const itemModules = import.meta.glob("../../../client/content/items/*.json", {
+  eager: true,
+  import: "default",
+}) as Record<string, ItemDef>;
+
+const itemsById: Record<string, ItemDef> = {};
+for (const [path, def] of Object.entries(itemModules)) {
+  const id = def?.id ?? (path.split("/").pop() ?? "").replace(/\.json$/, "");
+  if (id !== "") itemsById[id] = def;
+}
 
 /**
  * Every location, so an exit has a destination.
@@ -155,6 +174,8 @@ const state = new GameState(restore() ?? emptySave(), {
     if (game.scene.isActive("world")) scene().setGameState(state.conditionState());
     // A finished chapter is a move: the pass above is what makes the next one active.
     followChapters();
+    // An open bag is a view of this state; it must not show a count the save no longer has.
+    if (inventoryOpen) renderInventory();
     updateHud();
   },
 });
@@ -171,6 +192,11 @@ const logEl = document.querySelector<HTMLElement>("#dialogue-log");
 const formEl = document.querySelector<HTMLFormElement>("#dialogue-form");
 const inputEl = document.querySelector<HTMLInputElement>("#dialogue-input");
 const messageEl = document.querySelector<HTMLElement>("#message");
+const inventoryEl = document.querySelector<HTMLElement>("#inventory");
+const inventoryListEl = document.querySelector<HTMLElement>("#inventory-list");
+const inventoryDetailEl = document.querySelector<HTMLElement>("#inventory-detail");
+const inventoryHeldEl = document.querySelector<HTMLElement>("#inventory-held");
+const inventoryCloseEl = document.querySelector<HTMLButtonElement>("#inventory-close");
 
 /** The ambience beds, keyed by bare file name — content writes `audio/kln_1963.wav`. */
 const audioModules = import.meta.glob("../../../client/assets/audio/*.wav", {
@@ -396,8 +422,9 @@ async function submit(input: string): Promise<void> {
  */
 const contentLookup: ContentLookup = {
   npc: (id) => npcDefs[id] as unknown as Record<string, unknown> | undefined,
-  quest: () => undefined,
-  item: () => undefined,
+  quest: (id) => questsById[id] as unknown as Record<string, unknown> | undefined,
+  // A real table, not a stub: `add_item` effects read `stack_max` through here.
+  item: (id) => itemsById[id] as unknown as Record<string, unknown> | undefined,
   localize: (field, requested: Locale) => localize(field, requested),
 };
 
@@ -481,10 +508,11 @@ function followChapters(): void {
 let messageTimer: number | null = null;
 
 /** A content-authored line in the HUD: a blocked door, a locked exit, a picked-up prop. */
-function showMessage(text: LocalizedText): void {
+function showMessage(text: LocalizedText | string): void {
   if (!messageEl) return;
 
-  const line = localize(text, locale);
+  // A refusal line from the inventory is already localized; authored lines are not.
+  const line = typeof text === "string" ? text : localize(text, locale);
   if (line === "") return;
 
   messageEl.textContent = line;
@@ -556,6 +584,21 @@ window.addEventListener("keydown", (event) => {
       event.preventDefault();
       finishSplash();
     }
+    return;
+  }
+
+  // The bag: I opens and closes it, Esc only closes. Refused while talking or mid-cutscene, so a
+  // panel never opens underneath another one.
+  if (event.key === "i" || event.key === "I") {
+    if (dialogue === null && !cutsceneOpen) {
+      event.preventDefault();
+      toggleInventory();
+    }
+    return;
+  }
+  if (event.key === "Escape" && inventoryOpen) {
+    event.preventDefault();
+    toggleInventory(false);
     return;
   }
 
@@ -675,6 +718,150 @@ function dismissCutscene(): void {
 
 // A tap is the only way a touch player can dismiss a cutscene.
 cutsceneEl?.addEventListener("click", () => dismissCutscene());
+
+// --- inventory ------------------------------------------------------------------------------
+
+let inventoryOpen = false;
+let inventorySelection: string | null = null;
+
+/** One panel owns the input: the bag refuses to open over a conversation or a cutscene. */
+function toggleInventory(open = !inventoryOpen): void {
+  if (open && (dialogue !== null || cutsceneOpen)) return;
+
+  inventoryOpen = open;
+  if (inventoryEl) inventoryEl.hidden = !open;
+  if (open) renderInventory();
+
+  if (game.scene.isActive("world")) {
+    scene().setInputEnabled(!open && dialogue === null && !cutsceneOpen);
+  }
+}
+
+function inventoryCondition(condition: unknown): boolean {
+  return evaluate(condition, state.conditionState());
+}
+
+/** Draw the bag from the state. Nothing here decides what is usable; `inventoryRows` does. */
+function renderInventory(): void {
+  if (inventoryListEl === null || inventoryDetailEl === null) return;
+
+  const conditions = state.conditionState();
+  const held = heldLabel(itemsById, conditions, locale);
+  if (inventoryHeldEl) inventoryHeldEl.textContent = held === "" ? "" : `手中 / holding: ${held}`;
+
+  const rows = inventoryRows(itemsById, conditions, locale, inventoryCondition);
+
+  // A selection that is no longer carried is not a selection.
+  if (inventorySelection !== null && !rows.some((row) => row.id === inventorySelection)) {
+    inventorySelection = null;
+  }
+  if (inventorySelection === null && rows.length > 0) inventorySelection = rows[0]!.id;
+
+  inventoryListEl.replaceChildren();
+  for (const row of rows) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.setAttribute("aria-selected", row.id === inventorySelection ? "true" : "false");
+    button.addEventListener("click", () => {
+      inventorySelection = row.id;
+      renderInventory();
+    });
+
+    const name = document.createElement("span");
+    name.textContent = row.name;
+
+    const tail = document.createElement("span");
+    tail.className = row.held ? "held" : "count";
+    tail.textContent = row.held ? "手持" : row.count > 1 ? `×${row.count}` : "";
+
+    button.append(name, tail);
+    inventoryListEl.append(button);
+  }
+
+  inventoryDetailEl.replaceChildren();
+
+  if (rows.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "empty";
+    empty.textContent = "（袋裡面冇嘢 · nothing yet）";
+    inventoryDetailEl.append(empty);
+    return;
+  }
+
+  const row = rows.find((entry) => entry.id === inventorySelection) ?? rows[0]!;
+
+  const heading = document.createElement("h3");
+  heading.textContent = row.name;
+
+  const meta = document.createElement("p");
+  meta.className = "meta";
+  meta.textContent = [row.category, row.count > 1 ? `×${row.count}` : ""].filter(Boolean).join("  ");
+  inventoryDetailEl.append(heading, meta);
+
+  if (row.description !== "") {
+    const desc = document.createElement("p");
+    desc.className = "desc";
+    desc.textContent = row.description;
+    inventoryDetailEl.append(desc);
+  }
+
+  if (row.locked !== "") {
+    // The content's own line, not ours: it says why, in the voice of the game.
+    const locked = document.createElement("p");
+    locked.className = "locked";
+    locked.textContent = row.locked;
+    inventoryDetailEl.append(locked);
+  }
+
+  const actions = document.createElement("div");
+  actions.className = "actions";
+
+  const use = document.createElement("button");
+  use.type = "button";
+  use.textContent = "用 Use";
+  use.disabled = !row.usable;
+  use.addEventListener("click", () => useSelectedItem());
+  actions.append(use);
+
+  const hold = document.createElement("button");
+  hold.type = "button";
+  hold.textContent = row.held ? "放低 Put away" : "手持 Hold";
+  hold.addEventListener("click", () => {
+    state.setHeld(row.held ? "" : row.id);
+    renderInventory();
+    updateHud();
+  });
+  actions.append(hold);
+
+  inventoryDetailEl.append(actions);
+}
+
+/**
+ * Apply an item's own effects.
+ *
+ * The state's change handler does the rest — persisting, re-running the quest pass, moving chapters
+ * — so this only has to redraw what the bag now contains (a consumable may be gone).
+ */
+function useSelectedItem(): void {
+  if (inventorySelection === null) return;
+
+  const outcome = planUse(itemsById, inventorySelection, locale, inventoryCondition);
+  if (!outcome.ok) {
+    // A refused item explains itself; "not usable" items have nothing to explain.
+    if (outcome.reason === "locked" && typeof outcome.locked === "string" && outcome.locked !== "") {
+      showMessage(outcome.locked);
+    }
+    return;
+  }
+
+  const result = applyEffects(outcome.effects, state.save, { content: contentLookup, locale });
+  if (result.warnings.length > 0) {
+    console.warn("[hks] item effect:", result.warnings.join("; "));
+  }
+
+  renderInventory();
+  updateHud();
+}
 
 /** Begin play: either the restored slot or a clean one. */
 function startGame(continueSave: boolean): void {
@@ -815,7 +1002,11 @@ function updateHud(): void {
   let carried = 0;
   for (const count of Object.values(state.save.inventory)) carried += Number(count) || 0;
 
-  if (bagEl) bagEl.textContent = carried > 0 ? `🎒 ${carried}` : "";
+  if (bagEl) {
+    bagEl.textContent = carried > 0 ? `🎒 ${carried}` : "🎒";
+    const held = heldLabel(itemsById, state.conditionState(), locale);
+    bagEl.title = held === "" ? "物品 / Inventory" : `手中 / holding: ${held}`;
+  }
   if (buildEl) buildEl.textContent = packNote === "" ? "p6-phaser" : `p6-phaser · ${packNote}`;
 }
 
@@ -824,6 +1015,9 @@ continueButton?.addEventListener("click", () => startGame(true));
 creditsButton?.addEventListener("click", () => {
   if (creditsEl) creditsEl.hidden = !creditsEl.hidden;
 });
+
+bagEl?.addEventListener("click", () => toggleInventory());
+inventoryCloseEl?.addEventListener("click", () => toggleInventory(false));
 
 if (touchEl !== null && window.matchMedia?.("(pointer: coarse)").matches === true) {
   touchEl.hidden = false;
@@ -913,6 +1107,9 @@ export interface TestHook {
   chapterLabel: () => string;
   /** Start a clean game — the title screen's own "new game". */
   newGame: () => void;
+  /** Open the bag (the I key's other path, for a check that should not depend on key handling). */
+  openInventory: () => void;
+  inventoryVisible: () => boolean;
 }
 
 const hook: TestHook = {
@@ -951,6 +1148,8 @@ const hook: TestHook = {
     return chapter?.title ? localize(chapter.title, locale) : "";
   },
   newGame: () => startGame(false),
+  openInventory: () => toggleInventory(true),
+  inventoryVisible: () => inventoryOpen,
 };
 
 (window as unknown as { __hks?: TestHook }).__hks = hook;
