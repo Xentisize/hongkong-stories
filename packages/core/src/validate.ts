@@ -21,6 +21,7 @@
  */
 
 import { isRecord, pyBool, toInt, toKey } from "./state";
+import { TRANSPARENT_TILE } from "./tiles";
 
 export const LOCALES = ["zh_HK", "zh_CN", "en"] as const;
 
@@ -377,6 +378,70 @@ export function validatePack(pack: ContentPack): Issue[] {
     const rows = asArray(location["tilemap"]);
     const widths = new Set(rows.map((row) => String(row).length));
     if (widths.size > 1) warn(`${at}.tilemap`, "rows have differing lengths");
+
+    // ---- layers -------------------------------------------------------------
+    // An overlay is drawn over the base grid, so it must cover exactly the same footprint: a
+    // shorter row silently shifts every tile after it, which reads as "the art is wrong" rather
+    // than "the data is wrong". A space is transparency here, and any other character has to come
+    // from the legend or it paints nothing.
+    const layerOps = location["layers"];
+    if (layerOps !== undefined) {
+      if (!Array.isArray(layerOps)) {
+        err(`${at}.layers`, "layers must be a list of {id, tilemap}");
+      } else {
+        const baseRows = rows.map((row) => String(row));
+        const mapWidth = baseRows.reduce((widest, row) => Math.max(widest, row.length), 0);
+        const mapHeight = baseRows.length;
+        const legend = isRecord(location["legend"]) ? location["legend"] : {};
+        const seen = new Set<string>();
+
+        layerOps.forEach((raw, index) => {
+          if (!isRecord(raw)) {
+            err(`${at}.layers`, `layer ${index} must be an object`);
+            return;
+          }
+
+          const id = toKey(raw["id"] ?? "");
+          if (id === "") {
+            err(`${at}.layers`, `layer ${index} needs an id`);
+            return;
+          }
+          const layerAt = `${at}.layers/${id}`;
+          if (seen.has(id)) err(layerAt, `duplicate layer id '${id}'`);
+          seen.add(id);
+
+          const grid = raw["tilemap"];
+          if (!Array.isArray(grid)) {
+            err(`${layerAt}.tilemap`, "tilemap must be a list of rows");
+            return;
+          }
+
+          if (grid.length !== mapHeight) {
+            err(
+              `${layerAt}.tilemap`,
+              `layer has ${grid.length} row(s) but the map has ${mapHeight} — an overlay must cover the whole map`,
+            );
+          }
+
+          grid.forEach((row, y) => {
+            const text = String(row);
+            if (text.length !== mapWidth) {
+              err(
+                `${layerAt}.tilemap`,
+                `row ${y} is ${text.length} character(s), the map is ${mapWidth} wide`,
+              );
+              return;
+            }
+            for (const char of text) {
+              if (char === TRANSPARENT_TILE || char in legend) continue;
+              warn(`${layerAt}.tilemap`, `character '${char}' is not in legend, so it paints nothing`);
+              break;
+            }
+          });
+        });
+      }
+    }
+
 
     // Collision rects are what the client actually walks into. They were hand-authored JSON that
     // nothing checked, and the map editor can write them now — so the gate has to refuse a rect that

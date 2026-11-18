@@ -1,4 +1,4 @@
-import { npcReplyResponseFormat, parseNpcReplyJSON } from "@hkstories/core";
+import { isRecord, npcReplyResponseFormat, parseNpcReplyJSON } from "@hkstories/core";
 
 /**
  * Chat completions against OpenRouter, with REAL provider usage (PLAN 7.5, 9.2).
@@ -169,6 +169,48 @@ export async function completeProse(options: CompleteChatOptions): Promise<Prose
     completionTokens: result.completionTokens,
     cachedTokens: result.cachedTokens,
     costUsd: result.costUsd,
+  };
+}
+
+/**
+ * Provider usage from one streamed chunk, or `null` for every chunk that does not carry it.
+ *
+ * A non-streaming response includes `usage` in its body; a stream only mentions it in the final
+ * chunk, and only when the request asked with `usage: { include: true }`. So the caller keeps its
+ * estimate until this returns something — a stream that ends early, or an upstream that ignores the
+ * request, must still be charged rather than logged as zero.
+ *
+ * Read before `choices` is inspected: the usage chunk carries no choice at all.
+ */
+export interface StreamUsage {
+  promptTokens: number;
+  completionTokens: number;
+  cachedTokens: number;
+}
+
+export function usageFromStreamChunk(chunk: unknown): StreamUsage | null {
+  if (!isRecord(chunk)) return null;
+
+  const usage = chunk["usage"];
+  if (!isRecord(usage)) return null;
+
+  // A count is only a count when it is a number. `Number(null)` is `0` and `Number("many")` is
+  // `NaN`, and either would let a malformed block through as "zero tokens" — which charges the turn
+  // as free. Absent or malformed means "no usage", so the caller keeps its estimate.
+  const count = (value: unknown): number | null =>
+    typeof value === "number" && Number.isFinite(value) ? value : null;
+
+  const promptTokens = count(usage["prompt_tokens"]);
+  const completionTokens = count(usage["completion_tokens"]);
+  // A usage block with neither count is noise, not information.
+  if (promptTokens === null && completionTokens === null) return null;
+
+  const details = isRecord(usage["prompt_tokens_details"]) ? usage["prompt_tokens_details"] : {};
+
+  return {
+    promptTokens: promptTokens ?? 0,
+    completionTokens: completionTokens ?? 0,
+    cachedTokens: count(details["cached_tokens"]) ?? 0,
   };
 }
 

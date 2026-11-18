@@ -99,6 +99,103 @@ export function growMap(map: TileMap, width: number, height: number, char = "#")
   });
 }
 
+// --- layers ------------------------------------------------------------------------------
+
+/** One overlay grid. The base grid stays in the location's own `tilemap`. */
+export interface TileLayerDoc {
+  id: string;
+  tilemap: TileMap;
+}
+
+/** Overlays as authored, with malformed entries dropped — the same skip the clients make. */
+export function overlaysOf(layers: unknown): TileLayerDoc[] {
+  if (!Array.isArray(layers)) return [];
+
+  const overlays: TileLayerDoc[] = [];
+  for (const entry of layers) {
+    if (entry === null || typeof entry !== "object") continue;
+    const record = entry as Partial<TileLayerDoc>;
+    const id = typeof record.id === "string" ? record.id.trim() : "";
+    if (id === "" || !Array.isArray(record.tilemap)) continue;
+    overlays.push({ id, tilemap: record.tilemap.map(String) });
+  }
+  return overlays;
+}
+
+/** Paint into one overlay; the same array by identity when the write changed nothing. */
+export function paintLayer(
+  layers: TileLayerDoc[],
+  index: number,
+  x: number,
+  y: number,
+  char: string,
+): TileLayerDoc[] {
+  const layer = layers[index];
+  if (layer === undefined) return layers;
+  const next = paintTile(layer.tilemap, x, y, char);
+  if (next === layer.tilemap) return layers;
+  return layers.map((entry, at) => (at === index ? { ...entry, tilemap: next } : entry));
+}
+
+/** Rect fill into one overlay, with the same identity rule. */
+export function fillLayerRect(
+  layers: TileLayerDoc[],
+  index: number,
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+  char: string,
+): TileLayerDoc[] {
+  const layer = layers[index];
+  if (layer === undefined) return layers;
+  const next = fillRect(layer.tilemap, x0, y0, x1, y1, char);
+  if (next === layer.tilemap) return layers;
+  return layers.map((entry, at) => (at === index ? { ...entry, tilemap: next } : entry));
+}
+
+/** A new overlay, transparent everywhere (` ` paints nothing once it is an overlay). */
+export function blankLayer(id: string, width: number, height: number): TileLayerDoc {
+  return { id, tilemap: blankMap(width, height, " ") };
+}
+
+/** The first free `layer_<n>`, so adding twice never mints the same id. */
+export function freeLayerId(layers: TileLayerDoc[]): string {
+  const taken = new Set(layers.map((layer) => layer.id));
+  for (let number = 1; ; number += 1) {
+    const id = `layer_${number}`;
+    if (!taken.has(id)) return id;
+  }
+}
+
+/**
+ * Pad overlays to the map's size with transparency.
+ *
+ * The base grid defines the map, so growing it must grow the overlays too — otherwise every overlay
+ * is suddenly a row short and the validator refuses the document the author just resized.
+ * Already-covering layers come back by identity, so an ordinary resize records one undo step.
+ */
+export function resizeLayers(layers: TileLayerDoc[], width: number, height: number): TileLayerDoc[] {
+  const needsPadding = layers.some((layer) => {
+    const size = mapSize(layer.tilemap);
+    return size.width < width || size.height < height;
+  });
+  if (!needsPadding) return layers;
+
+  return layers.map((layer) => ({ ...layer, tilemap: growMap(layer.tilemap, width, height, " ") }));
+}
+
+/** Swap a layer with its neighbour in the draw order; identity when the move is out of range. */
+export function moveLayer(layers: TileLayerDoc[], index: number, delta: number): TileLayerDoc[] {
+  const target = index + delta;
+  if (layers[index] === undefined || target < 0 || target >= layers.length) return layers;
+
+  const next = [...layers];
+  const [moved] = next.splice(index, 1);
+  next.splice(target, 0, moved!);
+  return next;
+}
+
 // --- NPC placements ----------------------------------------------------------------------
 
 export function npcIndexAt(npcs: MapNpc[], x: number, y: number): number {

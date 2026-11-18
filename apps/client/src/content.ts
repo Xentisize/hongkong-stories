@@ -62,6 +62,8 @@ export interface LocationFile {
   atlas: string;
   legend: Record<string, [number, number]>;
   tilemap: string[];
+  /** Overlays drawn above `tilemap`, in order. A space means "paint nothing here". */
+  layers?: Array<{ id?: string; tilemap?: string[] }>;
   collision: Array<[number, number, number, number]>;
   spawn_points: Record<string, [number, number]>;
   /** Ambience bed, e.g. `audio/kln_1963.wav`. Absent or empty means "keep the current bed". */
@@ -115,20 +117,36 @@ export function legendColumns(location: LocationFile): number {
 }
 
 /**
- * Resolve the character grid into tile indices for a row-major atlas.
+ * Resolve every layer into tile indices for a row-major atlas, base grid first.
  *
- * An unknown character becomes `-1` (an empty tile) instead of silently becoming tile 0, so a
- * typo paints a visible hole rather than plausible-looking floor.
+ * An unknown character becomes `-1` (an empty tile) instead of silently becoming tile 0, so a typo
+ * paints a visible hole rather than plausible-looking floor — and in an overlay, so does a space,
+ * which is how transparency is spelled.
  */
-export function tileIndexGrid(location: LocationFile): number[][] {
+export function tileIndexGrids(location: LocationFile): number[][][] {
   const columns = legendColumns(location);
-  return location.tilemap.map((row) =>
-    [...row].map((character) => {
-      const coords = location.legend[character];
-      if (!coords) return -1;
-      return coords[1] * columns + coords[0];
-    }),
-  );
+
+  const resolve = (rows: readonly string[], overlay: boolean): number[][] =>
+    rows.map((row) =>
+      [...row].map((character) => {
+        if (overlay && character === " ") return -1;
+        const coords = location.legend[character];
+        if (!coords) return -1;
+        return coords[1] * columns + coords[0];
+      }),
+    );
+
+  const grids = [resolve(location.tilemap, false)];
+  for (const layer of Array.isArray(location.layers) ? location.layers : []) {
+    if (!layer || !Array.isArray(layer.tilemap)) continue;
+    grids.push(resolve(layer.tilemap.map(String), true));
+  }
+  return grids;
+}
+
+/** The base grid alone — the map's floor, which is what doors swap cells on. */
+export function tileIndexGrid(location: LocationFile): number[][] {
+  return tileIndexGrids(location)[0] ?? [];
 }
 
 export function mapPixelSize(location: LocationFile): { width: number; height: number } {

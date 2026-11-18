@@ -3,26 +3,34 @@ import { describe, expect, test } from "bun:test";
 import {
   applyDrop,
   atlasUrl,
+  blankLayer,
   blankMap,
   cellFromPoint,
   collisionGrid,
+  fillLayerRect,
   fillRect,
+  freeLayerId,
   gridToRects,
   growMap,
   legendEntries,
   mapSize,
+  moveLayer,
   moveNpc,
   npcIndexAt,
+  overlaysOf,
   paintCollision,
+  paintLayer,
   paintTile,
   placeNpc,
   removeNpcAt,
+  resizeLayers,
   selectedNpc,
   setCollisionRect,
   solidAt,
   tileAt,
   type CollisionRect,
   type MapNpc,
+  type TileLayerDoc,
 } from "./map";
 
 /**
@@ -403,5 +411,66 @@ describe("rectangle tools", () => {
     const wall: CollisionRect[] = [[0, 0, 4, 1]];
     expect(setCollisionRect(wall, 0, 0, 3, 0, true, 4, 4)).toBe(wall);
     expect(setCollisionRect(wall, 8, 8, 9, 9, true, 4, 4)).toBe(wall);
+  });
+});
+
+describe("layers", () => {
+  const layer = (id: string, tilemap: string[]): TileLayerDoc => ({ id, tilemap });
+
+  test("overlays are read as authored, malformed entries dropped", () => {
+    expect(
+      overlaysOf([
+        { id: "props", tilemap: ["x "] },
+        { id: "", tilemap: ["x"] },
+        { id: "no-grid" },
+        null,
+        { id: "roof", tilemap: [" #"] },
+      ]),
+    ).toEqual([layer("props", ["x "]), layer("roof", [" #"])]);
+    expect(overlaysOf(undefined)).toEqual([]);
+  });
+
+  test("painting writes into the active overlay and leaves the others shared", () => {
+    const layers = [layer("props", ["  "]), layer("roof", ["  "])];
+    const next = paintLayer(layers, 1, 0, 0, "#");
+    expect(next[1]?.tilemap).toEqual(["# "]);
+    expect(next[0]).toBe(layers[0]);
+    expect(layers[1]?.tilemap).toEqual(["  "]); // source untouched
+  });
+
+  test("painting the same character back is a no-op by identity", () => {
+    const layers = [layer("props", ["x "])];
+    expect(paintLayer(layers, 0, 0, 0, "x")).toBe(layers);
+    expect(paintLayer(layers, 5, 0, 0, "#")).toBe(layers); // no such layer
+  });
+
+  test("rect fill targets one overlay", () => {
+    const layers = [layer("props", ["  ", "  "])];
+    expect(fillLayerRect(layers, 0, 0, 0, 1, 1, "#")[0]?.tilemap).toEqual(["##", "##"]);
+    expect(fillLayerRect(layers, 0, 0, 0, 0, 0, " ")).toBe(layers); // already transparent
+  });
+
+  test("a new overlay is transparent everywhere", () => {
+    expect(blankLayer("props", 3, 2)).toEqual({ id: "props", tilemap: ["   ", "   "] });
+  });
+
+  test("layer ids are allocated around the ones in use", () => {
+    expect(freeLayerId([])).toBe("layer_1");
+    expect(freeLayerId([layer("layer_1", []), layer("layer_3", [])])).toBe("layer_2");
+  });
+
+  test("resizing pads overlays with transparency, and only when needed", () => {
+    const small = [layer("props", ["x"])];
+    expect(resizeLayers(small, 3, 2)[0]?.tilemap).toEqual(["x  ", "   "]);
+
+    const big = [layer("props", ["xxx", "xxx"])];
+    expect(resizeLayers(big, 3, 2)).toBe(big);
+  });
+
+  test("moving a layer swaps the draw order and ignores out-of-range moves", () => {
+    const layers = [layer("a", [" "]), layer("b", [" "])];
+    expect(moveLayer(layers, 1, -1).map((entry) => entry.id)).toEqual(["b", "a"]);
+    expect(moveLayer(layers, 0, -1)).toBe(layers);
+    expect(moveLayer(layers, 1, 1)).toBe(layers);
   });
 });

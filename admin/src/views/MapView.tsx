@@ -4,29 +4,38 @@ import { toast } from "sonner";
 import { api, ApiError } from "@/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useDrafts, useEntityIds } from "@/lib/queries";
 import { normalise, reducer, type LocationDoc } from "@/lib/mapEditorState";
 import {
   applyDrop,
   atlasUrl,
+  blankLayer,
   blankMap,
   cellFromPoint,
+  fillLayerRect,
   fillRect,
+  freeLayerId,
   growMap,
   legendEntries,
   mapSize,
+  moveLayer,
   moveNpc,
   npcIndexAt,
+  overlaysOf,
   paintCollision,
+  paintLayer,
   paintTile,
   placeNpc,
   removeNpcAt,
+  resizeLayers,
   selectedNpc,
   setCollisionRect,
   tileAt,
   type CollisionRect,
   type DragPayload,
   type MapNpc,
+  type TileLayerDoc,
 } from "@/lib/map";
 import { MapCanvas, type EditorMode, type EditorTool } from "@/views/map/MapCanvas";
 import { LocationPanel } from "@/views/map/LocationPanel";
@@ -62,6 +71,8 @@ export function MapView({ token, onDirtyChange }: { token: string; onDirtyChange
   const canRedo = future.length > 0;
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  /** 0 = the base grid, n = the n-th overlay. Painting goes to whichever is active. */
+  const [activeLayer, setActiveLayer] = useState(0);
   const [mode, setMode] = useState<EditorMode>("map");
   const [tool, setTool] = useState<EditorTool>("brush");
   const [zoom, setZoom] = useState(2);
@@ -90,6 +101,8 @@ export function MapView({ token, onDirtyChange }: { token: string; onDirtyChange
   const size = mapSize(tilemap);
   const collisionRects: CollisionRect[] =
     doc && Array.isArray(doc.collision) ? (doc.collision as CollisionRect[]) : [];
+  // Overlays only — the base grid stays in `doc.tilemap`, which is what defines the map's size.
+  const overlays = useMemo(() => overlaysOf(doc?.layers), [doc?.layers]);
 
   const draftIds = useMemo(
     () => new Set((drafts.data ?? []).filter((entry) => entry.kind === "locations").map((entry) => entry.id)),
@@ -113,6 +126,7 @@ export function MapView({ token, onDirtyChange }: { token: string; onDirtyChange
       }
       dispatch({ type: "load", doc: normalise(raw) });
       setSelectedId(id);
+      setActiveLayer(0);
       setCursor(null);
       setIssues([]);
     } catch (error) {
@@ -219,11 +233,19 @@ export function MapView({ token, onDirtyChange }: { token: string; onDirtyChange
   const handlePaint = useCallback(
     (x: number, y: number) => {
       if (!doc) return;
+
+      if (activeLayer > 0) {
+        const next = paintLayer(overlays, activeLayer - 1, x, y, brush);
+        if (next === overlays) return;
+        apply({ ...doc, layers: next });
+        return;
+      }
+
       const next = paintTile(tilemap, x, y, brush);
       if (next === tilemap) return;
       apply({ ...doc, tilemap: next });
     },
-    [doc, tilemap, brush, apply],
+    [doc, tilemap, overlays, activeLayer, brush, apply],
   );
 
   const handleSelect = useCallback(
@@ -277,11 +299,19 @@ export function MapView({ token, onDirtyChange }: { token: string; onDirtyChange
   const handleFillRect = useCallback(
     (x0: number, y0: number, x1: number, y1: number) => {
       if (!doc) return;
+
+      if (activeLayer > 0) {
+        const next = fillLayerRect(overlays, activeLayer - 1, x0, y0, x1, y1, brush);
+        if (next === overlays) return;
+        apply({ ...doc, layers: next });
+        return;
+      }
+
       const next = fillRect(tilemap, x0, y0, x1, y1, brush);
       if (next === tilemap) return;
       apply({ ...doc, tilemap: next });
     },
-    [doc, tilemap, brush, apply],
+    [doc, tilemap, overlays, activeLayer, brush, apply],
   );
 
   const handleFillCollision = useCallback(
@@ -300,11 +330,13 @@ export function MapView({ token, onDirtyChange }: { token: string; onDirtyChange
 
   const handlePickTile = useCallback(
     (x: number, y: number) => {
-      const picked = tileAt(tilemap, x, y);
-      // A ragged row can have no character at that column; nothing to pick.
-      if (picked !== undefined) setBrush(picked);
+      // Pick from whatever is being edited: on an overlay the base grid's floor is not the answer.
+      const source = activeLayer === 0 ? tilemap : (overlays[activeLayer - 1]?.tilemap ?? tilemap);
+      const picked = tileAt(source, x, y);
+      // A ragged row can have no character at that column, and a space is transparency, not a tile.
+      if (picked !== undefined && picked !== " ") setBrush(picked);
     },
-    [tilemap],
+    [tilemap, overlays, activeLayer],
   );
 
   const updatePlacement = useCallback(
@@ -322,8 +354,54 @@ export function MapView({ token, onDirtyChange }: { token: string; onDirtyChange
     if (!doc) return;
     // A map with no geometry yet gets a 28x14 field of the current brush, which is the size the
     // authored streets use.
-    apply({ ...doc, tilemap: growMap(tilemap.length > 0 ? tilemap : blankMap(28, 14, brush), 28, 14, brush) });
-  }, [doc, tilemap, brush, apply]);
+    const base = growMap(tilemap.length > 0 ? tilemap : blankMap(28, 14, brush), 28, 14, brush);
+    const sized = mapSize(base);
+    apply({
+      ...doc,
+      tilemap: base,
+      // Overlays must keep covering the map, or the document the author just resized stops
+      // validating (an overlay a row short is refused).
+      ...(overlays.length > 0 ? { layers: resizeLayers(overlays, sized.width, sized.height) } : {}),
+    });
+  }, [doc, tilemap, brush, overlays, apply]);
+
+  const updateLayers = useCallback(
+    (next: TileLayerDoc[]) => {
+      // `paintLayer` and friends return the same array when nothing changed, which is what keeps a
+      // no-op gesture off the undo stack.
+      if (!doc || next === overlays) return;
+      apply({ ...doc, layers: next });
+    },
+    [doc, overlays, apply],
+  );
+
+  const addLayer = useCallback(() => {
+    if (!doc) return;
+    const { width, height } = mapSize(doc.tilemap ?? []);
+    updateLayers([...overlays, blankLayer(freeLayerId(overlays), width, height)]);
+    setActiveLayer(overlays.length + 1);
+  }, [doc, overlays, updateLayers]);
+
+  const removeLayer = useCallback(
+    (index: number) => {
+      updateLayers(overlays.filter((_, at) => at !== index));
+      setActiveLayer((current) => {
+        if (current === index + 1) return 0;
+        return current > index + 1 ? current - 1 : current;
+      });
+    },
+    [overlays, updateLayers],
+  );
+
+  const renameLayer = useCallback(
+    (index: number, raw: string): boolean => {
+      const id = raw.trim();
+      if (id === "" || overlays.some((layer, at) => at !== index && layer.id === id)) return false;
+      updateLayers(overlays.map((layer, at) => (at === index ? { ...layer, id } : layer)));
+      return true;
+    },
+    [overlays, updateLayers],
+  );
 
   const save = useCallback(async () => {
     if (!doc?.id) return;
@@ -503,6 +581,99 @@ export function MapView({ token, onDirtyChange }: { token: string; onDirtyChange
               </button>
             ))}
           </div>
+
+          <div className="border-t p-2">
+            <div className="mb-1 flex items-center justify-between">
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                图层 Layers
+              </span>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-6 px-2 text-[11px]"
+                disabled={!doc}
+                title="加一个覆盖层 / add an overlay"
+                onClick={addLayer}
+              >
+                ＋
+              </Button>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setActiveLayer(0)}
+              className={`mb-1 flex w-full items-center gap-1.5 rounded px-2 py-1 text-left font-mono text-[11px] ${
+                activeLayer === 0 ? "bg-primary/20" : "hover:bg-muted/60"
+              }`}
+            >
+              base
+              <span className="ml-auto text-[10px] text-muted-foreground">
+                {size.width}×{size.height}
+              </span>
+            </button>
+
+            {overlays.map((layer, index) => (
+              <div
+                key={`${layer.id}-${index}`}
+                className={`mb-1 flex items-center gap-1 rounded px-1 py-0.5 ${activeLayer === index + 1 ? "bg-primary/20" : ""}`}
+              >
+                <button
+                  type="button"
+                  onClick={() => setActiveLayer(index + 1)}
+                  title="选中这一层 / make this the paint target"
+                  className="shrink-0 px-1 text-[10px] text-muted-foreground"
+                >
+                  {activeLayer === index + 1 ? "▸" : "·"}
+                </button>
+                <Input
+                  key={layer.id}
+                  defaultValue={layer.id}
+                  className="h-6 min-w-0 flex-1 font-mono text-[11px]"
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") event.currentTarget.blur();
+                  }}
+                  onBlur={(event) => {
+                    if (!renameLayer(index, event.target.value)) event.target.value = layer.id;
+                  }}
+                />
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-6 px-1 text-[11px]"
+                  disabled={index === 0}
+                  title="上移 Up"
+                  onClick={() => updateLayers(moveLayer(overlays, index, -1))}
+                >
+                  ↑
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-6 px-1 text-[11px]"
+                  disabled={index === overlays.length - 1}
+                  title="下移 Down"
+                  onClick={() => updateLayers(moveLayer(overlays, index, 1))}
+                >
+                  ↓
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-6 px-1 text-[11px] text-destructive"
+                  title="删除 Delete"
+                  onClick={() => removeLayer(index)}
+                >
+                  ✕
+                </Button>
+              </div>
+            ))}
+
+            <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
+              {activeLayer === 0
+                ? "画笔写入基础层 base"
+                : `画笔写入 ${overlays[activeLayer - 1]?.id ?? "?"} · 空格＝透明`}
+            </p>
+          </div>
         </div>
 
         {/* Canvas */}
@@ -510,6 +681,7 @@ export function MapView({ token, onDirtyChange }: { token: string; onDirtyChange
           {doc ? (
             <MapCanvas
               tilemap={tilemap}
+              layers={overlays}
               legend={legend}
               tileSize={tileSize}
               npcs={doc.npcs ?? []}
@@ -552,6 +724,36 @@ export function MapView({ token, onDirtyChange }: { token: string; onDirtyChange
               <p className="text-xs text-muted-foreground">没有图例 / this map has no legend</p>
             ) : (
               <div className="flex flex-wrap gap-2">
+                {/* A space is not a tile in the legend, but it is the only way to erase an overlay
+                    cell back to "draw nothing", so it needs a swatch like any other brush. */}
+                <button
+                  key="transparent"
+                  type="button"
+                  title="透明 / transparent (space) — 只喺覆盖层有意义"
+                  onPointerDown={(event) => {
+                    setBrush(" ");
+                    setMode("map");
+                    beginDrag({ kind: "tile", char: " " }, event.clientX, event.clientY);
+                  }}
+                  className={`touch-none select-none rounded border-2 p-0.5 ${
+                    brush === " " ? "border-amber-500" : "border-transparent hover:border-muted-foreground/40"
+                  }`}
+                >
+                  <span
+                    className="block"
+                    style={{
+                      width: tileSize * paletteScale,
+                      height: tileSize * paletteScale,
+                      backgroundImage:
+                        "repeating-conic-gradient(#1e293b 0% 25%, #0f172a 0% 50%)",
+                      backgroundSize: "8px 8px",
+                    }}
+                  />
+                  <span className="mt-0.5 block text-center font-mono text-[10px] text-muted-foreground">
+                    空
+                  </span>
+                </button>
+
                 {frames.map((frame) => (
                   <button
                     key={frame.char}

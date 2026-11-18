@@ -4,13 +4,11 @@
 build/
 *.tpz
 
-# --- Python (offline tools only; the backend is retired) ---
+# --- leftovers of the retired Python backend ---
+# No Python code is tracked any more (the backend and its tooling were ported to TypeScript). These
+# two lines only keep a stale local venv or bytecode cache out of `git status` until it is deleted.
 __pycache__/
-*.py[cod]
 .venv/
-.pytest_cache/
-.ruff_cache/
-.mypy_cache/
 
 # local API state: drafts, the fact-check queue and the usage ledger
 apps/server/data/
@@ -48,3 +46,6 @@ Thumbs.db
 
 # --- browser verification (playwright-cli snapshots/logs are run output) ---
 .playwright-cli/
+
+# local-scope configs (machine-specific)
+.atomcode/local/

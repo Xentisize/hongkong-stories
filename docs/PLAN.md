@@ -27,7 +27,7 @@ generates pixel art via Seedream.
 | Godot | `4.7.2.stable.official` at `/Applications/Godot.app` |
 | **Web export templates** | **Installed** for `4.7.2.stable` — web (no-threads) templates only; see §10.1 for how and why |
 | Workspace | Git repo initialised; `client/` runs headless, passes `--selftest` 36/36, exports `build/web`, and boots in a browser (P0–P1 ✅) |
-| Python / bun | `uv`-managed **CPython 3.15.2** (`~/.local/bin/python3.15`) / **bun 1.4.4** (`~/.bun/bin/bun`). The system `/usr/bin/python3` is **3.9.6** and an nvm Node 26.13.1 also exists — use neither for this project; see §10.6 |
+| Runtime / bun | **bun 1.4.4** (`~/.bun/bin/bun`) — the only runtime and package manager (the Python backend and its tooling were retired; §10.6). An nvm Node 26.13.1 also exists on this machine — use neither it nor any system `python3` for this project |
 | Languages | `zh_HK` (written Cantonese, Traditional) · `zh_CN` (Simplified) · `en` — three independent versions of every string, not glyph conversion; §5.8, fonts in §6.5 |
 | Chat model | `deepseek/deepseek-v4.1-flash-1017` — 1,048,576 ctx, $0.15/M in, $0.60/M out, **$0.003/M cached read**; supports `response_format`, `structured_outputs`, `tools`, `seed`, `stop`, `max_tokens`, `reasoning_effort` |
 | Image model | `bytedance-seed/seedream-5-0-flash` — **$0.018/image**; `resolution` 1K/1.5K/2K, `aspect_ratio` enum, `output_format` png/jpeg, `background` auto/transparent/opaque, `seed`, **`input_references` 0–14**. **2026-11-17 live re-check:** 5-0-flash refuses text-to-transparent — transparent output needs a reference PNG that itself carries a transparent pixel, or `bytedance-seed/seedream-5-5`; `input_references` entries are `{"type":"image_url","image_url":{"url":…}}` objects (≤16), data URLs or https |
@@ -103,12 +103,12 @@ hongkong-stories/
 │   ├── admin/                    SPA source + build (Vite + TS, bun) → served at /admin
 │   └── tests/
 ├── content-src/                  authoring source of truth (git-committed JSON + art refs)
-├── tools/                        export_web.sh · check_content.py · gen_manifest.py
-└── deploy/                       Dockerfile · fly.toml · pages headers · GH Actions
+├── tools/                        export_web.sh · check_content.ts · gen_content_manifest.ts · bundle/extends CLIs
+└── deploy/                       pages headers · credits page (no container: the API is a TanStack Start app)
 ```
 
 `content-src/` is the source of truth. `client/content/` is a *generated* snapshot copied
-in at export time, so a stale copy can never silently diverge — `tools/check_content.py`
+in at export time, so a stale copy can never silently diverge — `bun tools/check_content.ts`
 enforces it in CI.
 
 ---
@@ -222,6 +222,16 @@ runtime. Maps are therefore *not* yet editor-authored scenes — the editor is n
 will emit. Collision is a separate `collision` rect list rather than a TileSet physics layer,
 so a mis-drawn tile cannot silently break movement. When art is final, swap in editor-authored
 `TileMapLayer` scenes and keep the same JSON contract for doors, interactables and spawns.
+
+**Layers (added after P6.5):** the format stayed additive. `tilemap` is unchanged — it is the
+base grid and it defines the map's size — and an optional `layers: [{ id, tilemap }]` stacks
+overlays above it in order. In an overlay a **space means "paint nothing"**, which is what makes
+a whole-map overlay practical; a base grid has no transparency, so a space there is a hole the
+author wrote. Overlays must cover the same footprint as the map (the validator refuses a short
+row or a missing row, because the failure it causes is a silent shift that reads as bad art), and
+a character that is not in `legend` warns. Both clients draw base → overlays → actors, and doors
+still swap cells on the base grid. One shared reader (`tileLayers` in `packages/core/src/tiles.ts`)
+keeps the admin, the Phaser client and the validator from drifting on what a layer is.
 
 ### 5.4 Quest / chapter
 
@@ -435,7 +445,7 @@ swapping in any pixel CJK face.
 Simplified for `zh_CN`) and the union is 13.8 MB raw. The budget was optimistic because this row
 assumed one all-CJK file; the real options were a single-face font with incomplete coverage or
 two faces with complete coverage. Two faces won, `index.pck` is 4.8 MB, and the pck is compressed
-over the wire anyway (§10.2). Verify coverage with `python3 tools/check_font_coverage.py`.
+over the wire anyway (§10.2). Verify coverage with `bun tools/check_font_coverage.ts`.
 
 Evaluate in P1, on coverage first and legibility at 12 px second: Zpix, Fusion Pixel 12px,
 Cubic 11. **Gate the choice on a test string of Cantonese-specific characters** — 嘅 咗 喺 哋 嗰
@@ -801,7 +811,7 @@ transfer reduction.
 | Piece | Host | Notes |
 |-------|------|-------|
 | Client (static) | Cloudflare Pages (or Netlify/GH Pages) | `_headers`: `Cache-Control: immutable` on hashed assets, `no-cache` on `index.html`; brotli; long CDN cache on art. |
-| Backend (FastAPI) | Fly.io / Render / Cloud Run / single VPS+Caddy | Needs WebSocket support and a persistent process. Cloudflare Workers is *not* an option for a Python backend. |
+| Backend (TanStack Start) | Cloudflare Workers, Fly.io / Render, or a single VPS+Caddy | Streaming is SSE over `fetch`, not a WebSocket, so a worker-style runtime is viable; the only hard requirement is Postgres for sessions/ledger (`HKS_DATABASE_URL`) |
 | Secrets | backend env only | `OPENROUTER_API_KEY`, `ADMIN_TOKEN`, `ALLOWED_ORIGINS`. Never in `client/`, never in `export_presets.cfg`. |
 | Content pack | served by backend (or R2/S3 + signed URLs later) | Cache-busted by `manifest.version`. |
 
@@ -825,48 +835,38 @@ verify `Origin` itself on upgrade.
 
 GitHub Actions, two workflows:
 
-- `client.yml` — on push to `main`: install templates cache → `check_content.py` → headless
-  export → brotli → deploy Pages. (Cache the templates directory between runs.)
-- `server.yml` — pytest + Docker build → deploy to Fly/Render. Admin SPA built with
-  `bun install --frozen-lockfile && bun run build` (Vite) into `server/admin/` in the same job.
+- `client.yml` — on push to `main`: content gates (`bun tools/check_content.ts`) → type-check →
+  unit tests → browser verification → deploy Cloudflare Pages.
+- `client-godot.yml` — the Godot export pipeline, dispatch-only. It still publishes the reference
+  build to production, because that is where the game currently lives (§10.1).
 
 Content-only publishes bypass both: they go through the admin's publish endpoint and reach
-players on next boot.
+players on next boot — the hot-pack endpoint serves the new pack to a client that is already
+running, keyed on `content_hash` (§5.7).
 
-### 10.6 Toolchains: Python 3.15.2 and bun 1.4.4
+### 10.6 Toolchain: bun 1.4.4, and nothing else
 
-The backend targets **exactly CPython 3.15.2** — not `>=3.15`, and not the free-threaded
-build. Six layers pin it, so nothing in the toolchain can drift:
+**The Python backend and its tooling were retired** (commit `b2ca8d0`). The API is the TanStack
+Start app in `apps/server`, the content gate is `tools/check_content.ts`, the manifest generator is
+`tools/gen_content_manifest.ts`, and the image pipeline is `sharp`. There is no interpreter pin, no
+`pyproject.toml`, no `uv.lock`, and no Python image left to keep in step — the things that needed
+six layers of pinning are gone rather than re-pinned.
 
-| Layer | File / command | Value |
-|-------|----------------|-------|
-| Interpreter selector | `.python-version` (repo root) | `3.15.2` |
-| Package metadata | `server/pyproject.toml` | `requires-python = "==3.15.2"` |
-| Lockfile | `server/uv.lock` (committed) | `uv sync --frozen` everywhere it matters |
-| Local dev | `uv python pin 3.15.2` → `uv sync` | resolves to `~/.local/share/uv/python/cpython-3.15.2-…` |
-| Container | `deploy/Dockerfile` | `FROM python:3.15.2-slim` (tag verified to exist) |
-| CI | `.github/workflows/server.yml` | `astral-sh/setup-uv` + `uv sync --frozen`, then assert `python -VV` starts with `3.15.2` |
+| Concern | Where it lives now | Note |
+|---------|--------------------|------|
+| Package manager + runtime | `bun` 1.4.4 (`~/.bun/bin/bun`) | the only one; `bun.lock` is the only lockfile |
+| Content gate | `bun tools/check_content.ts` | runs the same `validatePack` as publish, so CI and the admin cannot disagree |
+| Manifest | `bun tools/gen_content_manifest.ts` | `content_hash` is a wire contract: clients compare it to hot-pack |
+| Image work | `sharp` | no Python wheels, no optional dependency group |
+| Godot export | `client/export_presets.cfg` + Godot 4.7.2 on the machine that exports | unchanged; still the legacy client (§10.1) |
 
-Four things that will bite otherwise:
+Two habits that keep it that way:
 
-- **This machine's system `python3` is 3.9.6** — six minor versions behind the lock. Anything
-  that reaches for `python3` out of habit (a bare `pytest`, an IDE default interpreter, a
-  hand-written Makefile) silently runs the wrong interpreter and produces confusing
-  `SyntaxError`/`ImportError` noise instead of a clear version failure. Run everything through
-  `uv run …`, and keep the CI `python -VV` assertion so a mismatch fails loudly.
-- **Use the GIL build, not `3.15.2+freethreaded`.** The free-threaded ABI has distinct wheel
-  tags and is where native dependencies lag first — Pillow and `pydantic-core` are the likely
-  casualties, and both are load-bearing here. Nothing in this design needs no-GIL: the
-  workload is IO-bound (streaming tokens, HTTP, disk) and asyncio already covers the
-  concurrency. Revisit only if profiling asks for it.
-- **An exact patch pin means security bumps are manual.** 3.15.3+ will appear; adopting it is
-  a reviewed PR touching `.python-version`, the image tag and `requires-python` — not an
-  automatic nightly. That reproducibility is what you are buying, but put a calendar reminder
-  near 3.15's EOL (**2031-10**) so the lock does not quietly become a liability.
-- **Wheels are the real risk with a fresh interpreter.** `uv sync` must succeed for the whole
-  dependency set on 3.15.2 *before* P2 starts — a missing 3.15 wheel then is a build error on
-  day one rather than a runtime surprise in production. If one package blocks, pin that
-  package lower or replace it; do **not** relax the interpreter pin.
+- **`bun`, never `npx`/`npm`/`pnpm`.** A second lockfile is how the drift started last time; the
+  repo has exactly one, and `bun install --frozen-lockfile` is what CI runs.
+- **No Node version manager.** An nvm Node 26.13.1 exists on this machine and must not be used
+  for this project — `bun` ships its own runtime, and using the nvm one makes a "works on my
+  machine" bug that CI cannot reproduce.
 
 **Frontend: bun, pinned the same way.** The admin SPA uses **bun 1.4.4** as its only package
 manager — no npm, no pnpm, no yarn, and no lockfile from any of them in the repo.
@@ -891,18 +891,18 @@ bun lockfile — add a CI check that fails if `package-lock.json`, `yarn.lock`, 
 
 | Layer | Tool | What it must cover |
 |-------|------|--------------------|
-| Content | `jsonschema` + a referential-integrity pass | Every id resolves; every flag referenced by a condition is settable by something; no unreachable quest node; every NPC has non-empty scripted fallback |
-| Conditions/Effects | GDScript unit tests (GUT or gdUnit4) + mirrored Python tests | The two evaluators must agree on a shared fixture table — divergence here is a silent save-corrupting bug |
-| Prompt assembly | pytest golden files | Cache prefix is byte-stable across turns (assert this, or caching silently stops paying) |
+| Content | `validatePack` (`packages/core`) via `bun tools/check_content.ts` | Every id resolves; every flag referenced by a condition is settable by something; no unreachable quest node; every NPC has non-empty scripted fallback |
+| Conditions/Effects | GDScript tests + the TypeScript evaluator in `packages/core` | The two evaluators must agree on a shared fixture table — divergence here is a silent save-corrupting bug |
+| Prompt assembly | `bun test` golden files | Cache prefix is byte-stable across turns (assert this, or caching silently stops paying) |
 | Locale parity | `validate` + CI | Every localized field has all three locales or an explicit `_todo`; no blank cells in `ui.csv`; **no Cantonese particles in `zh_CN`** (regex spot-check for 嘅 咗 喺 哋 嗰 冇 嘢) — that catches a `zh_HK` string pasted into the wrong tab |
-| Font coverage | pytest + GDScript | Every authored character **and** every character in a captured corpus of real LLM replies resolves via `Font.has_char()`; fails on anything that would ship as a blank box |
-| Admin SPA | `bun test` | The condition builder emits exactly the §5.5 JSON the GDScript and Python evaluators both accept; locale tabs refuse a field missing a locale |
-| Chat protocol | pytest + `respx` mock of OpenRouter | Timeout → fallback; malformed JSON → scripted; action outside allowlist → rejected and logged; budget exhaustion → scripted |
+| Font coverage | `bun tools/check_font_coverage.ts` + GDScript | Every authored character **and** every character in a captured corpus of real LLM replies resolves via `Font.has_char()`; fails on anything that would ship as a blank box |
+| Admin SPA | `bun test` | The condition builder emits exactly the §5.5 JSON the GDScript and TypeScript evaluators both accept; locale tabs refuse a field missing a locale |
+| Chat protocol | `bun test` + a stubbed `fetch` | Timeout → fallback; malformed JSON → scripted; action outside allowlist → rejected and logged; budget exhaustion → scripted |
 | Client loop | `client/tests/selftest.gd` (`godot --headless --path client -- --selftest`, exit code = failures) | 36 assertions: content loading, three-locale resolution, effects + stack_max, every condition verb, save round-trip, and door gating across a location rebuild. **gdUnit4 deferred to P2** — these assertions port over directly. |
 | E2E smoke | `tools/web_smoke.mjs` (Chrome + CDP, no dependencies) | `talk` mode injects real key events, walks to an NPC and presses E, then reports the game's `[Dialogue]` log line plus a screenshot — so it distinguishes "the model answered" from "the fallback answered". Exits non-zero on any unexpected console error. Verified both online and with the backend killed. |
-| Backend | `pytest` (44 tests) | Prompt-prefix stability, streaming extractors (split escapes, `\uXXXX`, partial fence), allowlist rejections, budget refusal **before** spend, every WS error frame, health payload never containing the key. |
-| Conditions parity | `client/tests/fixtures/conditions.json` read by **both** suites | The GDScript and Python evaluators are checked against one table, which is the contract that keeps them from diverging. |
-| Manual | checklist per chapter | 60 fps on a real phone, readable text at 384×216, offline mode (kill wifi → game still plays) |
+| Backend | `bun test` in `apps/server` | Prompt-prefix stability, streaming extractors (split escapes, `\uXXXX`, partial fence), allowlist rejections, budget refusal **before** spend, every SSE error frame, health payload never containing the key. |
+| Conditions parity | `client/tests/fixtures/conditions.json` read by **both** suites | The GDScript and TypeScript evaluators are checked against one table, which is the contract that keeps them from diverging. |
+| Manual | checklist per chapter | 60 fps in the target browser, readable text at 384×216, offline mode (kill wifi → game still plays). A physical phone is out of scope for now |
 
 The one test that will actually save the project: **kill the backend and play a full
 chapter**. If that is not fun, the LLM is carrying a game that has no skeleton.
@@ -919,11 +919,11 @@ Sized for one developer. Each phase has an exit criterion that is *observable*, 
 | **P0 — Skeleton** ✅ *(done)* | git repo, `client/` project with the §6.1 settings, 10 autoloads, asset-free test room + walkable player, `tools/export_web.sh`, `tools/web_smoke.mjs`, web templates installed, `build/web` produced | ✅ boots in a real browser (headless Chrome + CDP): canvas live, **0 console errors**, scene colours rendered. ⏳ 60 fps on a physical phone still unmeasured — the HUD prints live FPS and the procedure is in README "Tests"; ✅ brotli pre-compression active: `tools/export_web.sh` writes `.br` sidecars and `tools/serve_web.py` serves them with `Content-Encoding: br` (sizes unmeasured until the next real export) |
 | **P1 — Core loop** ✅ *(done)* | Walkable player with animation state, JSON-built `TileMapLayer` location + collision, interactables, condition-gated door, inventory UI with three-locale item names, flag/item/variable effects, autosaved slots with boot restore, F1 command console, `--selftest` harness | ✅ `--selftest` 36/36, exit 0. ✅ In-browser: 0 console errors, `[ContentDB] loaded 2 entities` in the wasm logs, tiled room renders from the generated atlas. ⏳ Only one location exists, so exits/location-switching is coded but unexercised; ⏳ no NPCs or dialogue until P2 |
 | **P2 — Conversation** ✅ *(done)* | FastAPI backend on CPython 3.15.2, `/v1/session` + `/v1/chat` WS streaming with json_schema mode, prompt assembly with a byte-stable cache prefix, per-NPC action allowlist, per-session budget, three-locale NPC content, client `Net`/`Dialogue`/DialogueUI/NPC node, greeting prefetch, scripted fallback ladder | ✅ 44 pytest + 65 client checks pass. ✅ Live: two real turns (zh_HK and en) through the backend. ✅ In-engine: `--live-chat` 6/6. ✅ In-browser (CDP key injection): walked to the NPC, pressed E, got a model reply; with the backend killed, the same run used scripted lines — **0 unexpected console errors in both**. ⏳ Cache-hit *telemetry* is not wired (prefix stability is asserted by test instead); ⏳ first token measured 3.11 s cold vs the 1.5 s this row hoped for |
-| **P3 — Story engine** ✅ *(built; suite run + playtest pending)* | ✅ Condition/Effect interpreters (both languages, shared fixtures), quest node machine + cutscene overlay, NPC presence triggers, chapter 1 content: 5 NPCs, 8 items, 3 locations, 1 complete arc | ⏳ a player who has never seen the game can finish chapter 1 and cannot break it: content is authored so every objective is reachable and no single NPC dead-ends the arc (offline fallback lines carry the key handover and the album identification); still needs the `--selftest`/`pytest` run on a toolchain machine and a human playtest |
-| **P4 — Admin + art** ✅ *(built; live-verified server-side)* | ✅ Admin API (bearer auth, drafts, validate, publish preview) + content validator (CLI: `tools/check_content.py`), hot-pack serving + client hot-load (§5.7), Seedream → palette/outline post-processor → provenance (§8), admin SPA at `/admin` (bun + Vite, four views: editor / persona playground with real usage + cache telemetry / condition builder with live evaluation / fact-check queue + usage dashboard — §9.2) | ⏳ author a new NPC end-to-end **without opening Godot** — generate sprite, set persona, wire a trigger, publish — and it appears in the running web build after a reload: server-side chain live-verified 2026-11-17 (style bible + a cast sprite generated from it via `input_references`, wired through the real draft→publish loop → content v2 served; real playground turn 729 tok / $0.00016 / 2.6 s; cache hits vary with routing — 60%/0%/76%; 74 pytest in an ephemeral 3.14 env). Remaining: a pinned-3.15.2 pytest run — the browser half is verified (2026-11-17: templates installed on the Windows side, export produced, smoke passed boot / backend-up / backend-down with Playwright Chromium + SwiftShader) |
+| **P3 — Story engine** ✅ *(built; suite run + playtest pending)* | ✅ Condition/Effect interpreters (both languages, shared fixtures), quest node machine + cutscene overlay, NPC presence triggers, chapter 1 content: 5 NPCs, 8 items, 3 locations, 1 complete arc | ⏳ a player who has never seen the game can finish chapter 1 and cannot break it: content is authored so every objective is reachable and no single NPC dead-ends the arc (offline fallback lines carry the key handover and the album identification); still needs the `--selftest` run on a machine with Godot and a human playtest |
+| **P4 — Admin + art** ✅ *(built; live-verified server-side)* | ✅ Admin API (bearer auth, drafts, validate, publish preview) + content validator (CLI: `bun tools/check_content.ts`), hot-pack serving + client hot-load (§5.7), Seedream → palette/outline post-processor → provenance (§8), admin SPA at `/admin` (bun + Vite, four views: editor / persona playground with real usage + cache telemetry / condition builder with live evaluation / fact-check queue + usage dashboard — §9.2) | ⏳ author a new NPC end-to-end **without opening Godot** — generate sprite, set persona, wire a trigger, publish — and it appears in the running web build after a reload: server-side chain live-verified 2026-11-17 (style bible + a cast sprite generated from it via `input_references`, wired through the real draft→publish loop → content v2 served; real playground turn 729 tok / $0.00016 / 2.6 s; cache hits vary with routing — 60%/0%/76%; 74 pytest in an ephemeral 3.14 env). Remaining: a pinned-3.15.2 pytest run — the browser half is verified (2026-11-17: templates installed on the Windows side, export produced, smoke passed boot / backend-up / backend-down with Playwright Chromium + SwiftShader) |
 | **P5 — Chapters & polish** ✅ *(complete; phone play + gdUnit4 remain)* | ✅ Chapters 2–6 content (1955 Kowloon, 1963 mill/rationing, 1979 Kai Tak, 1996 the unsent letter, and the 2027 finale in a cute register with journey-after cast variants gated by quest_state — lore + 2 locations + 3 NPCs each; memento doors chained album→ch02→cassette→ch03→tram→ch04→letter→ch05, then the family box opens the finale), save-code export (§6.4), Audio autoload + five synthesized ambience beds, touch controls, the NPC-placement editor plugin (§9.1) plus interactable `requires` gating (§5.5); fact-check queue shipped with §9.2; zh_HK/en parity enforced by the validator; `--selftest` 122/0 on a Windows 4.7.2 build via WSL interop | ⏳ 30 minutes of play on a real phone without a crash; both languages complete for shipped chapters (validator-enforced); remaining: the gdUnit4 port, real recordings for the ambience |
-| **P6 — Ship** ✅ *(code-complete; the public URL awaits the operator's accounts + secrets)* | ✅ Per-IP daily cost caps (sessions + spend, env-tunable, 429 `daily_cap`), counts-only error telemetry at `/healthz`, credits & privacy page shipped with every export (`deploy/web/credits.html`), the budget-exhausted UX (one localized notice → scripted ladder), `deploy/Dockerfile` (python:3.15.2-slim + uv frozen) + `fly.toml` (hkg, auto-stop) + Pages `_headers`, CI: `client.yml` (gates → selftest → export → smokes → brotli → Pages) and `server.yml` (interpreter asserted → pytest → bun SPA → Docker → Fly) | ⏳ Public URL (the Fly/Pages accounts and secrets are operator actions); per-player cost within budget (caps verified in tests); a broken upstream already degrades to offline mode instead of a white screen |
-| **P6.5 — RPG Maker lessons** ✅ | ✅ The three-panel Map Editor plugin (location tree / tile palette / paintable canvas / EVENT toggle / inspector; write-back via the selftest-covered writer core, doors preserved); NPC event pages (`states` → persona patch + lore extra + offline ladder, one cache prefix per npc×lang×page, validator + both suites); the dialogue avatar (5 generated portraits, left of the text column); the flat-JSON database was already the design | ⏳ Editor polish (multi-layer tiles) is future work; doors and exits are now authored in the admin's location inspector (tiles/rect, target + spawn, `open_flag`, conditions) rather than by hand-editing JSON; pages are authored per-NPC as stories need them |
+| **P6 — Ship** ✅ *(code-complete; the public URL awaits the operator's accounts + secrets)* | ✅ Per-IP daily cost caps (sessions + spend, env-tunable, 429 `daily_cap`), counts-only error telemetry at `/healthz`, credits & privacy page shipped with every export (`deploy/web/credits.html`), the budget-exhausted UX (one localized notice → scripted ladder), Pages `_headers` (`deploy/pages/_headers`), CI: `client.yml` (gates → type-check → unit tests → browser smokes → Pages) and `client-godot.yml` (the legacy Godot export, dispatch-only); the API deploy pipeline (`deploy/Dockerfile`, `fly.toml`, `server.yml`) went with the Python backend and is not wired yet | ⏳ Public URL (the Fly/Pages accounts and secrets are operator actions); per-player cost within budget (caps verified in tests); a broken upstream already degrades to offline mode instead of a white screen |
+| **P6.5 — RPG Maker lessons** ✅ | ✅ The three-panel Map Editor plugin (location tree / tile palette / paintable canvas / EVENT toggle / inspector; write-back via the selftest-covered writer core, doors preserved); NPC event pages (`states` → persona patch + lore extra + offline ladder, one cache prefix per npc×lang×page, validator + both suites); the dialogue avatar (5 generated portraits, left of the text column); the flat-JSON database was already the design | ⏳ Multi-layer tiles are **done** (§5.1 "Layers": additive `layers[]`, space = transparent, drawn in both clients and authored in the admin's layer list with a transparent brush); doors and exits are authored in the admin's location inspector (tiles/rect, target + spawn, `open_flag`, conditions) rather than by hand-editing JSON; pages are authored per-NPC as stories need them |
 
 Rough total to a *playable, shareable vertical slice*: **~2 weeks**. To a 3-chapter game:
 **~4–5 weeks**.

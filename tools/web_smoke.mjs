@@ -10,9 +10,9 @@
 // this drives CDP and waits in real time.
 //
 // `talk` mode injects real key events, which makes this an end-to-end test rather than a boot
-// test: input → interaction → Dialogue → (model or scripted fallback). The game logs every
-// finished line as "[Dialogue] <npc>: <text>", with " (fallback)" appended when the backend
-// could not be reached, so the caller can tell the two apart.
+// test: input → interaction → Dialogue → (model or scripted fallback). With `?trace=1` (added
+// below) the game logs every finished line as "[Dialogue] <npc>: <text>", with " (fallback)"
+// appended when the backend could not be reached, so the caller can tell the two apart.
 //
 // Exit code is 0 only when nothing unexpected happened, so CI can gate on it.
 import { spawn } from "node:child_process";
@@ -20,7 +20,14 @@ import { writeFileSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-const url = process.argv[2] ?? "http://127.0.0.1:8099/";
+const baseUrl = process.argv[2] ?? "http://127.0.0.1:8099/";
+// The game only logs finished lines when asked (`?trace=1`) — every assertion below greps those
+// console lines, so the request is added here instead of being left to whoever runs the test.
+const url = (() => {
+  const parsed = new URL(baseUrl);
+  if (!parsed.searchParams.has("trace")) parsed.searchParams.set("trace", "1");
+  return parsed.toString();
+})();
 const out = process.argv[3] ?? "/tmp/hk_web_smoke.png";
 const waitMs = Number(process.argv[4] ?? 9000);
 const mode = process.argv[5] ?? "boot";

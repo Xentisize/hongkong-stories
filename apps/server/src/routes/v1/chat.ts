@@ -13,7 +13,7 @@ import {
 
 import { hasDatabase } from "@/db/client";
 import { loadContent } from "@/lib/content";
-import { estimateCost } from "@/lib/completion";
+import { estimateCost, usageFromStreamChunk, type StreamUsage } from "@/lib/completion";
 import { preflight, withCors } from "@/lib/cors";
 import { buildMessages } from "@/lib/prompts";
 import { SayExtractor } from "@/lib/say-extractor";
@@ -39,7 +39,10 @@ import { logEvent } from "@/lib/usage";
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
-/** Streaming has no reliable provider usage, so cost/latency work off an estimate (§7.5). */
+/**
+ * The fallback for a stream that ends early, or an upstream that ignores `usage.include` (§7.5).
+ * The pre-spend budget check has nothing else to go on — it runs before the request is made.
+ */
 function estimateTokens(text: string): number {
   return Math.ceil(text.length / 4);
 }
@@ -122,6 +125,9 @@ export const Route = createFileRoute("/v1/chat")({
             temperature,
             max_tokens: maxTokens,
             stream: true,
+            // Ask for the final chunk's `usage` block: without it a streamed turn has no real token
+            // counts, and the ledger would accrue an estimate forever (§7.5).
+            usage: { include: true },
             response_format: npcReplyResponseFormat(),
           }),
           signal: AbortSignal.timeout(timeoutMs),
@@ -131,6 +137,10 @@ export const Route = createFileRoute("/v1/chat")({
           const detail = upstream ? `upstream_http_${upstream.status}` : "upstream_unreachable";
           return errorStream(detail, upstream ? (await upstream.text().catch(() => "")).slice(0, 200) : "");
         }
+
+        // Filled from the provider's final chunk when it carries `usage`; until then the turn is
+        // charged on the estimate.
+        let providerUsage: StreamUsage | null = null;
 
         const stream = new ReadableStream<Uint8Array>({
           async start(controller) {
@@ -161,6 +171,11 @@ export const Route = createFileRoute("/v1/chat")({
                     continue;
                   }
                   if (!isRecord(parsed)) continue;
+
+                  // Read before `choices` is inspected: the usage chunk carries no choice at all,
+                  // and an early `continue` below would skip it.
+                  const streamUsage = usageFromStreamChunk(parsed);
+                  if (streamUsage !== null) providerUsage = streamUsage;
 
                   const choice = Array.isArray(parsed["choices"]) ? parsed["choices"][0] : undefined;
                   if (!isRecord(choice)) continue;
@@ -196,8 +211,13 @@ export const Route = createFileRoute("/v1/chat")({
               // the client and the admin use, checked against the NPC's declared permission.
               const verdict = validateActions(reply.actions, { llm: npc["llm"], secrets: npc["secrets"] }, state);
 
-              const used = promptTokens + estimateTokens(reply.say);
-              const turnCost = estimateCost(promptTokens, 0, estimateTokens(reply.say));
+              // The provider's own numbers when the usage chunk arrived, the §7.5 estimate
+              // otherwise. `cached_tokens` is what makes the cached-read price apply at all.
+              const promptUsed = providerUsage?.promptTokens ?? promptTokens;
+              const completionUsed = providerUsage?.completionTokens ?? estimateTokens(reply.say);
+              const cachedUsed = providerUsage?.cachedTokens ?? 0;
+              const used = promptUsed + completionUsed;
+              const turnCost = estimateCost(promptUsed, cachedUsed, completionUsed);
 
               // Charged with `used_tokens = used_tokens + n`, so two instances serving the same
               // session add up rather than overwriting each other. A failure is logged and the turn
@@ -214,8 +234,8 @@ export const Route = createFileRoute("/v1/chat")({
                 : Math.max(0, remainingOf(session) - used);
               const turn = charged ? charged.turns : session.turns + 1;
 
-              // Usage ledger row (PLAN 9.2). Streaming carries no provider usage, so the cost is
-              // the §7.5 price model over estimated tokens — the same figure the caps accrue.
+              // Usage ledger row (PLAN 9.2). The tokens are the provider's when the usage chunk
+              // arrived and the §7.5 estimate otherwise — the same figure the caps accrue.
               await logEvent("chat", {
                 session: session.token,
                 npc: npcId,
@@ -237,6 +257,12 @@ export const Route = createFileRoute("/v1/chat")({
                   model,
                   usage: {
                     tokens: used,
+                    // Where those numbers came from, so a dashboard can tell a measured turn from
+                    // an estimated one instead of trusting a single blended figure.
+                    source: providerUsage === null ? "estimate" : "provider",
+                    prompt_tokens: promptUsed,
+                    completion_tokens: completionUsed,
+                    cached_tokens: cachedUsed,
                     remaining,
                     turn,
                     max_actions: MAX_ACTIONS_PER_TURN,

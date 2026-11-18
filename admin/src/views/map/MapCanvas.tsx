@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { collisionGrid, mapSize, npcIndexAt, solidAt, type CollisionRect, type MapNpc } from "@/lib/map";
+import {
+  collisionGrid,
+  mapSize,
+  npcIndexAt,
+  solidAt,
+  type CollisionRect,
+  type MapNpc,
+  type TileLayerDoc,
+} from "@/lib/map";
 
 /**
  * The map canvas.
@@ -21,6 +29,8 @@ export type EditorTool = "brush" | "rect";
 
 export interface MapCanvasProps {
   tilemap: string[];
+  /** Overlays drawn above `tilemap`, in order; a space paints nothing. */
+  layers: TileLayerDoc[];
   legend: Record<string, [number, number]>;
   tileSize: number;
   npcs: MapNpc[];
@@ -55,6 +65,7 @@ const UNKNOWN_TILE = "#7f1d1d";
 export function MapCanvas(props: MapCanvasProps) {
   const {
     tilemap,
+    layers,
     legend,
     tileSize,
     npcs,
@@ -126,6 +137,35 @@ export function MapCanvas(props: MapCanvasProps) {
           scale,
           scale,
         );
+      }
+    }
+
+    // Overlays, in draw order. A space is transparency, so the base grid shows through — that is
+    // what makes a whole-map overlay practical without repainting the floor on it.
+    for (const layer of layers) {
+      for (let y = 0; y < height; y += 1) {
+        const row = layer.tilemap[y] ?? "";
+        for (let x = 0; x < width; x += 1) {
+          const char = row[x];
+          if (char === undefined || char === " ") continue;
+          const frame = legend[char];
+          if (!frame || !atlas) {
+            context.fillStyle = UNKNOWN_TILE;
+            context.fillRect(x * scale, y * scale, scale, scale);
+            continue;
+          }
+          context.drawImage(
+            atlas,
+            frame[0] * tileSize,
+            frame[1] * tileSize,
+            tileSize,
+            tileSize,
+            x * scale,
+            y * scale,
+            scale,
+            scale,
+          );
+        }
       }
     }
 
@@ -224,7 +264,7 @@ export function MapCanvas(props: MapCanvasProps) {
       context.lineWidth = 2;
       context.strokeRect(sx * scale + 1, sy * scale + 1, scale - 2, scale - 2);
     }
-  }, [tilemap, legend, tileSize, npcs, collision, decor, interactables, atlas, mode, zoom, selected, width, height]);
+  }, [tilemap, layers, legend, tileSize, npcs, collision, decor, interactables, atlas, mode, zoom, selected, width, height]);
 
   useEffect(draw, [draw]);
 

@@ -15,6 +15,8 @@ export type LocationDoc = {
   id?: string;
   display_name?: Record<string, string>;
   tilemap?: TileMap;
+  /** Overlays drawn above `tilemap`, in order. Absent for a single-layer document. */
+  layers?: Array<{ id?: string; tilemap?: TileMap }>;
   legend?: Record<string, [number, number]>;
   tile_size?: number;
   atlas?: string;
@@ -93,6 +95,23 @@ export function reducer(state: MapState, action: MapAction): MapState {
  */
 export function normalise(raw: unknown): LocationDoc {
   const doc = (raw ?? {}) as LocationDoc;
+
+  // Only touch `layers` when the document has it: writing `layers: []` into every location on
+  // save would churn content that never asked for overlays.
+  const layers = Array.isArray(doc.layers)
+    ? doc.layers
+        .filter(
+          (entry) =>
+            entry !== null &&
+            typeof entry === "object" &&
+            Array.isArray((entry as { tilemap?: unknown }).tilemap),
+        )
+        .map((entry) => ({
+          id: typeof entry.id === "string" ? entry.id : "",
+          tilemap: (entry.tilemap as unknown[]).map(String),
+        }))
+    : null;
+
   return {
     ...doc,
     tilemap: Array.isArray(doc.tilemap) ? doc.tilemap.map(String) : [],
@@ -101,5 +120,6 @@ export function normalise(raw: unknown): LocationDoc {
           (entry) => entry !== null && typeof entry === "object" && Array.isArray(entry.tile),
         )
       : [],
+    ...(layers === null ? {} : { layers }),
   };
 }

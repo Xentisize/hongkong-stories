@@ -37,8 +37,7 @@ Content stays in git — the database holds only mutable state, and `bun run db:
 idempotent, so running it again is always safe.
 
 Use `tools/serve_web.ts`, not a bare static server: one that sends no `Cache-Control` lets Chrome
-keep serving a stale `index.pck` after a re-export — which looks exactly like a broken build. That cost a debugging detour once already. The HUD also prints a small build stamp
-(`p2-font-2`) in the bottom-right corner, so "which build am I looking at?" is answerable on sight.
+keep serving a stale `index.pck` after a re-export — which looks exactly like a broken build. That cost a debugging detour once already.
 
 Or open `client/project.godot` in Godot 4.7.2 and press F5 (it talks to `127.0.0.1:3000` by
 default; `HK_STORIES_API` overrides it for a desktop run).
@@ -252,9 +251,11 @@ A design pass borrowed four RPG Maker patterns (2026-11); where each landed:
 
 1. **The three-panel map & asset editor** — shipped in the **admin web app**
    (`admin/src/views/MapView.tsx`): a location tree, a tile palette under it, a paintable canvas
-   with the **MAP/EVENT** toggle plus a **collision** mode, an inspector for the selected event, and
-   write-back through the same draft → validate → publish path as every other entity. It replaced
-   the Godot `addons/npc_placement` `@tool` plugin, which was retired along with its writer.
+   with the **MAP/EVENT** toggle plus a **collision** mode, an inspector for the selected event, a
+   **layer list** (add / rename / reorder / delete overlays, with a transparent brush to erase them
+   back to nothing), and write-back through the same draft → validate → publish path as every other
+   entity. It replaced the Godot `addons/npc_placement` `@tool` plugin, which was retired along
+   with its writer.
 2. **The conditional state system** — **NPC event pages** (`states` in an NPC JSON): an
    ordered array where the first `requires` that passes activates a page that patches the
    persona, extends the lore ("WHAT CHANGED RECENTLY"), and overrides the offline ladder.
@@ -266,7 +267,7 @@ A design pass borrowed four RPG Maker patterns (2026-11); where each landed:
    is the classic framing: a generated **avatar on the left** of the dialogue box
    (`art/npcs/<id>_portrait.png`), with the name on top as before.
 4. **The database as flat JSON** — was already the architecture: flags/items/locations/NPCs
-   as plain content JSON, validated by `check_content.py`.
+   as plain content JSON, validated by `bun tools/check_content.ts`.
 
 ## Fonts and licensing (read before swapping fonts)
 
@@ -289,17 +290,24 @@ against the Cantonese particle set and every string in `client/content/`.
   what remains is the P6 ship list and the gdUnit4 port.
 - **Cache-hit telemetry is only partially wired.** The admin playground reads real
   prompt/cached/cost numbers (OpenRouter `usage.include`) — live-measured 2026-11-17:
-  same-prefix turns hit 60% / 0% / 76% depending on which upstream serves the request —
-  but the in-game streaming path still estimates tokens (PLAN §7.5).
-- **Token counts are estimated** (CJK ≈ 1 token/char), not read from the provider, so budgets are
-  conservative rather than exact.
-- **Content changes need a re-export** until P4's hot-pack endpoint exists.
+  same-prefix turns hit 60% / 0% / 76% depending on which upstream serves the request.
+- **Token counts come from the provider on both paths.** The streaming turn asks for the final
+  `usage` chunk (`usage: { include: true }`) and charges the caps and the ledger with the real
+  prompt/completion/cached counts; the CJK estimate (≈ 1 token/char) is only the fallback for a
+  stream that ends early or an upstream that omits it, and the pre-spend budget check still has to
+  use it because it runs before the request is made. The `done` frame says which one it used
+  (`usage.source`: `provider` or `estimate`).
+- **Content changes do not need a re-export.** Publishing bumps the manifest and the hot-pack
+  endpoint (`/v1/content/…`) serves the new pack; a client that is already running swaps to it on
+  its next launch. Only the *bundled baseline* inside a web export moves when you export again.
 - **Chapter 1 content is authored, zh_HK-canonical** (both §14 decisions settled): 3 locations,
   5 NPCs, 8 mementos, the ch01 arc, and `lore/ch01_hk_2027.md`. The P1/P2 fixtures
   (`loc_p1_shop`, `npc_p2_shopkeeper`) remain as engine test content. Art is still the P1
   placeholder atlas until the P4 pipeline.
-- **The build stamp** (`p2-font-2` in the HUD corner) is a development aid — remove it before
-  shipping, along with the dev console's unconditional dialogue logging.
+- **Build stamp and dialogue logging are gone from shipping builds.** The HUD no longer prints a
+  version stamp, and finished dialogue lines are logged only on request — `?trace=1` in a browser
+  build or `--trace-dialogue` on desktop — because `tools/web_smoke.mjs` greps those lines and a
+  player's console should be quiet.
 - **Brotli pre-compression is wired but unmeasured**: `tools/export_web.sh` writes `.br`
   sidecars when the `brotli` CLI is installed, and `tools/serve_web.ts` serves them with
   `Content-Encoding: br` — sizes stay unmeasured until the next real export (the machine that

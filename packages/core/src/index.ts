@@ -82,6 +82,32 @@ export {
 } from "./validate";
 
 export {
+  DEFAULT_MAX_CHAIN,
+  canonicalJson,
+  mergeDocuments,
+  resolveInheritance,
+  type ResolveOptions,
+  type ResolvedContent,
+} from "./inheritance";
+
+export {
+  collectAssetRefs,
+  isAssetReference,
+  locateAsset,
+  type AssetLocation,
+  type AssetRoot,
+  type CollectedAsset,
+} from "./assets";
+
+export {
+  BASE_LAYER_ID,
+  TRANSPARENT_TILE,
+  layerTileAt,
+  tileLayers,
+  type TileLayer,
+} from "./tiles";
+
+export {
   ACTION_TYPES,
   MOODS,
   NpcActionSchema,

@@ -104,6 +104,28 @@ func _build_tiles() -> void:
 			var coords: Array = legend[ch]
 			_tiles.set_cell(Vector2i(x, y), 0, Vector2i(int(coords[0]), int(coords[1])))
 
+	# Overlays (PLAN 5.1): drawn above the base grid because they are added after it, and below the
+	# actors, which are added later in _ready. A space paints nothing — that is how a whole-map
+	# overlay can leave the floor showing through.
+	for raw in data.get("layers", []):
+		if typeof(raw) != TYPE_DICTIONARY:
+			continue
+		var overlay_rows: Array = raw.get("tilemap", [])
+		if overlay_rows.is_empty():
+			continue
+		var overlay := TileMapLayer.new()
+		overlay.name = "Layer_%s" % String(raw.get("id", "?"))
+		overlay.tile_set = tileset
+		add_child(overlay)
+		for y in overlay_rows.size():
+			var overlay_row := String(overlay_rows[y])
+			for x in overlay_row.length():
+				var ch := overlay_row[x]
+				if ch == " " or not legend.has(ch):
+					continue
+				var coords: Array = legend[ch]
+				overlay.set_cell(Vector2i(x, y), 0, Vector2i(int(coords[0]), int(coords[1])))
+
 
 func _build_collision() -> void:
 	var body := StaticBody2D.new()

@@ -16,6 +16,29 @@ signal line_finished(text: String)
 
 const MAX_HISTORY_TURNS := 12
 
+## Finished lines are logged on request, not unconditionally: `tools/web_smoke.mjs` greps them to
+## tell "the model answered" from "the scripted fallback answered", but a player's console should be
+## quiet. Ask for them with `?trace=1` in a browser build, or `--trace-dialogue` on a desktop run.
+var trace_dialogue: bool = _wants_dialogue_trace()
+
+
+static func _wants_dialogue_trace() -> bool:
+	if OS.get_cmdline_user_args().has("--trace-dialogue"):
+		return true
+	if not OS.has_feature("web"):
+		return false
+	# Through the singleton table, not the class name: `JavaScriptBridge` exists only in a web build,
+	# so naming it directly would fail to parse in any other export.
+	if not Engine.has_singleton("JavaScriptBridge"):
+		return false
+	var bridge: Object = Engine.get_singleton("JavaScriptBridge")
+	if bridge == null:
+		return false
+	var asked: Variant = bridge.call(
+		"eval", "new URLSearchParams(window.location.search).get('trace') === '1'", true
+	)
+	return asked == true
+
 ## P6 UX: when a budget is spent the player is told exactly once, then the scripted ladder
 ## takes over — visible, localized, and never repeated every turn.
 const EXHAUSTED_LINES := {
@@ -173,7 +196,7 @@ func _on_done(frame: Dictionary) -> void:
 		Effects.apply(actions, {"npc": active_npc})
 
 	var rejected: Array = frame.get("rejected", [])
-	if not rejected.is_empty():
+	if not rejected.is_empty() and trace_dialogue:
 		print("[Dialogue] server-rejected actions: ", rejected)
 
 	var remaining := int((frame.get("usage", {}) as Dictionary).get("remaining", Net.remaining))
@@ -181,9 +204,10 @@ func _on_done(frame: Dictionary) -> void:
 
 	line_finished.emit(say)
 	Bus.npc_spoke.emit(active_npc, say)
-	# Logged unconditionally (not just debug builds) because tools/web_smoke.mjs asserts on it:
-	# the browser test needs to tell "the model answered" apart from "the fallback answered".
-	print("[Dialogue] %s: %s" % [active_npc, say])
+	# The browser smoke test greps this to tell "the model answered" apart from "the fallback
+	# answered", so it is requested rather than unconditional — see `trace_dialogue`.
+	if trace_dialogue:
+		print("[Dialogue] %s: %s" % [active_npc, say])
 
 
 func _on_error(code: String) -> void:
@@ -255,7 +279,8 @@ func _fallback_line() -> void:
 	line_chunk.emit(text)
 	line_finished.emit(text)
 	Bus.npc_spoke.emit(active_npc, text)
-	print("[Dialogue] %s: %s (fallback)" % [active_npc, text])
+	if trace_dialogue:
+		print("[Dialogue] %s: %s (fallback)" % [active_npc, text])
 
 
 func _remember(role: String, content: String) -> void:

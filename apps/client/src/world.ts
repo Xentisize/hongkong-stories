@@ -8,7 +8,7 @@ import {
   rectToPixels,
   spawnPixel,
   tileCentre,
-  tileIndexGrid,
+  tileIndexGrids,
   type LocalizedText,
   type LocationFile,
   type NpcFile,
@@ -180,13 +180,25 @@ export class WorldScene extends Phaser.Scene {
     this.loadedLocationId = location.id;
 
     // --- terrain -----------------------------------------------------------------
-    const grid = tileIndexGrid(location);
-    const map = this.make.tilemap({ data: grid, tileWidth: size, tileHeight: size });
+    // Layer 0 is the base grid and defines the map; every later grid is an overlay drawn above it.
+    const grids = tileIndexGrids(location);
+    const map = this.make.tilemap({ data: grids[0] ?? [], tileWidth: size, tileHeight: size });
     const tileset = map.addTilesetImage("tiles", "tiles", size, size);
     if (!tileset) throw new Error("tileset failed to attach — check the atlas image key");
     // Phaser 4 returns a union here; the canvas renderer hands back the standard layer.
     this.layer = (map.createLayer(0, tileset, 0, 0) ?? null) as Phaser.Tilemaps.TilemapLayer | null;
     this.tiles = [...location.tilemap];
+
+    // Overlays get their own tilemap because Phaser builds a layer from the data it was made with.
+    // Depth 1..n keeps them above the floor and below the actors, whose depth is their y position
+    // in pixels — so a roof overlay never hides a character standing on it.
+    grids.slice(1).forEach((grid, index) => {
+      const overlay = this.make.tilemap({ data: grid, tileWidth: size, tileHeight: size });
+      const overlayTileset = overlay.addTilesetImage("tiles", "tiles", size, size);
+      if (!overlayTileset) return;
+      const layer = overlay.createLayer(0, overlayTileset, 0, 0);
+      layer?.setDepth(index + 1);
+    });
 
     // A door opens onto whatever the legend paints `.`, so a rethemed atlas keeps doors consistent
     // instead of hard-coding atlas column 0.

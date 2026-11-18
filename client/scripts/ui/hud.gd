@@ -26,15 +26,10 @@ var _message_label: Label
 var _panel: PanelContainer
 var _title_label: Label
 var _list: VBoxContainer
-var _stamp_label: Label
 var _selected_item: String = ""
 var _detail_box: VBoxContainer = null
 
 var _message_timer: float = 0.0
-
-## Bumped whenever the presentation changes, so "am I looking at the new build?" is answerable
-## by looking at the screen instead of guessing at browser caches. TODO: hide before shipping.
-const BUILD_STAMP := "p2-font-2"
 
 
 func _ready() -> void:
@@ -154,20 +149,6 @@ func _build() -> void:
 	_detail_box.custom_minimum_size = Vector2(110, 0)
 	_detail_box.add_theme_constant_override("separation", 3)
 	body.add_child(_detail_box)
-
-	# Build stamp: tells a human at a glance which build is on screen, which is the difference
-	# between "rendering is broken" and "your browser is showing a cached pck".
-	_stamp_label = _make_label(10)
-	_stamp_label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
-	_stamp_label.offset_left = -90
-	_stamp_label.offset_top = -22
-	_stamp_label.offset_right = -2
-	_stamp_label.offset_bottom = -2
-	_stamp_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_stamp_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_stamp_label.add_theme_color_override("font_color", Color(0.55, 0.55, 0.5, 0.9))
-	_stamp_label.text = BUILD_STAMP
-	add_child(_stamp_label)
 
 
 func _make_label(font_size: int) -> Label:
