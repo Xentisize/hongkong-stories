@@ -171,3 +171,23 @@ export async function completeProse(options: CompleteChatOptions): Promise<Prose
     costUsd: result.costUsd,
   };
 }
+
+/**
+ * A completion constrained by a caller-supplied `response_format`, returning the raw text.
+ *
+ * The caller still parses it. A schema raises the odds of usable JSON but does not guarantee it —
+ * a server that trusts the schema without checking has no defence on the turn the model ignores it.
+ */
+export async function completeStructured(
+  options: CompleteChatOptions,
+  responseFormat: unknown,
+): Promise<ProseCompletion> {
+  const result = await callChat(options, responseFormat);
+  return {
+    raw: result.content,
+    promptTokens: result.promptTokens,
+    completionTokens: result.completionTokens,
+    cachedTokens: result.cachedTokens,
+    costUsd: result.costUsd,
+  };
+}

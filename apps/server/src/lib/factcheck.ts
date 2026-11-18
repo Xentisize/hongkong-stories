@@ -6,7 +6,7 @@ import { isRecord, toKey } from "@hkstories/core";
 
 import { db, hasDatabase } from "@/db/client";
 import { factcheckEntries, type FactcheckEntryRow } from "@/db/schema";
-import { completeProse } from "./completion";
+import { completeStructured } from "./completion";
 import { WORLD_RULES } from "./prompts";
 
 /**
@@ -71,25 +71,128 @@ export async function listEntries(): Promise<FactCheckEntry[]> {
   return rows.map(toEntry);
 }
 
-/** Strip a fenced block, then trust nothing else about the shape. */
-export function parseVerdict(raw: string): { verdict: Verdict; reason: string } {
+/** Strip a fenced code block, which models add even when a schema asked for bare JSON. */
+function stripFences(raw: string): string {
   let text = raw.trim();
   if (text.startsWith("```")) {
     text = text.replace(/^```/, "").replace(/```$/, "").trim();
     if (text.toLowerCase().startsWith("json")) text = text.slice(4).trim();
   }
+  return text;
+}
 
+/**
+ * The parsed verdict, or `null` when the text is not a usable verdict object.
+ *
+ * Distinct from `parseVerdict` because "the checker failed to answer" and "the checker answered"
+ * lead to different behaviour: the first is worth retrying, the second is a review entry.
+ */
+export function tryParseVerdict(raw: string): { verdict: Verdict; reason: string } | null {
+  let parsed: unknown;
   try {
-    const parsed: unknown = JSON.parse(text);
-    if (!isRecord(parsed)) return { verdict: "questionable", reason: "checker returned a non-object" };
-    const claimed = toKey(parsed["verdict"] ?? "questionable");
-    const verdict = (VERDICTS as readonly string[]).includes(claimed)
-      ? (claimed as Verdict)
-      : "questionable";
-    return { verdict, reason: String(parsed["reason"] ?? "").slice(0, 500) };
+    parsed = JSON.parse(stripFences(raw));
   } catch {
-    return { verdict: "questionable", reason: "checker returned unparsable output" };
+    return null;
   }
+  if (!isRecord(parsed)) return null;
+
+  const claimed = toKey(parsed["verdict"] ?? "");
+  const verdict = (VERDICTS as readonly string[]).includes(claimed)
+    ? (claimed as Verdict)
+    : "questionable";
+  return { verdict, reason: String(parsed["reason"] ?? "").slice(0, 500) };
+}
+
+/** Defensive form for callers that must always get an answer. */
+export function parseVerdict(raw: string): { verdict: Verdict; reason: string } {
+  return tryParseVerdict(raw) ?? {
+    verdict: "questionable",
+    reason: "checker returned unparsable output",
+  };
+}
+
+/**
+ * Ask the checker for JSON rather than prose.
+ *
+ * The original objection was to reusing the **NPC reply** schema here — constraining the checker to
+ * the character's output shape would shape the verdict wrong. A schema of its own is a different
+ * thing. Without one the model answered in prose, which parsed to nothing and became `questionable`
+ * every time: that fallback, not the checker's judgement, is what filled the review queue.
+ */
+export function verdictResponseFormat(): Record<string, unknown> {
+  return {
+    type: "json_schema",
+    json_schema: {
+      name: "fact_check_verdict",
+      strict: true,
+      schema: {
+        type: "object",
+        additionalProperties: false,
+        required: ["verdict", "reason"],
+        properties: {
+          verdict: { type: "string", enum: [...VERDICTS] },
+          reason: { type: "string" },
+        },
+      },
+    },
+  };
+}
+
+/** The two messages the checker sees. Pure, so the prompt itself can be asserted. */
+export function buildVerdictMessages(
+  npc: Record<string, unknown>,
+  playerInput: string,
+  reply: string,
+): Array<{ role: string; content: string }> {
+  const persona = isRecord(npc["persona"]) ? npc["persona"] : {};
+  const lore = String(npc["lore"] ?? "") || "(none authored)";
+
+  const prompt =
+    "You are the fact-check pass for a historical drama game. Judge ONLY whether the " +
+    "character's reply asserts anything the authored LORE does not support, or " +
+    "contradicts it. Do not judge style, grammar, or tone.\n\n" +
+    `CHARACTER: ${String(persona["role"] ?? "")}\n` +
+    `LORE:\n${lore}\n\n` +
+    `PLAYER SAID: ${playerInput || "(nothing)"}\n` +
+    `CHARACTER REPLIED: ${reply}\n\n` +
+    'Reply with {"verdict": "ok" | "questionable" | "contradiction", "reason": "..."} ' +
+    "and nothing else.";
+
+  return [
+    { role: "system", content: WORLD_RULES.trim() },
+    { role: "user", content: prompt },
+  ];
+}
+
+/** How many times a verdict is asked for before giving up and queueing it for a human. */
+export const MAX_VERDICT_ATTEMPTS = 2;
+
+export interface ScoredVerdict {
+  verdict: Verdict;
+  reason: string;
+  attempts: number;
+  /** False when every attempt came back unusable: the entry is a review target, not a judgement. */
+  parsed: boolean;
+}
+
+/**
+ * Score a line, retrying once when the answer is unusable.
+ *
+ * `ask` is injected so the retry policy can be tested without a provider — the interesting behaviour
+ * here is how a second attempt and a final fallback are decided, not the HTTP call.
+ */
+export async function scoreLine(ask: (attempt: number) => Promise<string>): Promise<ScoredVerdict> {
+  for (let attempt = 1; attempt <= MAX_VERDICT_ATTEMPTS; attempt += 1) {
+    const parsed = tryParseVerdict(await ask(attempt));
+    if (parsed) return { ...parsed, attempts: attempt, parsed: true };
+  }
+
+  return {
+    verdict: "questionable",
+    reason: `checker returned unparsable output (after ${MAX_VERDICT_ATTEMPTS} attempts)`,
+    attempts: MAX_VERDICT_ATTEMPTS,
+    parsed: false,
+  };
 }
 
 export interface CheckOptions {
@@ -106,32 +209,27 @@ export async function check(
 ): Promise<FactCheckEntry> {
   requireDatabase();
 
-  const persona = isRecord(npc["persona"]) ? npc["persona"] : {};
-  const lore = String(npc["lore"] ?? "") || "(none authored)";
+  const messages = buildVerdictMessages(npc, playerInput, reply);
+  let cost = 0;
 
-  const prompt =
-    "You are the fact-check pass for a historical drama game. Judge ONLY whether the " +
-    "character's reply asserts anything the authored LORE does not support, or " +
-    "contradicts it. Do not judge style, grammar, or tone.\n\n" +
-    `CHARACTER: ${String(persona["role"] ?? "")}\n` +
-    `LORE:\n${lore}\n\n` +
-    `PLAYER SAID: ${playerInput || "(nothing)"}\n` +
-    `CHARACTER REPLIED: ${reply}\n\n` +
-    'Reply with {"verdict": "ok" | "questionable" | "contradiction", "reason": "..."} ' +
-    "and nothing else.";
+  const scored = await scoreLine(async (attempt) => {
+    const result = await completeStructured(
+      {
+        apiKey: options.apiKey,
+        model: options.model,
+        messages,
+        // A retry drops to temperature 0: a first answer that is not JSON is usually sampling, and a
+        // deterministic second attempt is more useful than a third coin flip.
+        temperature: attempt === 1 ? 0.2 : 0,
+        maxTokens: 200,
+      },
+      verdictResponseFormat(),
+    );
 
-  const result = await completeProse({
-    apiKey: options.apiKey,
-    model: options.model,
-    messages: [
-      { role: "system", content: WORLD_RULES.trim() },
-      { role: "user", content: prompt },
-    ],
-    temperature: 0.2,
-    maxTokens: 200,
+    // Every attempt cost money; the entry records what the row actually cost to judge.
+    cost += result.costUsd;
+    return result.raw;
   });
-
-  const { verdict, reason } = parseVerdict(result.raw);
 
   const now = new Date();
   const row: FactcheckEntryRow = {
@@ -140,10 +238,10 @@ export async function check(
     npcId: toKey(npc["id"] ?? ""),
     playerInput,
     reply,
-    verdict,
-    reason,
+    verdict: scored.verdict,
+    reason: scored.reason,
     status: "open",
-    costUsd: String(result.costUsd),
+    costUsd: String(cost),
   };
 
   await db().insert(factcheckEntries).values(row);
