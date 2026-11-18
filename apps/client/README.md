@@ -15,6 +15,19 @@ bun run verify     # builds, serves, drives chromium, asserts on scene state
 (`playwright-cli install-browser chrome-for-testing`). It is a verification tool, not a dependency
 the game ships.
 
+### The demo
+
+```bash
+bun run build                      # in apps/client
+bun tools/serve_demo.ts            # repo root: the bundle + /v1, one origin, :8100
+playwright-cli --raw run-code --filename=apps/client/scripts/verify-demo.js http://127.0.0.1:8100/
+```
+
+`tools/serve_demo.ts` serves `dist/` and proxies `/v1` to the API (default `:3000`), so what opens is
+the artifact a deploy publishes rather than a dev server. It streams `/v1/chat` through unbuffered —
+the dialogue would stall for the whole turn otherwise — and sends `no-store`, because a demo that
+serves a cached bundle shows the wrong build.
+
 ## The content contract
 
 Authoring (the admin SPA) and the engines exchange one thing: the pack in `client/content/`, described
