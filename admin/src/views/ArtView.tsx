@@ -16,6 +16,8 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 
+import { composeArtPrompt } from "@hkstories/core";
+
 import { api } from "@/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -43,6 +45,22 @@ interface ArtTemplate {
   path_hint: string;
 }
 
+interface ArtStyleSummary {
+  id: string;
+  name: { zh_HK: string; en: string };
+  summary: { zh_HK: string; en: string };
+  /** The fragment this axis contributes to every prompt. */
+  master: string;
+  rules: {
+    resolution: string;
+    palette: string;
+    outline: string;
+    shading: string;
+    timing: string;
+    proportions: string;
+  };
+}
+
 interface ArtResult {
   path: string;
   png_base64: string;
@@ -54,7 +72,11 @@ interface ArtResult {
 export function ArtView({ token }: { token: string }) {
   const templates = useQuery({
     queryKey: ["art-templates", token] as const,
-    queryFn: () => api.artTemplates() as Promise<{ kinds: ArtTemplate[] }>,
+    queryFn: () =>
+      api.artTemplates() as Promise<{ style: ArtStyleSummary; medium: ArtStyleSummary; kinds: ArtTemplate[] }>,
+    // Every view is mounted (and hidden) at all times, so an unguarded query would fire before an
+    // operator has pasted a token and the console would fill with 401s on first load.
+    enabled: token !== "",
   });
 
   const [kind, setKind] = useState("sprite");
@@ -68,11 +90,19 @@ export function ArtView({ token }: { token: string }) {
   const list = templates.data?.kinds ?? [];
   const template = list.find((entry) => entry.kind === kind);
 
-  /** Exactly the text the server will send: the master prompt with `{desc}` replaced. */
+  /**
+   * Exactly the text the server will send: the pixel style, then the 2D medium, then the per-kind
+   * template with `{desc}` replaced. Composed with the same helper the server uses, so the preview
+   * cannot drift from the request.
+   */
   const resolved = useMemo(() => {
     if (!template) return "";
-    return template.master.replace("{desc}", desc.trim() === "" ? "…" : desc.trim());
-  }, [template, desc]);
+    const subject = desc.trim() === "" ? "…" : desc.trim();
+    const style = templates.data?.style;
+    const medium = templates.data?.medium;
+    if (!style || !medium) return template.master.replace("{desc}", subject);
+    return composeArtPrompt(style, medium, template.master, subject);
+  }, [template, desc, templates.data]);
 
   const spent = results.reduce((total, entry) => total + (Number(entry.cost_usd) || 0), 0);
 
@@ -120,7 +150,7 @@ export function ArtView({ token }: { token: string }) {
           </CardHeader>
           <CardContent className="space-y-3">
             {templates.isPending ? (
-              <p className="text-xs text-muted-foreground">加载中…</p>
+              <p className="text-xs text-muted-foreground">加載中…</p>
             ) : templates.isError ? (
               <p className="text-xs text-destructive">
                 無法讀取模板 / templates unavailable: {describeError(templates.error)}
@@ -205,6 +235,19 @@ export function ArtView({ token }: { token: string }) {
             <CardTitle className="text-sm">主提示 Master prompt（將原樣送出）</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
+            {templates.data?.style ? (
+              <div className="flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
+                <Badge variant="secondary" className="text-[10px]">
+                  風格 {templates.data.style.name.zh_HK}
+                </Badge>
+                <Badge variant="secondary" className="text-[10px]">
+                  媒材 {templates.data.medium.name.zh_HK}
+                </Badge>
+                <span className="font-mono">{templates.data.style.rules.resolution}</span>
+                <span className="font-mono">{templates.data.style.rules.outline}</span>
+                <span>（在「設定 Settings」分別更換 / both change there）</span>
+              </div>
+            ) : null}
             <pre className="max-h-56 overflow-auto whitespace-pre-wrap rounded border border-border/60 bg-muted/40 p-2 font-mono text-[11px] leading-relaxed">
               {resolved || "（尚未選擇類型）"}
             </pre>

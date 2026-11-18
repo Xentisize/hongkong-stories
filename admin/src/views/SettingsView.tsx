@@ -11,6 +11,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
+import { ART_MEDIA, ART_STYLES, resolveArtMedium, resolveArtStyle, type ArtLook } from "@hkstories/core";
+
 import { api, ApiError } from "@/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -29,7 +31,7 @@ import { describeError } from "@/lib/errors";
 import { queryKeys, useEntityIds } from "@/lib/queries";
 
 const LOCALES = ["zh_HK", "zh_CN", "en"] as const;
-const LOCALE_LABELS: Record<string, string> = { zh_HK: "繁 HK", zh_CN: "简 CN", en: "EN" };
+const LOCALE_LABELS: Record<string, string> = { zh_HK: "繁 HK", zh_CN: "簡 CN", en: "EN" };
 
 type Localized = Record<string, string>;
 
@@ -43,6 +45,8 @@ interface GameSettings {
   id?: string;
   title?: Localized;
   subtitle?: Localized;
+  /** The look: two independent settings, both embedded into every image generation. */
+  art?: { style?: string; medium?: string };
   splash?: { art?: string; duration_ms?: number; skippable?: boolean };
   credits?: Credit[];
   defaults?: { locale?: string; music_db?: number; sfx_db?: number };
@@ -116,8 +120,11 @@ export function SettingsView({
   }, []);
 
   useEffect(() => {
+    // No token yet: the load would only produce a 401. The panel is mounted from the start, so
+    // this is the difference between a quiet first load and a wall of red in the console.
+    if (token === "") return;
     void load();
-  }, [load]);
+  }, [load, token]);
 
   useEffect(() => {
     onDirtyChange?.(dirty);
@@ -178,7 +185,7 @@ export function SettingsView({
   const locationIds = useMemo(() => locations.data ?? [], [locations.data]);
 
   if (doc === null) {
-    return <p className="text-xs text-muted-foreground">{busy ? "加载中…" : "无法读取設定 / settings unavailable"}</p>;
+    return <p className="text-xs text-muted-foreground">{busy ? "加載中…" : "無法讀取設定 / settings unavailable"}</p>;
   }
 
   return (
@@ -294,6 +301,71 @@ export function SettingsView({
                   可以跳過 Skippable
                 </label>
               </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">美術外觀 Art look</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <p className="text-[11px] leading-relaxed text-muted-foreground">
+                兩件事分開揀、可以並存：像素風格講「點樣畫像素」，2D 媒材講「畫面用咩材料」。兩者都會併入每次出圖。
+                <br />
+                Two independent choices — the pixel style says how a pixel image is drawn, the medium says
+                what the picture is made of. Both are embedded into every generation.
+              </p>
+
+              <div className="space-y-1">
+                <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                  像素風格 · Pixel style
+                </p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {ART_STYLES.map((look) => (
+                    <LookCard
+                      key={look.id}
+                      look={look}
+                      active={resolveArtStyle(doc.art?.style).id === look.id}
+                      onPick={() => {
+                        edit((next) => {
+                          next.art = { ...(next.art ?? {}), style: look.id };
+                        });
+                        // The studio caches the resolved look, so without this it would keep showing
+                        // the previous pair until a focus refetch.
+                        void client.invalidateQueries({ queryKey: ["art-templates"] });
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                  2D 媒材 · Medium
+                </p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {ART_MEDIA.map((look) => (
+                    <LookCard
+                      key={look.id}
+                      look={look}
+                      active={resolveArtMedium(doc.art?.medium).id === look.id}
+                      onPick={() => {
+                        edit((next) => {
+                          next.art = { ...(next.art ?? {}), medium: look.id };
+                        });
+                        void client.invalidateQueries({ queryKey: ["art-templates"] });
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <p className="text-[10px] leading-relaxed text-muted-foreground">
+                像素分級的框架出自 sprite-ai 的 2D pixel art style guide（解析度／調色盤／輪廓／光影／節奏／比例）；兩者存於{" "}
+                <code className="font-mono">settings/game.json</code> 的{" "}
+                <code className="font-mono">art.style</code> 與 <code className="font-mono">art.medium</code>
+                ，出圖時一併記入來源側錄（<code className="font-mono">.gen.json</code>）以便原樣重生。
+              </p>
             </CardContent>
           </Card>
 
@@ -525,5 +597,50 @@ function LocalizedField({
         ))}
       </div>
     </div>
+  );
+}
+
+/**
+ * One selectable look on either axis.
+ *
+ * Shared by both sections on purpose: the pixel style and the 2D medium are chosen independently,
+ * but they are described with the same six axes, and two hand-written copies would drift.
+ */
+function LookCard({
+  look,
+  active,
+  onPick,
+}: {
+  look: ArtLook<string>;
+  active: boolean;
+  onPick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onPick}
+      className={`rounded-md border p-2 text-left transition-colors ${
+        active ? "border-primary bg-primary/10" : "hover:bg-muted/60"
+      }`}
+    >
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="text-xs font-medium">{look.name.zh_HK}</span>
+        <span className="text-[10px] text-muted-foreground">{look.name.en}</span>
+        {active ? (
+          <Badge variant="secondary" className="ml-auto text-[9px]">
+            使用中
+          </Badge>
+        ) : null}
+      </div>
+      <p className="mt-0.5 text-[10px] text-muted-foreground">{look.summary.zh_HK}</p>
+      <dl className="mt-1 space-y-0.5 font-mono text-[10px] text-muted-foreground">
+        <div>解析度 {look.rules.resolution}</div>
+        <div>調色盤 {look.rules.palette}</div>
+        <div>輪廓 {look.rules.outline}</div>
+        <div>光影 {look.rules.shading}</div>
+        <div>節奏 {look.rules.timing}</div>
+        <div>比例 {look.rules.proportions}</div>
+      </dl>
+    </button>
   );
 }
