@@ -16,7 +16,7 @@ import { loadContent } from "@/lib/content";
  */
 
 /** Entity kinds that can be drafted. `settings` is a singleton, but the machinery is the same. */
-export const DRAFT_KINDS = ["npcs", "items", "locations", "quests", "settings"] as const;
+export const DRAFT_KINDS = ["npcs", "items", "locations", "quests", "settings", "chapters"] as const;
 
 /** `vite dev` runs with cwd = apps/server. */
 export function repoRoot(): string {
