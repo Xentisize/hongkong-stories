@@ -32,6 +32,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { describeError } from "@/lib/errors";
 import { queryKeys, useEntityIds, type Entity } from "@/lib/queries";
 
+/** Backdrops that ship in the pack, offered as suggestions rather than a closed list. */
+const BACKDROPS = Object.keys(
+  import.meta.glob("../../../client/content/art/backdrops/*.png", {
+    eager: true,
+    query: "?url",
+  }),
+).map((entry) => `art/backdrops/${entry.split("/").pop() ?? ""}`);
+
 const LOCALES = ["zh_HK", "zh_CN", "en"] as const;
 const LOCALE_LABELS: Record<string, string> = { zh_HK: "繁 HK", zh_CN: "简 CN", en: "EN" };
 
@@ -50,6 +58,8 @@ interface ChapterDoc {
   quests?: string[];
   locations?: string[];
   entry?: { location?: string; spawn?: string; requires?: unknown };
+  /** An opening image for this chapter alone; absent means the game's own splash. */
+  splash?: { art?: string; duration_ms?: number; skippable?: boolean };
   transitions?: Transition[];
   [field: string]: unknown;
 }
@@ -172,6 +182,8 @@ export function ChaptersView({ token }: { token: string }) {
   const chapterList = chapterIds.data ?? [];
   const locationsInDoc = doc?.locations ?? [];
   const entrySpawn = doc?.entry?.spawn ?? "default";
+  const splash = doc?.splash ?? null;
+  const splashArt = typeof splash?.art === "string" ? splash.art : "";
 
   return (
     <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
@@ -270,6 +282,89 @@ export function ChaptersView({ token }: { token: string }) {
                     </div>
                   ))}
                 </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm">開場圖 Chapter splash</CardTitle>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() =>
+                    edit((next) => {
+                      if (next.splash === undefined) {
+                        next.splash = { art: "", duration_ms: 2000, skippable: true };
+                      } else {
+                        delete next.splash;
+                      }
+                    })
+                  }
+                >
+                  {doc.splash === undefined ? "加圖 Add" : "移除 Remove"}
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {splash === null ? (
+                  <p className="text-[10px] text-muted-foreground">
+                    冇本章開場圖，沿用遊戲開場圖 / no chapter splash: falls back to the game's
+                  </p>
+                ) : (
+                  <>
+                    <div className="space-y-1">
+                      <Label className="text-xs">圖片 Art</Label>
+                      <Input
+                        list="hks-chapter-backdrops"
+                        value={splashArt}
+                        placeholder="art/backdrops/title_cute.png"
+                        onChange={(event) =>
+                          edit((next) => {
+                            next.splash = { ...(next.splash ?? {}), art: event.target.value };
+                          })
+                        }
+                      />
+                      <datalist id="hks-chapter-backdrops">
+                        {BACKDROPS.map((entry) => (
+                          <option key={entry} value={entry} />
+                        ))}
+                      </datalist>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs">時長 Duration (ms)</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          max={10000}
+                          step={100}
+                          value={Number(splash.duration_ms ?? 2000)}
+                          onChange={(event) =>
+                            edit((next) => {
+                              next.splash = {
+                                ...(next.splash ?? {}),
+                                duration_ms: Number(event.target.value),
+                              };
+                            })
+                          }
+                        />
+                      </div>
+
+                      <label className="flex items-end gap-2 pb-2 text-xs">
+                        <input
+                          type="checkbox"
+                          checked={splash.skippable !== false}
+                          onChange={(event) =>
+                            edit((next) => {
+                              next.splash = { ...(next.splash ?? {}), skippable: event.target.checked };
+                            })
+                          }
+                        />
+                        可以跳過 Skippable
+                      </label>
+                    </div>
+                  </>
+                )}
               </CardContent>
             </Card>
 
