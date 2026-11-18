@@ -23,8 +23,7 @@ export interface LoadedContent {
   manifest: Record<string, unknown>;
 }
 
-export async function loadContent(): Promise<LoadedContent> {
-  const dir = contentDir();
+export async function loadContentFrom(dir: string): Promise<LoadedContent> {
   const manifest = JSON.parse(await readFile(join(dir, "manifest.json"), "utf8")) as Record<
     string,
     unknown
@@ -37,6 +36,10 @@ export async function loadContent(): Promise<LoadedContent> {
   }
 
   return { pack: packFromEntries(entries, manifest), manifest };
+}
+
+export async function loadContent(): Promise<LoadedContent> {
+  return loadContentFrom(contentDir());
 }
 
 export function counts(pack: ContentPack): Record<string, number> {

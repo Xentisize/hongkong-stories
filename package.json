@@ -10,6 +10,12 @@
   ],
   "scripts": {
     "test": "bun test",
-    "check": "bun run --filter '*' check"
+    "check": "bun run --filter '*' check",
+    "content:check": "bun tools/check_content.ts",
+    "content:manifest": "bun tools/gen_content_manifest.ts"
+  },
+  "dependencies": {
+    "@hkstories/core": "workspace:*",
+    "sharp": "^0.35.5"
   }
 }
