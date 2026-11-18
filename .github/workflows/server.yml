@@ -6,7 +6,14 @@ name: server
 on:
   push:
     branches: [main]
-    paths: ["server/**", "admin/**", "deploy/**", ".github/workflows/server.yml"]
+    paths:
+      - "server/**"
+      - "admin/**"
+      - "packages/**"
+      - "deploy/**"
+      - "package.json"
+      - "bun.lock"
+      - ".github/workflows/server.yml"
 
 jobs:
   test-build-deploy:
@@ -27,19 +34,33 @@ jobs:
         working-directory: server
         run: uv run pytest -q
 
-      - name: Admin SPA (bun 1.4.4 — the only package manager, §10.6)
+      - name: bun 1.4.4 (the only package manager, §10.6)
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.4
 
+      # admin/ and packages/core are workspace members, so there is exactly one lockfile and it
+      # lives at the root. Installing inside a member would find no lockfile of its own.
+      - name: Install the workspace
+        run: bun install --frozen-lockfile
+
+      - name: Shared core (types + unit suite)
+        working-directory: packages/core
+        run: |
+          bun run check
+          bun test
+
+      - name: Type-check the admin
+        working-directory: admin
+        run: bun run check
+
       - name: Build admin SPA
         working-directory: admin
-        run: |
-          bun install --frozen-lockfile
-          bun run build
+        run: bun run build
 
-      - name: No foreign lockfiles in admin/
+      - name: No nested or foreign lockfiles
         run: |
+          test ! -f admin/bun.lock
           test ! -f admin/package-lock.json
           test ! -f admin/yarn.lock
           test ! -f admin/pnpm-lock.yaml
