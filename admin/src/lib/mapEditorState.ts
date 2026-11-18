@@ -1,4 +1,4 @@
-import type { MapNpc, TileMap } from "./map";
+import type { CollisionRect, MapNpc, TileMap } from "./map";
 
 /**
  * Editor state for one location (PLAN 9.2).
@@ -19,6 +19,7 @@ export type LocationDoc = {
   tile_size?: number;
   atlas?: string;
   npcs?: MapNpc[];
+  collision?: CollisionRect[];
   spawn_points?: Record<string, [number, number]>;
   [field: string]: unknown;
 };

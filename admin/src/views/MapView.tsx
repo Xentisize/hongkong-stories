@@ -16,10 +16,12 @@ import {
   mapSize,
   moveNpc,
   npcIndexAt,
+  paintCollision,
   paintTile,
   placeNpc,
   removeNpcAt,
   selectedNpc,
+  type CollisionRect,
   type DragPayload,
   type MapNpc,
 } from "@/lib/map";
@@ -79,6 +81,8 @@ export function MapView({ token, onDirtyChange }: { token: string; onDirtyChange
   const tileSize = Number(doc?.tile_size ?? 24);
   const tilemap = doc?.tilemap ?? [];
   const size = mapSize(tilemap);
+  const collisionRects: CollisionRect[] =
+    doc && Array.isArray(doc.collision) ? (doc.collision as CollisionRect[]) : [];
 
   const draftIds = useMemo(
     () => new Set((drafts.data ?? []).filter((entry) => entry.kind === "locations").map((entry) => entry.id)),
@@ -247,6 +251,22 @@ export function MapView({ token, onDirtyChange }: { token: string; onDirtyChange
     [doc, apply],
   );
 
+  const handleToggleCollision = useCallback(
+    (x: number, y: number, solid: boolean) => {
+      if (!doc) return;
+      const current: CollisionRect[] = Array.isArray(doc.collision)
+        ? (doc.collision as CollisionRect[])
+        : [];
+      const { width, height } = mapSize(doc.tilemap ?? []);
+      const next = paintCollision(current, x, y, solid, width, height);
+      // Same array means the cell already held that value, so dragging across solid cells records
+      // no undo steps at all.
+      if (next === current) return;
+      apply({ ...doc, collision: next });
+    },
+    [doc, apply],
+  );
+
   const updatePlacement = useCallback(
     (patch: Partial<MapNpc>) => {
       if (!doc || !cursor) return;
@@ -304,14 +324,18 @@ export function MapView({ token, onDirtyChange }: { token: string; onDirtyChange
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex overflow-hidden rounded-md border">
-          {(["map", "event"] as const).map((candidate) => (
+          {([
+            ["map", "地图 Map"],
+            ["event", "事件 Event"],
+            ["collision", "碰撞 Collision"],
+          ] as const).map(([candidate, label]) => (
             <button
               key={candidate}
               type="button"
               onClick={() => setMode(candidate)}
               className={`px-3 py-1.5 text-xs ${mode === candidate ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
             >
-              {candidate === "map" ? "地图 Map" : "事件 Event"}
+              {label}
             </button>
           ))}
         </div>
@@ -386,6 +410,7 @@ export function MapView({ token, onDirtyChange }: { token: string; onDirtyChange
               legend={legend}
               tileSize={tileSize}
               npcs={doc.npcs ?? []}
+              collision={collisionRects}
               atlas={atlasImage}
               mode={mode}
               brush={brush}
@@ -395,6 +420,7 @@ export function MapView({ token, onDirtyChange }: { token: string; onDirtyChange
               onSelect={handleSelect}
               onRemoveNpc={handleRemoveNpc}
               onMarkerGrab={(index, clientX, clientY) => beginDrag({ kind: "marker", index }, clientX, clientY)}
+              onToggleCollision={handleToggleCollision}
             />
           ) : (
             <div className="flex h-full items-center justify-center rounded-md border text-xs text-muted-foreground">
@@ -562,6 +588,23 @@ export function MapView({ token, onDirtyChange }: { token: string; onDirtyChange
                 <div className="space-y-1">
                   <p className="text-muted-foreground">尺寸 Size</p>
                   <p className="font-mono">{size.width} × {size.height} tiles @ {tileSize}px</p>
+                </div>
+
+                <div className="space-y-1">
+                  <p className="text-muted-foreground">碰撞 Collision</p>
+                  <p className="font-mono">
+                    {collisionRects.length} rect(s)
+                    {mode === "collision" ? (
+                      <span className="ml-2 text-[10px] text-amber-500">编辑中 / editing</span>
+                    ) : null}
+                  </p>
+                  {mode === "collision" ? (
+                    <p className="text-[10px] leading-relaxed text-muted-foreground">
+                      点击或拖动画墙，从实心格开始则擦除
+                      <br />
+                      click or drag to wall · starting on a solid cell erases
+                    </p>
+                  ) : null}
                 </div>
 
                 {doc.spawn_points ? (

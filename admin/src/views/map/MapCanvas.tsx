@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
 
-import { mapSize, npcIndexAt, type MapNpc } from "@/lib/map";
+import { collisionGrid, mapSize, npcIndexAt, solidAt, type CollisionRect, type MapNpc } from "@/lib/map";
 
 /**
  * The map canvas.
@@ -14,13 +14,14 @@ import { mapSize, npcIndexAt, type MapNpc } from "@/lib/map";
  * canvas, which is what makes drag-painting usable near the edges.
  */
 
-export type EditorMode = "map" | "event";
+export type EditorMode = "map" | "event" | "collision";
 
 export interface MapCanvasProps {
   tilemap: string[];
   legend: Record<string, [number, number]>;
   tileSize: number;
   npcs: MapNpc[];
+  collision: CollisionRect[];
   atlas: HTMLImageElement | null;
   mode: EditorMode;
   /** Character written in map mode. */
@@ -32,16 +33,19 @@ export interface MapCanvasProps {
   onRemoveNpc: (x: number, y: number) => void;
   /** A press landed on an existing marker: the caller decides whether that becomes a drag. */
   onMarkerGrab: (index: number, clientX: number, clientY: number) => void;
+  onToggleCollision: (x: number, y: number, solid: boolean) => void;
 }
 
 /** Unknown legend characters must be visible, not silently blank. */
 const UNKNOWN_TILE = "#7f1d1d";
 
 export function MapCanvas(props: MapCanvasProps) {
-  const { tilemap, legend, tileSize, npcs, atlas, mode, brush, zoom, selected } = props;
+  const { tilemap, legend, tileSize, npcs, collision, atlas, mode, brush, zoom, selected } = props;
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const painting = useRef(false);
   const lastCell = useRef<string | null>(null);
+  /** Whether this collision stroke lays walls down or takes them away; decided once per press. */
+  const collisionSolid = useRef(true);
 
   const { width, height } = mapSize(tilemap);
 
@@ -110,6 +114,21 @@ export function MapCanvas(props: MapCanvasProps) {
       }
     }
 
+    // Collision: dim the art, then mark the solids. Without the dim it is hard to tell a painted
+    // wall from a solid one at 1:1, which is exactly the confusion this mode exists to fix.
+    if (mode === "collision") {
+      context.fillStyle = "rgba(2,6,23,0.55)";
+      context.fillRect(0, 0, width * scale, height * scale);
+
+      const solid = collisionGrid(collision, width, height);
+      context.fillStyle = "rgba(239,68,68,0.55)";
+      for (let y = 0; y < height; y += 1) {
+        for (let x = 0; x < width; x += 1) {
+          if (solid[y]?.[x] === true) context.fillRect(x * scale, y * scale, scale, scale);
+        }
+      }
+    }
+
     // Events: markers sit on top of the tiles and are only drawn in event mode, so the two views
     // stay distinguishable at a glance.
     if (mode === "event") {
@@ -142,7 +161,7 @@ export function MapCanvas(props: MapCanvasProps) {
       context.lineWidth = 2;
       context.strokeRect(sx * scale + 1, sy * scale + 1, scale - 2, scale - 2);
     }
-  }, [tilemap, legend, tileSize, npcs, atlas, mode, zoom, selected, width, height]);
+  }, [tilemap, legend, tileSize, npcs, collision, atlas, mode, zoom, selected, width, height]);
 
   useEffect(draw, [draw]);
 
@@ -167,6 +186,18 @@ export function MapCanvas(props: MapCanvasProps) {
       return;
     }
 
+    if (mode === "collision") {
+      event.currentTarget.setPointerCapture(event.pointerId);
+      painting.current = true;
+      // The stroke's direction is decided once, from the first cell: starting on open floor lays
+      // walls down, starting on a wall takes them away. Deciding per cell would toggle on every
+      // move and leave a checkerboard behind the cursor.
+      collisionSolid.current = !solidAt(collision, x, y);
+      lastCell.current = `${x},${y}`;
+      props.onToggleCollision(x, y, collisionSolid.current);
+      return;
+    }
+
     // Event mode: one press does both jobs. It selects the marker, and it arms a drag — so a click
     // selects and a press-and-release elsewhere moves, with no separate drag handle to aim at.
     const index = npcIndexAt(npcs, x, y);
@@ -175,16 +206,20 @@ export function MapCanvas(props: MapCanvasProps) {
   };
 
   const handlePointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!painting.current || mode !== "map") return;
+    if (!painting.current) return;
+    if (mode !== "map" && mode !== "collision") return;
+
     const [x, y] = cellFromEvent(event);
     if (x < 0 || y < 0 || x >= width || y >= height) return;
 
-    // Painting repeatedly over one cell would push a snapshot per pointer event; the map helper
-    // already refuses no-ops, this just avoids the round trip.
+    // Painting repeatedly over one cell would push a snapshot per pointer event; the map helpers
+    // already refuse no-ops, this just avoids the round trip.
     const key = `${x},${y}`;
     if (key === lastCell.current) return;
     lastCell.current = key;
-    props.onPaint(x, y);
+
+    if (mode === "map") props.onPaint(x, y);
+    else props.onToggleCollision(x, y, collisionSolid.current);
   };
 
   const endStroke = (event: React.PointerEvent<HTMLCanvasElement>) => {

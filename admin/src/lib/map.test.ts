@@ -5,16 +5,21 @@ import {
   atlasUrl,
   blankMap,
   cellFromPoint,
+  collisionGrid,
+  gridToRects,
   growMap,
   legendEntries,
   mapSize,
   moveNpc,
   npcIndexAt,
+  paintCollision,
   paintTile,
   placeNpc,
   removeNpcAt,
   selectedNpc,
+  solidAt,
   tileAt,
+  type CollisionRect,
   type MapNpc,
 } from "./map";
 
@@ -237,5 +242,114 @@ describe("applyDrop", () => {
   test("a drop outside the grid is ignored", () => {
     expect(applyDrop(base, { kind: "tile", char: "." }, 9, 0)).toBe(base);
     expect(applyDrop(base, { kind: "tile", char: "." }, 0, 9)).toBe(base);
+  });
+});
+
+describe("collision", () => {
+  /** Solid cells as a comparable string, so coverage assertions read clearly. */
+  const solidCells = (grid: boolean[][]): string =>
+    grid
+      .flatMap((row, y) => row.map((solid, x) => (solid ? `${x},${y}` : "")))
+      .filter(Boolean)
+      .join(" ");
+
+  test("rects rasterise into the grid", () => {
+    // The border walls real locations use: a full top row plus a left column.
+    const grid = collisionGrid([[0, 0, 4, 1], [0, 1, 1, 2]], 4, 3);
+    expect(grid).toEqual([
+      [true, true, true, true],
+      [true, false, false, false],
+      [true, false, false, false],
+    ]);
+  });
+
+  test("out-of-bounds rects are clipped and malformed ones ignored", () => {
+    const grid = collisionGrid(
+      [
+        [3, 2, 5, 5], // runs past the right and bottom edges → clipped to (3,2) and (3,3)
+        [-1, -1, 2, 2], // straddles the origin → clipped to (0,0)
+        [1, 1, 0, 1], // zero width → ignored
+        null as unknown as CollisionRect, // not a rect → ignored
+      ],
+      4,
+      4,
+    );
+    expect(solidCells(grid)).toBe("0,0 3,2 3,3");
+  });
+
+  test("a rect entirely in negative space covers nothing", () => {
+    // [-2,-2,2,2] spans x from -2 to 0 exclusive, so no cell of the map is inside it.
+    expect(solidCells(collisionGrid([[-2, -2, 2, 2]], 4, 4))).toBe("");
+  });
+
+  test("solidAt answers for a single cell, including overlaps", () => {
+    const rects: CollisionRect[] = [[0, 0, 2, 1], [1, 0, 2, 2]];
+    expect(solidAt(rects, 0, 0)).toBe(true);
+    expect(solidAt(rects, 2, 1)).toBe(true); // only the second rect covers this
+    expect(solidAt(rects, 3, 1)).toBe(false);
+    expect(solidAt(undefined, 0, 0)).toBe(false);
+  });
+
+  test("decomposition keeps simple shapes whole", () => {
+    expect(gridToRects([[true]])).toEqual([[0, 0, 1, 1]]);
+    expect(gridToRects([[true, true, true]])).toEqual([[0, 0, 3, 1]]);
+    expect(
+      gridToRects([
+        [true, true],
+        [true, true],
+      ]),
+    ).toEqual([[0, 0, 2, 2]]);
+    expect(gridToRects([[false, false]])).toEqual([]);
+    expect(gridToRects([])).toEqual([]);
+  });
+
+  test("an L shape becomes two rects", () => {
+    const rects = gridToRects([
+      [true, true, false],
+      [true, false, false],
+      [false, false, false],
+    ]);
+    expect(rects).toEqual([[0, 0, 2, 1], [0, 1, 1, 1]]);
+  });
+
+  test("a ring with a hole covers exactly the solid cells", () => {
+    const grid = [
+      [true, true, true],
+      [true, false, true],
+      [true, true, true],
+    ];
+    const rects = gridToRects(grid);
+    // Rebuilding from the rects must reproduce the same cells — the rect list itself is an
+    // implementation detail, the coverage is the contract.
+    expect(solidCells(collisionGrid(rects, 3, 3))).toBe(solidCells(grid));
+    expect(rects.length).toBeLessThanOrEqual(4);
+  });
+
+  test("painting a cell adds it, and painting it again changes nothing", () => {
+    const added = paintCollision([], 2, 1, true, 4, 3);
+    expect(added).toEqual([[2, 1, 1, 1]]);
+    expect(paintCollision(added, 2, 1, true, 4, 3)).toBe(added);
+  });
+
+  test("erasing splits a run and leaves the neighbours solid", () => {
+    const wall: CollisionRect[] = [[0, 0, 5, 1]];
+    const holed = paintCollision(wall, 2, 0, false, 5, 1);
+    expect(solidCells(collisionGrid(holed, 5, 1))).toBe("0,0 1,0 3,0 4,0");
+    // The middle cell is now walkable — this is the whole point of the feature.
+    expect(solidAt(holed, 2, 0)).toBe(false);
+  });
+
+  test("painting then erasing a cell restores the same coverage", () => {
+    const original: CollisionRect[] = [[0, 0, 4, 1], [0, 1, 1, 3]];
+    const painted = paintCollision(original, 2, 2, true, 4, 4);
+    const erased = paintCollision(painted, 2, 2, false, 4, 4);
+    expect(solidCells(collisionGrid(erased, 4, 4))).toBe(solidCells(collisionGrid(original, 4, 4)));
+  });
+
+  test("edits outside the map are ignored by identity", () => {
+    const rects: CollisionRect[] = [[0, 0, 1, 1]];
+    expect(paintCollision(rects, -1, 0, true, 4, 4)).toBe(rects);
+    expect(paintCollision(rects, 4, 0, true, 4, 4)).toBe(rects);
+    expect(paintCollision(rects, 0, 4, true, 4, 4)).toBe(rects);
   });
 });

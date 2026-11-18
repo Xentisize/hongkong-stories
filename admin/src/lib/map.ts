@@ -219,3 +219,118 @@ export function applyDrop<T extends DropTarget>(doc: T, payload: DragPayload, x:
   const next = moveNpc(npcs, payload.index, x, y);
   return next === npcs ? doc : { ...doc, npcs: next };
 }
+
+// --- collision ---------------------------------------------------------------------------
+
+/**
+ * Collision is authored as rectangles `[x, y, w, h]` in **tile units**, not as a per-cell grid.
+ *
+ * A painter works per cell, so editing goes through a rasterise/decompose round trip: rects → grid →
+ * toggle one cell → decompose back to rects. That keeps `collision` (the thing the client reads) as
+ * the only stored form — there is no second source of truth to drift out of step.
+ *
+ * The decomposition is greedy and row-major, so a given grid always compresses to the same rects.
+ * It rewrites the whole list on any edit, which is why an author sees a larger diff than the one
+ * cell they changed; the union of rectangles is identical either way.
+ */
+export type CollisionRect = [number, number, number, number];
+
+/** Rasterise rects onto the map's grid. Rects are clipped, and malformed ones are ignored. */
+export function collisionGrid(
+  rects: CollisionRect[] | undefined,
+  width: number,
+  height: number,
+): boolean[][] {
+  const grid = Array.from({ length: Math.max(0, height) }, () =>
+    new Array<boolean>(Math.max(0, width)).fill(false),
+  );
+
+  for (const rect of rects ?? []) {
+    if (!Array.isArray(rect) || rect.length < 4) continue;
+    const [rx, ry, rw, rh] = rect.map(Number) as CollisionRect;
+    if (!Number.isFinite(rx) || !Number.isFinite(ry) || !Number.isFinite(rw) || !Number.isFinite(rh)) continue;
+    if (rw <= 0 || rh <= 0) continue;
+
+    for (let y = Math.max(0, ry); y < Math.min(height, ry + rh); y += 1) {
+      for (let x = Math.max(0, rx); x < Math.min(width, rx + rw); x += 1) {
+        grid[y]![x] = true;
+      }
+    }
+  }
+
+  return grid;
+}
+
+/** One-cell query, without rasterising the whole map. */
+export function solidAt(rects: CollisionRect[] | undefined, x: number, y: number): boolean {
+  return (rects ?? []).some(
+    (rect) =>
+      Array.isArray(rect) &&
+      x >= Number(rect[0]) &&
+      x < Number(rect[0]) + Number(rect[2]) &&
+      y >= Number(rect[1]) &&
+      y < Number(rect[1]) + Number(rect[3]),
+  );
+}
+
+/** Compress a solid/empty grid into rectangles by greedy row-major extension. */
+export function gridToRects(grid: boolean[][]): CollisionRect[] {
+  const height = grid.length;
+  const width = height > 0 ? (grid[0]?.length ?? 0) : 0;
+  const covered = Array.from({ length: height }, () => new Array<boolean>(width).fill(false));
+  const rects: CollisionRect[] = [];
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      if (grid[y]![x] !== true || covered[y]![x] === true) continue;
+
+      // Extend right along the row.
+      let right = x;
+      while (right + 1 < width && grid[y]![right + 1] === true && covered[y]![right + 1] !== true) {
+        right += 1;
+      }
+
+      // Then grow downwards for as long as the whole run is still solid and unclaimed.
+      let bottom = y;
+      const rowMatches = (row: number) => {
+        for (let column = x; column <= right; column += 1) {
+          if (grid[row]?.[column] !== true || covered[row]?.[column] === true) return false;
+        }
+        return true;
+      };
+      while (bottom + 1 < height && rowMatches(bottom + 1)) bottom += 1;
+
+      for (let yy = y; yy <= bottom; yy += 1) {
+        for (let xx = x; xx <= right; xx += 1) covered[yy]![xx] = true;
+      }
+
+      rects.push([x, y, right - x + 1, bottom - y + 1]);
+    }
+  }
+
+  return rects;
+}
+
+/**
+ * Mark one cell solid or empty, returning the same array when nothing changed.
+ *
+ * Painting and erasing share this path: a drag decides once whether it is laying walls down or
+ * taking them away, so sweeping back over a cell mid-stroke does not undo the stroke.
+ */
+export function paintCollision(
+  rects: CollisionRect[] | undefined,
+  x: number,
+  y: number,
+  solid: boolean,
+  width: number,
+  height: number,
+): CollisionRect[] {
+  const existing = rects ?? [];
+  if (x < 0 || y < 0 || x >= width || y >= height) return existing;
+
+  const grid = collisionGrid(existing, width, height);
+  if (grid[y]![x] === solid) return existing;
+
+  grid[y]![x] = solid;
+  return gridToRects(grid);
+}
