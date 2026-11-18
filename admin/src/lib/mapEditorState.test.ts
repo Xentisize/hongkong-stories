@@ -60,6 +60,37 @@ describe("reducer", () => {
     expect(reducer(state, { type: "undo" })).toBe(state);
   });
 
+  test("redo re-applies what undo took away", () => {
+    const first = doc(["##"]);
+    const edited = doc(["#."]);
+    const applied = reducer({ doc: first, history: [], future: [] }, { type: "apply", next: edited });
+    const undone = reducer(applied, { type: "undo" });
+    const redone = reducer(undone, { type: "redo" });
+
+    expect(undone.doc).toBe(first);
+    expect(redone.doc).toBe(edited);
+    // And the stacks swapped back.
+    expect(redone.history).toHaveLength(1);
+    expect(redone.future).toEqual([]);
+  });
+
+  test("a fresh edit discards the redo branch", () => {
+    const applied = reducer(
+      { doc: doc(["##"]), history: [], future: [] },
+      { type: "apply", next: doc(["#."]) },
+    );
+    const undone = reducer(applied, { type: "undo" });
+    // Editing after an undo must not leave a redo that could overwrite the new work.
+    const diverged = reducer(undone, { type: "apply", next: doc([".."]) });
+    expect(diverged.future).toEqual([]);
+    expect(reducer(diverged, { type: "redo" }).doc).toBe(diverged.doc);
+  });
+
+  test("redo on an empty future changes nothing", () => {
+    const state: MapState = { doc: doc(["#"]), history: [], future: [] };
+    expect(reducer(state, { type: "redo" })).toBe(state);
+  });
+
   test("history is bounded so a long session cannot grow it without limit", () => {
     let state: MapState = { doc: doc(["."]), history: [] };
     for (let step = 0; step < MAX_HISTORY + 20; step += 1) {

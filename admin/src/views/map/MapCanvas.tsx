@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { collisionGrid, mapSize, npcIndexAt, solidAt, type CollisionRect, type MapNpc } from "@/lib/map";
 
@@ -15,6 +15,9 @@ import { collisionGrid, mapSize, npcIndexAt, solidAt, type CollisionRect, type M
  */
 
 export type EditorMode = "map" | "event" | "collision";
+
+/** How a press behaves: lay cells down one at a time, or drag out a rectangle. */
+export type EditorTool = "brush" | "rect";
 
 export interface MapCanvasProps {
   tilemap: string[];
@@ -34,18 +37,30 @@ export interface MapCanvasProps {
   /** A press landed on an existing marker: the caller decides whether that becomes a drag. */
   onMarkerGrab: (index: number, clientX: number, clientY: number) => void;
   onToggleCollision: (x: number, y: number, solid: boolean) => void;
+  /** Active tool: a free brush, or drag-a-rectangle. */
+  tool: EditorTool;
+  onFillRect: (x0: number, y0: number, x1: number, y1: number) => void;
+  onFillCollision: (x0: number, y0: number, x1: number, y1: number, solid: boolean) => void;
+  /** Eyedropper: take the tile under the cursor as the brush. */
+  onPickTile: (x: number, y: number) => void;
 }
 
 /** Unknown legend characters must be visible, not silently blank. */
 const UNKNOWN_TILE = "#7f1d1d";
 
 export function MapCanvas(props: MapCanvasProps) {
-  const { tilemap, legend, tileSize, npcs, collision, atlas, mode, brush, zoom, selected } = props;
+  const { tilemap, legend, tileSize, npcs, collision, atlas, mode, brush, zoom, selected, tool } = props;
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const painting = useRef(false);
   const lastCell = useRef<string | null>(null);
   /** Whether this collision stroke lays walls down or takes them away; decided once per press. */
   const collisionSolid = useRef(true);
+
+  // Overlays are DOM elements rather than canvas drawing: a redraw per pointer move over a whole
+  // map is wasted work when a positioned div shows the same thing.
+  const [hover, setHover] = useState<[number, number] | null>(null);
+  const [rectStart, setRectStart] = useState<[number, number] | null>(null);
+  const [rectEnd, setRectEnd] = useState<[number, number] | null>(null);
 
   const { width, height } = mapSize(tilemap);
 
@@ -178,6 +193,22 @@ export function MapCanvas(props: MapCanvasProps) {
     const [x, y] = cellFromEvent(event);
     if (x < 0 || y < 0 || x >= width || y >= height) return;
 
+    // Eyedropper: Alt+click picks the tile under the cursor, the way Aseprite does.
+    if (mode === "map" && event.altKey) {
+      props.onPickTile(x, y);
+      return;
+    }
+
+    if (tool === "rect" && (mode === "map" || mode === "collision")) {
+      event.currentTarget.setPointerCapture(event.pointerId);
+      // Collision rectangles keep the same once-per-stroke rule as cells: the first cell decides
+      // whether the rectangle walls or clears.
+      if (mode === "collision") collisionSolid.current = !solidAt(collision, x, y);
+      setRectStart([x, y]);
+      setRectEnd([x, y]);
+      return;
+    }
+
     if (mode === "map") {
       event.currentTarget.setPointerCapture(event.pointerId);
       painting.current = true;
@@ -206,53 +237,122 @@ export function MapCanvas(props: MapCanvasProps) {
   };
 
   const handlePointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    const [rawX, rawY] = cellFromEvent(event);
+    const inside = rawX >= 0 && rawY >= 0 && rawX < width && rawY < height;
+
+    // Hover is a cursor aid: update it only when the cell actually changes, and drop it off-map.
+    setHover((current) => {
+      const next: [number, number] | null = inside ? [rawX, rawY] : null;
+      if (current === null && next === null) return current;
+      if (current !== null && next !== null && current[0] === next[0] && current[1] === next[1]) {
+        return current;
+      }
+      return next;
+    });
+
+    if (rectStart) {
+      setRectEnd(inside ? [rawX, rawY] : null);
+      return;
+    }
+
     if (!painting.current) return;
     if (mode !== "map" && mode !== "collision") return;
-
-    const [x, y] = cellFromEvent(event);
-    if (x < 0 || y < 0 || x >= width || y >= height) return;
+    if (!inside) return;
 
     // Painting repeatedly over one cell would push a snapshot per pointer event; the map helpers
     // already refuse no-ops, this just avoids the round trip.
-    const key = `${x},${y}`;
+    const key = `${rawX},${rawY}`;
     if (key === lastCell.current) return;
     lastCell.current = key;
 
-    if (mode === "map") props.onPaint(x, y);
-    else props.onToggleCollision(x, y, collisionSolid.current);
+    if (mode === "map") props.onPaint(rawX, rawY);
+    else props.onToggleCollision(rawX, rawY, collisionSolid.current);
   };
+
+  const handlePointerLeave = () => setHover(null);
 
   const endStroke = (event: React.PointerEvent<HTMLCanvasElement>) => {
     painting.current = false;
     lastCell.current = null;
+
+    if (rectStart) {
+      const [x, y] = cellFromEvent(event);
+      const endX = Math.min(width - 1, Math.max(0, x));
+      const endY = Math.min(height - 1, Math.max(0, y));
+
+      if (mode === "map") props.onFillRect(rectStart[0], rectStart[1], endX, endY);
+      else if (mode === "collision") {
+        props.onFillCollision(rectStart[0], rectStart[1], endX, endY, collisionSolid.current);
+      }
+
+      setRectStart(null);
+      setRectEnd(null);
+    }
+
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
   };
 
   const handleContextMenu = (event: React.MouseEvent<HTMLCanvasElement>) => {
-    if (mode !== "event") return;
-    // Right-click removes a placement — the fastest way to undo a misdrop without hunting for a
-    // delete button.
+    // The editor canvas has no browser menu to offer.
     event.preventDefault();
+
     const rect = event.currentTarget.getBoundingClientRect();
     const scale = tileSize * zoom;
     const x = Math.floor((event.clientX - rect.left) / scale);
     const y = Math.floor((event.clientY - rect.top) / scale);
+
+    if (mode === "map") {
+      // Right-click doubles as the eyedropper — the quickest way to match an adjacent tile.
+      if (x >= 0 && y >= 0 && x < width && y < height) props.onPickTile(x, y);
+      return;
+    }
+
+    if (mode !== "event") return;
     if (npcIndexAt(npcs, x, y) >= 0) props.onRemoveNpc(x, y);
   };
 
+  const cellPx = tileSize * zoom;
+  const rectBox =
+    rectStart && rectEnd
+      ? {
+          left: Math.min(rectStart[0], rectEnd[0]) * cellPx,
+          top: Math.min(rectStart[1], rectEnd[1]) * cellPx,
+          width: (Math.abs(rectStart[0] - rectEnd[0]) + 1) * cellPx,
+          height: (Math.abs(rectStart[1] - rectEnd[1]) + 1) * cellPx,
+        }
+      : null;
+
   return (
     <div className="h-full overflow-auto rounded-md border border-border bg-slate-950/60 p-2">
-      <canvas
-        ref={canvasRef}
-        className={mode === "map" ? "cursor-crosshair touch-none" : "cursor-pointer touch-none"}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={endStroke}
-        onPointerCancel={endStroke}
-        onContextMenu={handleContextMenu}
-      />
+      {/* The wrapper gives the overlays a canvas-sized box to sit in. */}
+      <div className="relative" style={{ width: width * cellPx, height: height * cellPx }}>
+        <canvas
+          ref={canvasRef}
+          className={`touch-none ${tool === "rect" ? "cursor-cell" : mode === "map" ? "cursor-crosshair" : "cursor-pointer"}`}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={endStroke}
+          onPointerCancel={endStroke}
+          onPointerLeave={handlePointerLeave}
+          onContextMenu={handleContextMenu}
+        />
+
+        {hover && !rectBox ? (
+          <div
+            className="pointer-events-none absolute border border-amber-400/80"
+            style={{ left: hover[0] * cellPx, top: hover[1] * cellPx, width: cellPx, height: cellPx }}
+          />
+        ) : null}
+
+        {rectBox ? (
+          <div
+            className="pointer-events-none absolute border-2 border-sky-400 bg-sky-400/20"
+            style={rectBox}
+          />
+        ) : null}
+      </div>
     </div>
   );
 }

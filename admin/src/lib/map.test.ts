@@ -6,6 +6,7 @@ import {
   blankMap,
   cellFromPoint,
   collisionGrid,
+  fillRect,
   gridToRects,
   growMap,
   legendEntries,
@@ -17,6 +18,7 @@ import {
   placeNpc,
   removeNpcAt,
   selectedNpc,
+  setCollisionRect,
   solidAt,
   tileAt,
   type CollisionRect,
@@ -245,13 +247,14 @@ describe("applyDrop", () => {
   });
 });
 
+/** Solid cells as a comparable string, so coverage assertions read clearly. */
+const solidCells = (grid: boolean[][]): string =>
+  grid
+    .flatMap((row, y) => row.map((solid, x) => (solid ? `${x},${y}` : "")))
+    .filter(Boolean)
+    .join(" ");
+
 describe("collision", () => {
-  /** Solid cells as a comparable string, so coverage assertions read clearly. */
-  const solidCells = (grid: boolean[][]): string =>
-    grid
-      .flatMap((row, y) => row.map((solid, x) => (solid ? `${x},${y}` : "")))
-      .filter(Boolean)
-      .join(" ");
 
   test("rects rasterise into the grid", () => {
     // The border walls real locations use: a full top row plus a left column.
@@ -351,5 +354,54 @@ describe("collision", () => {
     expect(paintCollision(rects, -1, 0, true, 4, 4)).toBe(rects);
     expect(paintCollision(rects, 4, 0, true, 4, 4)).toBe(rects);
     expect(paintCollision(rects, 0, 4, true, 4, 4)).toBe(rects);
+  });
+});
+
+describe("rectangle tools", () => {
+  const map = ["....", "....", "...."];
+
+  test("fillRect fills the dragged rectangle and nothing else", () => {
+    expect(fillRect(map, 1, 0, 2, 1, "#")).toEqual([".##.", ".##.", "...."]);
+  });
+
+  test("dragging backwards fills the same rectangle", () => {
+    expect(fillRect(map, 2, 1, 1, 0, "#")).toEqual(fillRect(map, 1, 0, 2, 1, "#"));
+  });
+
+  test("a rectangle already filled returns the map by identity", () => {
+    const filled = ["####", "####", "...."];
+    expect(fillRect(filled, 0, 0, 3, 1, "#")).toBe(filled);
+  });
+
+  test("a rectangle that runs past the edge is clipped, not extended", () => {
+    expect(fillRect(map, 3, 2, 9, 9, "#")).toEqual(["....", "....", "...#"]);
+  });
+
+  test("a drag entirely off the map changes nothing", () => {
+    // Clamping this to the edge would silently fill a column the author never pointed at.
+    expect(fillRect(map, -5, -5, -1, -1, "#")).toBe(map);
+    expect(fillRect(map, 10, 0, 20, 2, "#")).toBe(map);
+  });
+
+  test("ragged rows are not extended past their own length", () => {
+    const ragged = ["....", ".."];
+    expect(fillRect(ragged, 0, 0, 3, 1, "#")).toEqual(["####", "##"]);
+  });
+
+  test("setCollisionRect marks a block solid and keeps it rectangular", () => {
+    const rects = setCollisionRect([], 1, 1, 2, 2, true, 4, 4);
+    expect(rects).toEqual([[1, 1, 2, 2]]);
+  });
+
+  test("setCollisionRect erases and the neighbours stay solid", () => {
+    const wall: CollisionRect[] = [[0, 0, 4, 1]];
+    const holed = setCollisionRect(wall, 1, 0, 2, 0, false, 4, 1);
+    expect(solidCells(collisionGrid(holed, 4, 1))).toBe("0,0 3,0");
+  });
+
+  test("a collision rectangle that changes nothing returns the input by identity", () => {
+    const wall: CollisionRect[] = [[0, 0, 4, 1]];
+    expect(setCollisionRect(wall, 0, 0, 3, 0, true, 4, 4)).toBe(wall);
+    expect(setCollisionRect(wall, 8, 8, 9, 9, true, 4, 4)).toBe(wall);
   });
 });

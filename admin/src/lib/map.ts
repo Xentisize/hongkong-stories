@@ -334,3 +334,106 @@ export function paintCollision(
   grid[y]![x] = solid;
   return gridToRects(grid);
 }
+
+/** Clamp to `[low, high]`, tolerating `high < low` by returning `low`. */
+function clamp(value: number, low: number, high: number): number {
+  if (high < low) return low;
+  return Math.min(high, Math.max(low, value));
+}
+
+/** Normalised, clipped bounds of a drag — `null` when it misses the map entirely. */
+function dragBounds(
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+  width: number,
+  height: number,
+): { left: number; right: number; top: number; bottom: number } | null {
+  if (width <= 0 || height <= 0) return null;
+
+  const rawLeft = Math.min(x0, x1);
+  const rawRight = Math.max(x0, x1);
+  const rawTop = Math.min(y0, y1);
+  const rawBottom = Math.max(y0, y1);
+
+  // A drag that never touches the map must do nothing — clamping it to the edge would silently fill
+  // a row or column the author never pointed at. A drag that starts inside and runs past the edge is
+  // a different case: that one is clipped below.
+  if (rawRight < 0 || rawBottom < 0 || rawLeft > width - 1 || rawTop > height - 1) return null;
+
+  return {
+    left: clamp(rawLeft, 0, width - 1),
+    right: clamp(rawRight, 0, width - 1),
+    top: clamp(rawTop, 0, height - 1),
+    bottom: clamp(rawBottom, 0, height - 1),
+  };
+}
+
+/**
+ * Fill a rectangular region with one character.
+ *
+ * The rectangle tool is what makes a 28x14 map pleasant to author: dragging a room's floor beats
+ * clicking every cell. Returns the same map when nothing changed, so a drag over already-matching
+ * tiles records no undo step.
+ */
+export function fillRect(
+  map: TileMap,
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+  char: string,
+): TileMap {
+  const width = mapSize(map).width;
+  const bounds = dragBounds(x0, y0, x1, y1, width, map.length);
+  if (!bounds) return map;
+
+  let changed = false;
+  const next = [...map];
+
+  for (let y = bounds.top; y <= bounds.bottom; y += 1) {
+    const row = next[y] ?? "";
+    const end = Math.min(bounds.right, row.length - 1);
+    if (end < bounds.left) continue; // ragged row shorter than the rectangle's start
+
+    const updated =
+      row.slice(0, bounds.left) + char.repeat(end - bounds.left + 1) + row.slice(end + 1);
+    if (updated !== row) {
+      next[y] = updated;
+      changed = true;
+    }
+  }
+
+  return changed ? next : map;
+}
+
+/** Fill a rectangle solid or empty, sharing the tile tool's bounds rules. */
+export function setCollisionRect(
+  rects: CollisionRect[] | undefined,
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+  solid: boolean,
+  width: number,
+  height: number,
+): CollisionRect[] {
+  const existing = rects ?? [];
+  const bounds = dragBounds(x0, y0, x1, y1, width, height);
+  if (!bounds) return existing;
+
+  const grid = collisionGrid(existing, width, height);
+  let changed = false;
+
+  for (let y = bounds.top; y <= bounds.bottom; y += 1) {
+    for (let x = bounds.left; x <= bounds.right; x += 1) {
+      if (grid[y]![x] !== solid) {
+        grid[y]![x] = solid;
+        changed = true;
+      }
+    }
+  }
+
+  return changed ? gridToRects(grid) : existing;
+}

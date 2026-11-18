@@ -11,6 +11,7 @@ import {
   atlasUrl,
   blankMap,
   cellFromPoint,
+  fillRect,
   growMap,
   legendEntries,
   mapSize,
@@ -21,11 +22,13 @@ import {
   placeNpc,
   removeNpcAt,
   selectedNpc,
+  setCollisionRect,
+  tileAt,
   type CollisionRect,
   type DragPayload,
   type MapNpc,
 } from "@/lib/map";
-import { MapCanvas, type EditorMode } from "@/views/map/MapCanvas";
+import { MapCanvas, type EditorMode, type EditorTool } from "@/views/map/MapCanvas";
 
 /**
  * Map editor (PLAN 6.3, 9.2) — the three-panel layout.
@@ -54,9 +57,12 @@ export function MapView({ token, onDirtyChange }: { token: string; onDirtyChange
 
   const [state, dispatch] = useReducer(reducer, { doc: null, history: [] });
   const { doc, history } = state;
+  const future = state.future ?? [];
+  const canRedo = future.length > 0;
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [mode, setMode] = useState<EditorMode>("map");
+  const [tool, setTool] = useState<EditorTool>("brush");
   const [zoom, setZoom] = useState(2);
   const [brush, setBrush] = useState<string>("#");
   const [cursor, setCursor] = useState<[number, number] | null>(null);
@@ -267,6 +273,39 @@ export function MapView({ token, onDirtyChange }: { token: string; onDirtyChange
     [doc, apply],
   );
 
+  const handleFillRect = useCallback(
+    (x0: number, y0: number, x1: number, y1: number) => {
+      if (!doc) return;
+      const next = fillRect(tilemap, x0, y0, x1, y1, brush);
+      if (next === tilemap) return;
+      apply({ ...doc, tilemap: next });
+    },
+    [doc, tilemap, brush, apply],
+  );
+
+  const handleFillCollision = useCallback(
+    (x0: number, y0: number, x1: number, y1: number, solid: boolean) => {
+      if (!doc) return;
+      const current: CollisionRect[] = Array.isArray(doc.collision)
+        ? (doc.collision as CollisionRect[])
+        : [];
+      const { width, height } = mapSize(doc.tilemap ?? []);
+      const next = setCollisionRect(current, x0, y0, x1, y1, solid, width, height);
+      if (next === current) return;
+      apply({ ...doc, collision: next });
+    },
+    [doc, apply],
+  );
+
+  const handlePickTile = useCallback(
+    (x: number, y: number) => {
+      const picked = tileAt(tilemap, x, y);
+      // A ragged row can have no character at that column; nothing to pick.
+      if (picked !== undefined) setBrush(picked);
+    },
+    [tilemap],
+  );
+
   const updatePlacement = useCallback(
     (patch: Partial<MapNpc>) => {
       if (!doc || !cursor) return;
@@ -313,6 +352,46 @@ export function MapView({ token, onDirtyChange }: { token: string; onDirtyChange
     }
   }, [doc?.id]);
 
+  /**
+   * Editor shortcuts — the ones a Godot or Aseprite user reaches for without thinking.
+   *
+   * Ignored entirely while focus is in a field: the inspector has textareas for a placement's
+   * condition JSON, and stealing Ctrl+Z there would undo the map instead of the text.
+   */
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const tag = target?.tagName.toLowerCase();
+      if (tag === "input" || tag === "textarea" || tag === "select" || target?.isContentEditable === true) {
+        return;
+      }
+
+      const key = event.key.toLowerCase();
+
+      if (event.metaKey || event.ctrlKey) {
+        if (key === "z") {
+          event.preventDefault();
+          dispatch({ type: event.shiftKey ? "redo" : "undo" });
+        } else if (key === "y") {
+          event.preventDefault();
+          dispatch({ type: "redo" });
+        } else if (key === "s") {
+          event.preventDefault();
+          void save();
+        }
+        return;
+      }
+
+      // Bare digits switch modes, matching the tool order in the toolbar.
+      if (key === "1") setMode("map");
+      else if (key === "2") setMode("event");
+      else if (key === "3") setMode("collision");
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [save]);
+
   const atlasImage = atlas;
   const paletteScale = 2.5;
   // Preview frame for the drag ghost: only a tile drag has one.
@@ -340,6 +419,22 @@ export function MapView({ token, onDirtyChange }: { token: string; onDirtyChange
           ))}
         </div>
 
+        <div className="flex overflow-hidden rounded-md border">
+          {([
+            ["brush", "笔刷 Brush"],
+            ["rect", "矩形 Rect"],
+          ] as const).map(([candidate, label]) => (
+            <button
+              key={candidate}
+              type="button"
+              onClick={() => setTool(candidate)}
+              className={`px-3 py-1.5 text-xs ${tool === candidate ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
         <div className="flex items-center gap-1">
           <Button size="sm" variant="outline" onClick={() => setZoom((value) => Math.max(1, value - 1))}>
             −
@@ -353,12 +448,19 @@ export function MapView({ token, onDirtyChange }: { token: string; onDirtyChange
         <Button size="sm" variant="outline" disabled={history.length === 0} onClick={() => dispatch({ type: "undo" })}>
           撤销 Undo
         </Button>
+        <Button size="sm" variant="outline" disabled={!canRedo} onClick={() => dispatch({ type: "redo" })}>
+          重做 Redo
+        </Button>
 
         {doc ? (
           <Badge variant="outline" className="font-mono text-[10px]">
             {size.width}×{size.height} · {tileSize}px
           </Badge>
         ) : null}
+
+        <span className="text-[10px] text-muted-foreground">
+          ⌘/Ctrl+Z 撤销 · ⇧ 重做 · ⌘/Ctrl+S 保存 · 1/2/3 模式
+        </span>
 
         <div className="ml-auto flex items-center gap-2">
           <Button size="sm" variant="outline" disabled={!doc} onClick={validate}>
@@ -421,6 +523,10 @@ export function MapView({ token, onDirtyChange }: { token: string; onDirtyChange
               onRemoveNpc={handleRemoveNpc}
               onMarkerGrab={(index, clientX, clientY) => beginDrag({ kind: "marker", index }, clientX, clientY)}
               onToggleCollision={handleToggleCollision}
+              tool={tool}
+              onFillRect={handleFillRect}
+              onFillCollision={handleFillCollision}
+              onPickTile={handlePickTile}
             />
           ) : (
             <div className="flex h-full items-center justify-center rounded-md border text-xs text-muted-foreground">

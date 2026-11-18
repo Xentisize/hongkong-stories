@@ -27,32 +27,60 @@ export type LocationDoc = {
 export interface MapState {
   doc: LocationDoc | null;
   history: LocationDoc[];
+  /**
+   * Documents that undo moved away from, newest last.
+   *
+   * Optional so existing state literals stay valid, and treated as `[]` when absent. Any fresh edit
+   * clears it: keeping a stale future would let a redo overwrite work the author just did.
+   */
+  future?: LocationDoc[];
 }
 
 export type MapAction =
   | { type: "load"; doc: LocationDoc }
   | { type: "apply"; next: LocationDoc }
   | { type: "undo" }
+  | { type: "redo" }
   | { type: "clear" };
 
-/** How many undo steps are kept. Deep enough to recover a session's work, bounded so it cannot grow. */
+/** How many steps each direction keeps. Deep enough for a session, bounded so it cannot grow. */
 export const MAX_HISTORY = 50;
 
 export function reducer(state: MapState, action: MapAction): MapState {
+  const future = state.future ?? [];
+
   switch (action.type) {
     case "load":
-      // Re-loading (or saving) makes this document the new origin, so the undo stack empties.
-      return { doc: action.doc, history: [] };
+      // Re-loading (or saving) makes this document the new origin, so both stacks empty.
+      return { doc: action.doc, history: [], future: [] };
     case "clear":
-      return { doc: null, history: [] };
+      return { doc: null, history: [], future: [] };
     case "undo": {
       const previous = state.history[state.history.length - 1];
       if (!previous) return state;
-      return { doc: previous, history: state.history.slice(0, -1) };
+      return {
+        doc: previous,
+        history: state.history.slice(0, -1),
+        future: [...future.slice(-(MAX_HISTORY - 1)), state.doc!],
+      };
+    }
+    case "redo": {
+      const next = future[future.length - 1];
+      if (!next) return state;
+      return {
+        doc: next,
+        history: [...state.history.slice(-(MAX_HISTORY - 1)), state.doc!],
+        future: future.slice(0, -1),
+      };
     }
     case "apply":
       if (!state.doc || action.next === state.doc) return state;
-      return { doc: action.next, history: [...state.history.slice(-(MAX_HISTORY - 1)), state.doc] };
+      return {
+        doc: action.next,
+        history: [...state.history.slice(-(MAX_HISTORY - 1)), state.doc],
+        // A fresh edit makes the redo branch unreachable.
+        future: [],
+      };
   }
 }
 
