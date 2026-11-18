@@ -1,3 +1,5 @@
+import { legendFrame, type TileTransform } from "@hkstories/core";
+
 /**
  * Content geometry, independent of the engine.
  *
@@ -60,7 +62,7 @@ export interface LocationFile {
   tile_size: number;
   /** Godot-project path, e.g. `res://assets/tiles/p1_tiles_2027.png`. */
   atlas: string;
-  legend: Record<string, [number, number]>;
+  legend: Record<string, [number, number] | [number, number, TileTransform]>;
   tilemap: string[];
   /** Overlays drawn above `tilemap`, in order. A space means "paint nothing here". */
   layers?: Array<{ id?: string; tilemap?: string[] }>;
@@ -114,6 +116,49 @@ export function legendColumns(location: LocationFile): number {
     if (coords[0] > maxColumn) maxColumn = coords[0];
   }
   return maxColumn + 1;
+}
+
+/** The transform a character's legend entry asks for, or `null` for a plain frame. */
+export function legendTransform(
+  legend: LocationFile["legend"],
+  char: string | undefined,
+): TileTransform | null {
+  if (char === undefined) return null;
+  return legendFrame(legend[char])?.transform ?? null;
+}
+
+/**
+ * Apply a legend transform to one tile.
+ *
+ * Kept out of the renderer so the mapping is testable: `rotation` is in radians and the two flips
+ * are the engine's own flags. A rotated variant shares its *index* with the tile it was made from,
+ * which is why the transform is looked up by **character**, never by index.
+ */
+export function applyTileTransform(
+  tile: { rotation: number; flipX: boolean; flipY: boolean },
+  transform: TileTransform,
+): void {
+  switch (transform) {
+    case "rot90":
+      tile.rotation = Math.PI / 2;
+      break;
+    case "rot180":
+      tile.rotation = Math.PI;
+      break;
+    case "rot270":
+      tile.rotation = (Math.PI * 3) / 2;
+      break;
+    case "flipX":
+      tile.flipX = true;
+      break;
+    case "flipY":
+      tile.flipY = true;
+      break;
+    case "flipXY":
+      tile.flipX = true;
+      tile.flipY = true;
+      break;
+  }
 }
 
 /**

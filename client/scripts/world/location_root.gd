@@ -74,12 +74,22 @@ func _build_tiles() -> void:
 		var floor_coords: Array = legend["."]
 		_floor_atlas = Vector2i(int(floor_coords[0]), int(floor_coords[1]))
 
+	# The atlas is self-describing: its cell is width ÷ legend columns. That is what lets the art
+	# carry twice the detail while the world stays on `tile_size` — the layer is scaled back below,
+	# so tile coordinates, collision and actor placement are all untouched.
+	var columns := 1
+	for key in legend.keys():
+		var entry_coords: Array = legend[key]
+		columns = maxi(columns, int(entry_coords[0]) + 1)
+	var atlas_texture: Texture2D = load(atlas_path)
+	var atlas_cell := maxi(1, int(atlas_texture.get_width() / columns))
+
 	var tileset := TileSet.new()
-	tileset.tile_size = Vector2i(tile_size, tile_size)
+	tileset.tile_size = Vector2i(atlas_cell, atlas_cell)
 
 	var source := TileSetAtlasSource.new()
-	source.texture = load(atlas_path)
-	source.texture_region_size = Vector2i(tile_size, tile_size)
+	source.texture = atlas_texture
+	source.texture_region_size = Vector2i(atlas_cell, atlas_cell)
 	# Register every atlas coordinate the legend references, deduplicated.
 	for key in legend.keys():
 		var entry: Array = legend[key]
@@ -91,6 +101,7 @@ func _build_tiles() -> void:
 	_tiles = TileMapLayer.new()
 	_tiles.name = "Tiles"
 	_tiles.tile_set = tileset
+	_tiles.scale = Vector2.ONE * (float(tile_size) / float(atlas_cell))
 	add_child(_tiles)
 
 	size_tiles = Vector2i(0, rows.size())
@@ -116,6 +127,7 @@ func _build_tiles() -> void:
 		var overlay := TileMapLayer.new()
 		overlay.name = "Layer_%s" % String(raw.get("id", "?"))
 		overlay.tile_set = tileset
+		overlay.scale = _tiles.scale
 		add_child(overlay)
 		for y in overlay_rows.size():
 			var overlay_row := String(overlay_rows[y])

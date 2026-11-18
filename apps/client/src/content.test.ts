@@ -1,6 +1,13 @@
 import { describe, expect, test } from "bun:test";
 
-import { legendColumns, tileIndexGrid, tileIndexGrids, type LocationFile } from "./content";
+import {
+  applyTileTransform,
+  legendColumns,
+  legendTransform,
+  tileIndexGrid,
+  tileIndexGrids,
+  type LocationFile,
+} from "./content";
 
 /**
  * Layer resolution for the renderer.
@@ -90,5 +97,40 @@ describe("tileIndexGrid", () => {
   test("is the base grid alone — what doors swap cells on", () => {
     const doc = location({ layers: [{ id: "props", tilemap: ["x ", " x"] }] });
     expect(tileIndexGrid(doc)).toEqual(tileIndexGrids(doc)[0]!);
+  });
+});
+
+describe("legend transforms", () => {
+  const legend = { ".": [0, 0], r: [2, 0, "rot90"], f: [2, 0, "flipXY"] } as LocationFile["legend"];
+
+  test("a plain frame asks for no transform", () => {
+    expect(legendTransform(legend, ".")).toBeNull();
+    expect(legendTransform(legend, "?")).toBeNull();
+    expect(legendTransform(legend, undefined)).toBeNull();
+  });
+
+  test("a variant asks for the transform on its entry", () => {
+    expect(legendTransform(legend, "r")).toBe("rot90");
+    expect(legendTransform(legend, "f")).toBe("flipXY");
+  });
+
+  test("rotations become radians, flips become flags", () => {
+    const tile = { rotation: 0, flipX: false, flipY: false };
+    applyTileTransform(tile, "rot90");
+    expect(tile.rotation).toBeCloseTo(Math.PI / 2);
+    applyTileTransform(tile, "rot180");
+    expect(tile.rotation).toBeCloseTo(Math.PI);
+    applyTileTransform(tile, "rot270");
+    expect(tile.rotation).toBeCloseTo((Math.PI * 3) / 2);
+  });
+
+  test("flips set the engine's flags", () => {
+    const flipped = { rotation: 0, flipX: false, flipY: false };
+    applyTileTransform(flipped, "flipX");
+    expect(flipped).toEqual({ rotation: 0, flipX: true, flipY: false });
+
+    const both = { rotation: 0, flipX: false, flipY: false };
+    applyTileTransform(both, "flipXY");
+    expect(both).toEqual({ rotation: 0, flipX: true, flipY: true });
   });
 });

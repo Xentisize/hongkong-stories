@@ -1,9 +1,11 @@
-import { evaluate, type ConditionState } from "@hkstories/core";
+import { atlasCellSize, evaluate, type ConditionState } from "@hkstories/core";
 import Phaser from "phaser";
 
 import {
+  applyTileTransform,
   artFileName,
   legendColumns,
+  legendTransform,
   mapPixelSize,
   rectToPixels,
   spawnPixel,
@@ -180,23 +182,42 @@ export class WorldScene extends Phaser.Scene {
     this.loadedLocationId = location.id;
 
     // --- terrain -----------------------------------------------------------------
+    // The atlas is self-describing: its cell is `width ÷ legend columns`, which is what lets the art
+    // carry twice the detail while the world stays on 24px tiles. The layer is built at the atlas
+    // cell and scaled back to the world size, so tile coordinates, collision, exits and actor
+    // placement are all unchanged.
+    const columns = legendColumns(location);
+    const atlasImage = this.textures.get("tiles").getSourceImage() as { width?: number } | undefined;
+    const cell = atlasCellSize(atlasImage?.width ?? 0, columns) || size;
+    const artScale = size / cell;
+
     // Layer 0 is the base grid and defines the map; every later grid is an overlay drawn above it.
     const grids = tileIndexGrids(location);
-    const map = this.make.tilemap({ data: grids[0] ?? [], tileWidth: size, tileHeight: size });
-    const tileset = map.addTilesetImage("tiles", "tiles", size, size);
+    const map = this.make.tilemap({ data: grids[0] ?? [], tileWidth: cell, tileHeight: cell });
+    const tileset = map.addTilesetImage("tiles", "tiles", cell, cell);
     if (!tileset) throw new Error("tileset failed to attach — check the atlas image key");
     // Phaser 4 returns a union here; the canvas renderer hands back the standard layer.
     this.layer = (map.createLayer(0, tileset, 0, 0) ?? null) as Phaser.Tilemaps.TilemapLayer | null;
+    this.layer?.setScale(artScale);
     this.tiles = [...location.tilemap];
+
+    // A rotated or flipped legend entry draws the same atlas cell differently, and the tile's index
+    // cannot say which one was meant — the *character* at that cell does.
+    this.layer?.forEachTile((tile) => {
+      const char = location.tilemap[tile.y]?.[tile.x];
+      const transform = legendTransform(location.legend, char);
+      if (transform !== null) applyTileTransform(tile, transform);
+    });
 
     // Overlays get their own tilemap because Phaser builds a layer from the data it was made with.
     // Depth 1..n keeps them above the floor and below the actors, whose depth is their y position
     // in pixels — so a roof overlay never hides a character standing on it.
     grids.slice(1).forEach((grid, index) => {
-      const overlay = this.make.tilemap({ data: grid, tileWidth: size, tileHeight: size });
-      const overlayTileset = overlay.addTilesetImage("tiles", "tiles", size, size);
+      const overlay = this.make.tilemap({ data: grid, tileWidth: cell, tileHeight: cell });
+      const overlayTileset = overlay.addTilesetImage("tiles", "tiles", cell, cell);
       if (!overlayTileset) return;
       const layer = overlay.createLayer(0, overlayTileset, 0, 0);
+      layer?.setScale(artScale);
       layer?.setDepth(index + 1);
     });
 
