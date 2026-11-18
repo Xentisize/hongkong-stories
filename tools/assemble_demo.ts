@@ -34,3 +34,7 @@ await stat(join(target, "index.html"));
 
 console.log(`demo assembled → ${target}`);
 console.log("serve it:  cd apps/server && bun run dev   (then open http://<host>:3000/play)");
+// Measured, not guessed: a dev server already running keeps the public directory listing it read at
+// boot, so it answers the new entry point (a route, read per request) and then 404s the chunk that
+// entry names. Restarting is the difference between "the demo broke" and "the demo is new".
+console.log("if the API is already running, restart it — it caches public/ at boot");

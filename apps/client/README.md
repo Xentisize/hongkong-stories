@@ -26,6 +26,10 @@ cd apps/server && bun run dev      # → http://127.0.0.1:3000/play
 works when deployed: a static host on its own leaves the bundle calling `/v1` on an origin with no API,
 and the game boots into the authored fallback instead of the model.
 
+Re-run `bun run demo:build` after changing the client, and **restart the API if it is already
+running**: a dev server answers `/play` from the handler but serves chunks from the `public/` listing it
+read at boot, so a stale process 404s the new bundle while the entry point still looks fine.
+
 `bun run demo:build` (`tools/assemble_demo.ts`) builds with `--base=/play/` so the chunks resolve
 under the path, and copies the result to `apps/server/public/play`. In a build the same files arrive
 in `dist/client/play`, and `routes/play.ts` serves the entry point from whichever exists — a bare
