@@ -1,4 +1,9 @@
-import { legendFrame, type TileTransform } from "@hkstories/core";
+import {
+  TILE_TRANSFORM_FLIPS,
+  TILE_TRANSFORM_QUARTER_TURNS,
+  legendFrame,
+  type TileTransform,
+} from "@hkstories/core";
 
 /**
  * Content geometry, independent of the engine.
@@ -138,27 +143,11 @@ export function applyTileTransform(
   tile: { rotation: number; flipX: boolean; flipY: boolean },
   transform: TileTransform,
 ): void {
-  switch (transform) {
-    case "rot90":
-      tile.rotation = Math.PI / 2;
-      break;
-    case "rot180":
-      tile.rotation = Math.PI;
-      break;
-    case "rot270":
-      tile.rotation = (Math.PI * 3) / 2;
-      break;
-    case "flipX":
-      tile.flipX = true;
-      break;
-    case "flipY":
-      tile.flipY = true;
-      break;
-    case "flipXY":
-      tile.flipX = true;
-      tile.flipY = true;
-      break;
-  }
+  // The tables live in core so the Godot client can mirror them exactly; see
+  // `TILE_TRANSFORM_TRANSPOSE` there for the desktop build's vocabulary.
+  tile.rotation = (Math.PI / 2) * TILE_TRANSFORM_QUARTER_TURNS[transform];
+  if (TILE_TRANSFORM_FLIPS[transform].x) tile.flipX = true;
+  if (TILE_TRANSFORM_FLIPS[transform].y) tile.flipY = true;
 }
 
 /**

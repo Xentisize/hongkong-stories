@@ -66,6 +66,11 @@ describe("fetchPreviewPack", () => {
 });
 
 describe("the message protocol", () => {
+  test("the drag verbs are part of the protocol", () => {
+    expect(isPreviewCommand(commandMessage({ type: "hover", x: 10, y: 20 }))).toBe(true);
+    expect(isPreviewCommand(commandMessage({ type: "place", x: 10, y: 20 }))).toBe(true);
+  });
+
   test("accepts what it stamps itself", () => {
     expect(isPreviewCommand(commandMessage({ type: "pause" }))).toBe(true);
     expect(isPreviewEvent(eventMessage({ type: "ready", location: "loc_a" }))).toBe(true);

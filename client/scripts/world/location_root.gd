@@ -98,6 +98,39 @@ func _build_tiles() -> void:
 			source.create_tile(coords)
 	tileset.add_source(source, 0)
 
+	# A legend entry may carry a transform (`[col, row, "rot90"]`). A rotated tile is the same atlas
+	# cell drawn differently, so each variant becomes an *alternative* tile: the grid still stores one
+	# coordinate and the difference rides on the alternative's flags. The mapping is the one the web
+	# client applies in `applyTileTransform`, kept in step by hand — GDScript and TypeScript share no
+	# runtime.
+	var cells := {}
+	for key in legend.keys():
+		var entry: Array = legend[key]
+		var coords := Vector2i(int(entry[0]), int(entry[1]))
+		var alternative := 0
+		if entry.size() >= 3:
+			alternative = source.create_alternative_tile(coords)
+			var tile_data := source.get_tile_data(coords, alternative)
+			if tile_data != null:
+				match String(entry[2]):
+					"rot90":
+						tile_data.transpose = true
+						tile_data.flip_h = true
+					"rot180":
+						tile_data.flip_h = true
+						tile_data.flip_v = true
+					"rot270":
+						tile_data.transpose = true
+						tile_data.flip_v = true
+					"flipX":
+						tile_data.flip_h = true
+					"flipY":
+						tile_data.flip_v = true
+					"flipXY":
+						tile_data.flip_h = true
+						tile_data.flip_v = true
+		cells[key] = [coords, alternative]
+
 	_tiles = TileMapLayer.new()
 	_tiles.name = "Tiles"
 	_tiles.tile_set = tileset
@@ -112,8 +145,11 @@ func _build_tiles() -> void:
 			var ch := row[x]
 			if not legend.has(ch):
 				continue
-			var coords: Array = legend[ch]
-			_tiles.set_cell(Vector2i(x, y), 0, Vector2i(int(coords[0]), int(coords[1])))
+			var cell: Array = cells.get(ch, [])
+			if cell.is_empty():
+				continue
+			var cell_coords: Vector2i = cell[0]
+			_tiles.set_cell(Vector2i(x, y), 0, cell_coords, int(cell[1]))
 
 	# Overlays (PLAN 5.1): drawn above the base grid because they are added after it, and below the
 	# actors, which are added later in _ready. A space paints nothing — that is how a whole-map
@@ -135,8 +171,11 @@ func _build_tiles() -> void:
 				var ch := overlay_row[x]
 				if ch == " " or not legend.has(ch):
 					continue
-				var coords: Array = legend[ch]
-				overlay.set_cell(Vector2i(x, y), 0, Vector2i(int(coords[0]), int(coords[1])))
+				var cell: Array = cells.get(ch, [])
+				if cell.is_empty():
+					continue
+				var cell_coords: Vector2i = cell[0]
+				overlay.set_cell(Vector2i(x, y), 0, cell_coords, int(cell[1]))
 
 
 func _build_collision() -> void:

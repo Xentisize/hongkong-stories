@@ -339,6 +339,21 @@ if (previewEnabled) {
       const size = typeof current.tile_size === "number" ? current.tile_size : 24;
       return [Math.floor(point.x / size), Math.floor(point.y / size)];
     },
+    // The frame's own pixels, for a drag forwarded from the studio: the pointer is captured there,
+    // so the coordinates arrive relative to this document rather than to a window it never saw.
+    toLocalTile: (localX: number, localY: number) => {
+      const current = locationsById[currentLocationId];
+      const canvas = game.canvas;
+      if (!current || !canvas || canvas.clientWidth === 0) return null;
+
+      const x = localX * (canvas.width / canvas.clientWidth);
+      const y = localY * (canvas.height / canvas.clientHeight);
+      const point = scene()?.cameras?.main?.getWorldPoint(x, y);
+      if (!point) return null;
+
+      const size = typeof current.tile_size === "number" ? current.tile_size : 24;
+      return [Math.floor(point.x / size), Math.floor(point.y / size)];
+    },
     entityAt: (tile) => {
       const current = locationsById[currentLocationId];
       const placed = Array.isArray(current?.npcs) ? current.npcs : [];

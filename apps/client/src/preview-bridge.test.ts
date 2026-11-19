@@ -17,6 +17,8 @@ function harness(overrides: Partial<BridgeSource> = {}) {
   const source: BridgeSource = {
     canvas: () => target,
     toTile: (x) => (x < 0 ? null : [x, 2]),
+    // Forwarded drags arrive as the frame's own pixels; round them so assertions stay exact.
+    toLocalTile: (x, y) => (x < 0 ? null : [Math.round(x / 10), Math.round(y / 10)]),
     entityAt: (tile) => (tile[0] === 3 ? { type: "npc", id: "npc_chan" } : null),
     location: () => "loc_ssp",
     post: (message) => posted.push(message),
@@ -135,6 +137,110 @@ describe("placement mode", () => {
 
     click(target, 3);
     expect(posted[0]).toMatchObject({ type: "selected", tile: [3, 2] });
+    stop();
+  });
+});
+
+describe("hovering while armed", () => {
+  test("nothing is reported until placement is armed", () => {
+    const { source, posted, target } = harness();
+    const stop = attachPreviewBridge(source);
+    posted.length = 0;
+
+    const move = new Event("pointermove");
+    Object.assign(move, { clientX: 4, clientY: 4 });
+    target.dispatchEvent(move);
+    expect(posted).toHaveLength(0);
+    stop();
+  });
+
+  test("an armed pointer reports the tile it is over, once per cell", () => {
+    const { source, posted, target } = harness();
+    const stop = attachPreviewBridge(source);
+    command(commandMessage({ type: "pick" }));
+    posted.length = 0;
+
+    const move = (x: number) => {
+      const event = new Event("pointermove");
+      Object.assign(event, { clientX: x, clientY: 7 });
+      target.dispatchEvent(event);
+    };
+
+    move(4);
+    move(4); // same cell: no second message
+    move(5);
+
+    expect(posted).toEqual([
+      expect.objectContaining({ type: "hovered", tile: [4, 2] }),
+      expect.objectContaining({ type: "hovered", tile: [5, 2] }),
+    ]);
+    stop();
+  });
+
+  test("disarming resets, so the same cell reports again next time", () => {
+    const { source, posted, target } = harness();
+    const stop = attachPreviewBridge(source);
+    const move = (x: number) => {
+      const event = new Event("pointermove");
+      Object.assign(event, { clientX: x, clientY: 7 });
+      target.dispatchEvent(event);
+    };
+
+    command(commandMessage({ type: "pick" }));
+    move(4);
+    const up = new Event("pointerup");
+    Object.assign(up, { clientX: 4, clientY: 7 });
+    target.dispatchEvent(up); // places, which disarms
+
+    posted.length = 0;
+    command(commandMessage({ type: "pick" }));
+    move(4);
+    expect(posted[0]).toMatchObject({ type: "hovered", tile: [4, 2] });
+    stop();
+  });
+});
+
+describe("a drag forwarded from the studio", () => {
+  test("hovering reports the tile under the frame-local point, once per cell", () => {
+    const { source, posted, target } = harness();
+    const stop = attachPreviewBridge(source);
+    posted.length = 0;
+
+    command(commandMessage({ type: "hover", x: 42, y: 17 }));
+    command(commandMessage({ type: "hover", x: 44, y: 19 })); // same cell
+    command(commandMessage({ type: "hover", x: 91, y: 17 }));
+
+    expect(posted).toEqual([
+      expect.objectContaining({ type: "hovered", tile: [4, 2] }),
+      expect.objectContaining({ type: "hovered", tile: [9, 2] }),
+    ]);
+    stop();
+    void target;
+  });
+
+  test("releasing places at that point", () => {
+    const picked: Array<[number, number]> = [];
+    const { source, posted } = harness({ onPick: (tile) => picked.push(tile) });
+    const stop = attachPreviewBridge(source);
+    posted.length = 0;
+
+    command(commandMessage({ type: "place", x: 64, y: 31 }));
+
+    expect(picked).toEqual([[6, 3]]);
+    expect(posted[0]).toMatchObject({ type: "picked", tile: [6, 3] });
+    stop();
+  });
+
+  test("a point outside the map places nothing", () => {
+    const picked: Array<[number, number]> = [];
+    const { source, posted } = harness({ onPick: (tile) => picked.push(tile) });
+    const stop = attachPreviewBridge(source);
+    posted.length = 0;
+
+    command(commandMessage({ type: "place", x: -5, y: 10 }));
+
+    expect(picked).toEqual([]);
+    expect(posted).toHaveLength(0);
     stop();
   });
 });
