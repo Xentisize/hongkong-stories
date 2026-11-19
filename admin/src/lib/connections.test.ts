@@ -249,3 +249,35 @@ describe("gaps", () => {
     expect(gapsFor(balanced as never, "flags", "ok")).toEqual([]);
   });
 });
+
+describe("declared narrative links", () => {
+  const pack = {
+    items: { item_photo: { id: "item_photo", links: [{ to: "npc_grandma", kind: "about" }] } },
+    npcs: { npc_grandma: { id: "npc_grandma" } },
+  } as const;
+
+  test("a written link shows up as an outbound edge, marked as declared", () => {
+    const outbound = connectionsFor(pack as never, "items", "item_photo").outbound;
+    expect(outbound).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "npc_grandma", declared: true, label: expect.stringContaining("聲明") }),
+      ]),
+    );
+  });
+
+  test("the other end sees it as inbound, also marked", () => {
+    const inbound = connectionsFor(pack as never, "npcs", "npc_grandma").inbound;
+    expect(inbound).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: "item_photo", declared: true })]),
+    );
+  });
+
+  test("mechanical edges stay unmarked, so a note cannot pass for a mechanic", () => {
+    const mechanical = {
+      items: { item_key: { id: "item_key" } },
+      quests: { ch01: { id: "ch01", nodes: [{ complete_when: { has_item: "item_key" } }] } },
+    };
+    const inbound = connectionsFor(mechanical as never, "items", "item_key").inbound;
+    expect(inbound[0]?.declared).toBeUndefined();
+  });
+});

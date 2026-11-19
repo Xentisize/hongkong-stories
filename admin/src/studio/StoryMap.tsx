@@ -7,7 +7,6 @@
  */
 
 import { useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,8 +15,10 @@ import { api } from "@/api";
 import { moveAfter, reconnect } from "@/lib/questFlow";
 import { useKindIds } from "@/lib/queries";
 import type { QuestDoc } from "@/lib/questDoc";
+import { edgePath } from "@/lib/graph";
 import { layoutStory, sceneGraph } from "@/lib/storyMap";
 import { cn } from "@/lib/utils";
+import { usePreviewPack } from "@/studio/usePreviewPack";
 
 const CARD_W = 130;
 const CARD_H = 46;
@@ -25,17 +26,8 @@ const COL_GAP = 170;
 const ROW_GAP = 76;
 const PAD = 16;
 
-interface PreviewPack {
-  tables: Record<string, Record<string, unknown>>;
-  issues: Array<{ level: string; path: string; message: string }>;
-}
-
 export function StoryMap({ token, onAsk }: { token: string; onAsk?: (intent: string) => void }) {
-  const pack = useQuery({
-    queryKey: ["preview-pack", token] as const,
-    queryFn: () => api.previewPack() as Promise<PreviewPack>,
-    enabled: token !== "",
-  });
+  const pack = usePreviewPack(token);
   const quests = useKindIds(token, "quests");
 
   const [scene, setScene] = useState<string | null>(null);
@@ -111,15 +103,14 @@ export function StoryMap({ token, onAsk }: { token: string; onAsk?: (intent: str
                 if (!from || !to) return null;
                 const a = at(from.depth, from.row);
                 const b = at(to.depth, to.row);
-                const x1 = a.x + CARD_W;
-                const y1 = a.y + CARD_H / 2;
-                const x2 = b.x;
-                const y2 = b.y + CARD_H / 2;
-                const bend = Math.max(30, (x2 - x1) / 2);
                 return (
                   <path
                     key={`${edge.from}-${edge.id}-${edge.to}`}
-                    d={`M ${x1} ${y1} C ${x1 + bend} ${y1}, ${x2 - bend} ${y2}, ${x2} ${y2}`}
+                    d={edgePath(
+                      { x: a.x, y: a.y, w: CARD_W, h: CARD_H },
+                      { x: b.x, y: b.y, w: CARD_W, h: CARD_H },
+                      30,
+                    )}
                     fill="none"
                     strokeWidth={1.5}
                     strokeDasharray={edge.gated ? "5 3" : undefined}

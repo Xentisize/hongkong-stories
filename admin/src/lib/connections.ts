@@ -15,6 +15,8 @@
  * `set_flag` effect means "sets" while the same key under any condition means "waits on".
  */
 
+import { declaredLinks } from "@hkstories/core";
+
 export type RefKind = "item" | "npc" | "quest" | "chapter" | "location" | "flag" | "unknown";
 
 export interface Ref {
@@ -25,6 +27,8 @@ export interface Ref {
   label: string;
   /** The field path that carries the reference, for the "why is this here?" case. */
   path: string;
+  /** True when a person wrote this link; false (or absent) when the engine's own fields imply it. */
+  declared?: boolean;
 }
 
 export interface Connections {
@@ -182,17 +186,30 @@ export function connectionsFor(pack: Pack, kind: string, id: string): Connection
       const matches = refsOf(doc).filter((entry) =>
         kind === "flags" ? entry.isFlag && entry.id === id : !entry.isFlag && entry.id === id,
       );
-      if (matches.length === 0) continue;
-      // A document often mentions the same id twice (`items_may_give` and the action that gives it);
-      // reporting the mention whose field says *what the relationship is* reads better than the first.
-      const hit = matches.find((entry) => !/^\d+$/.test(labelFor(entry.path, entry.context))) ?? matches[0]!;
-      // The other end of an inbound edge is the *owner* document, not the thing being looked at.
-      inbound.push({
-        kind: refKind(otherId),
-        id: otherId,
-        label: `${labelFor(hit.path, hit.context)}（${tableLabel(table)}）`,
-        path: hit.path,
-      });
+      if (matches.length > 0) {
+        // A document often mentions the same id twice (`items_may_give` and the action that gives it);
+        // reporting the mention whose field says *what the relationship is* reads better than the first.
+        const hit = matches.find((entry) => !/^\d+$/.test(labelFor(entry.path, entry.context))) ?? matches[0]!;
+        // The other end of an inbound edge is the *owner* document, not the thing being looked at.
+        inbound.push({
+          kind: refKind(otherId),
+          id: otherId,
+          label: `${labelFor(hit.path, hit.context)}（${tableLabel(table)}）`,
+          path: hit.path,
+        });
+      }
+
+      // Someone may also have *written* a link to this: narrative, never enforced, always marked.
+      for (const link of declaredLinks(doc)) {
+        if (link.to !== id) continue;
+        inbound.push({
+          kind: refKind(otherId),
+          id: otherId,
+          label: `聲明 / declared（${link.kind}）（${tableLabel(table)}）`,
+          path: "links",
+          declared: true,
+        });
+      }
     }
   }
 
@@ -200,6 +217,18 @@ export function connectionsFor(pack: Pack, kind: string, id: string): Connection
     // A flag is passive: it has nothing of its own to point at.
     return { outbound: [], inbound: dedupe(inbound) };
   }
+
+  // Declared narrative links: what a person wrote, not what the engine implies. They are marked so
+  // the picture never lets a note pass for a mechanic.
+  declaredLinks(self).forEach((link, index) => {
+    outbound.push({
+      kind: refKind(link.to),
+      id: link.to,
+      label: `聲明 / declared（${link.kind}）`,
+      path: `links[${index}]`,
+      declared: true,
+    });
+  });
 
   return { outbound: dedupe(outbound), inbound: dedupe(inbound) };
 }

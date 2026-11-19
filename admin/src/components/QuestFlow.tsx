@@ -14,6 +14,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { nodeId, nodesOf, type QuestDoc, type QuestNode } from "@/lib/questDoc";
+import { edgePath } from "@/lib/graph";
 import { layoutQuest, type FlowNode } from "@/lib/questFlow";
 import { cn } from "@/lib/utils";
 
@@ -121,15 +122,14 @@ export function QuestFlow({
             if (!from || !to) return null;
             const a = at(from);
             const b = at(to);
-            const x1 = a.x + CARD_W;
-            const y1 = a.y + CARD_H / 2;
-            const x2 = b.x;
-            const y2 = b.y + CARD_H / 2;
-            const bend = Math.max(40, (x2 - x1) / 2);
             return (
               <path
                 key={`${edge.from}->${edge.to}`}
-                d={`M ${x1} ${y1} C ${x1 + bend} ${y1}, ${x2 - bend} ${y2}, ${x2} ${y2}`}
+                d={edgePath(
+                  { x: a.x, y: a.y, w: CARD_W, h: CARD_H },
+                  { x: b.x, y: b.y, w: CARD_W, h: CARD_H },
+                  40,
+                )}
                 fill="none"
                 strokeWidth={1.5}
                 className="stroke-muted-foreground/60"

@@ -27,14 +27,14 @@ interface Rule {
 }
 
 /** The messages this build emits, in the order someone is likely to meet them. */
-const RULES: Rule[] = [
+export const RULES: Rule[] = [
   {
     match: /is not in legend/i,
     plain: (issue) => `地圖上有一個字（${/(['"])(.*?)\1/.exec(issue.message)?.[2] ?? "?"}）未有對應圖塊，嗰格會畫唔出。/ a map cell uses a character that has no tile.`,
     hint: "喺調色盤揀過另一個字，或者幫 legend 加返呢個字 / paint the cell with a known character",
   },
   {
-    match: /rect escapes the map|outside the map/i,
+    match: /rect escapes the map|outside the .{0,12}map/i,
     plain: () => "有一道門或者一個障礙伸到地圖出面。/ a door or a blocker reaches past the edge of the map.",
     hint: "將個框拉返入地圖範圍 / pull the rectangle back inside the map",
   },
@@ -49,7 +49,7 @@ const RULES: Rule[] = [
     hint: "格式係 [col, row] 或 [col, row, transform]",
   },
   {
-    match: /must be a whole number/i,
+    match: /whole number/i,
     plain: () => "圖塊座標有小數，圖集冇半格。/ a tile coordinate is a fraction, and the atlas has no half cells.",
     hint: "改返整數 column 同 row",
   },

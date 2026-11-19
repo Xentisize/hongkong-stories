@@ -16,6 +16,7 @@ import { toast } from "sonner";
 
 import { api, ApiError } from "@/api";
 import { JsonField } from "@/components/JsonField";
+import { EntityLinks } from "@/components/EntityLinks";
 import { InheritanceField } from "@/components/InheritanceField";
 import { LocaleGap } from "@/components/LocaleGap";
 import { QuestFlow } from "@/components/QuestFlow";
@@ -449,6 +450,8 @@ export function QuestsView({ token }: { token: string }) {
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
+                <EntityLinks token={token} kind="quests" id={String(doc.id ?? "")} />
+
                 <QuestFlow
                   doc={doc}
                   selected={selectedNode}

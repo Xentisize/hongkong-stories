@@ -51,6 +51,8 @@ export function Studio({
   const [place, setPlace] = useState<Place>("build");
   /** An intent another place wants the co-pilot to run — a nonce so the same text can fire twice. */
   const [ask, setAsk] = useState({ text: "", nonce: 0 });
+  /** What the author is looking at — the co-pilot needs it for "make this rarer" to mean anything. */
+  const [context, setContext] = useState<{ kind: string; id: string } | null>(null);
   const current = PLACES.find((entry) => entry.id === place) ?? PLACES[0]!;
 
   return (
@@ -116,6 +118,7 @@ export function Studio({
               token={token}
               onDirtyChange={onDirtyChange}
               onAsk={(text) => setAsk((current) => ({ text, nonce: current.nonce + 1 }))}
+              onContext={setContext}
             />
           ) : null}
           {place === "ship" ? (
@@ -128,7 +131,7 @@ export function Studio({
         </section>
 
         <aside className="h-fit space-y-2 rounded-lg border p-3">
-          <Copilot token={token} pendingIntent={ask} />
+          <Copilot token={token} pendingIntent={ask} context={context} />
           <p className="text-[10px] leading-relaxed text-muted-foreground">
             寫入嘅嘢全部可以 ⌘Z 撤回，亦只會落喺草稿。
             <br />

@@ -7,8 +7,7 @@
  * instead of a report.
  */
 
-import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
 
 import { api } from "@/api";
 import { Badge } from "@/components/ui/badge";
@@ -16,10 +15,7 @@ import { Button } from "@/components/ui/button";
 import { AssetThumb } from "@/components/AssetThumb";
 import { connectionsFor, flagsIn, gapsFor, summarise, tableLabel, type Ref } from "@/lib/connections";
 import { cn } from "@/lib/utils";
-
-interface PreviewPack {
-  tables: Record<string, Record<string, unknown>>;
-}
+import { usePreviewPack } from "@/studio/usePreviewPack";
 
 /** The kinds a creator picks between, in the order the game introduces them. */
 const PICKABLE = [
@@ -47,19 +43,21 @@ function iconFor(table: string, id: string): string | null {
 }
 
 export function Connections({
+  token,
   onOpen,
   onAsk,
+  onContext,
 }: {
+  /** The admin bearer token the preview pack is read with. */
+  token: string;
   /** Jump to the other end of an edge, when that end lives somewhere the studio can open. */
   onOpen?: (table: string, id: string) => void;
   /** Hand a gap straight to the co-pilot: "fix it" should not make the author describe it. */
   onAsk?: (intent: string) => void;
+  /** Tell the shell what is on screen, so the co-pilot knows what "this" means. */
+  onContext?: (context: { kind: string; id: string } | null) => void;
 }) {
-  const pack = useQuery({
-    queryKey: ["preview-pack"] as const,
-    queryFn: () => api.previewPack() as Promise<PreviewPack>,
-    staleTime: 0,
-  });
+  const pack = usePreviewPack(token);
 
   const [table, setTable] = useState<string>("items");
   const [id, setId] = useState<string>("");
@@ -82,6 +80,12 @@ export function Connections({
     [tables, table, chosen],
   );
 
+  // What is on screen is what the co-pilot should understand by "this".
+  useEffect(() => {
+    if (onContext === undefined) return;
+    onContext(chosen === "" ? null : { kind: table, id: chosen });
+  }, [table, chosen, onContext]);
+
   function renderRow(ref: Ref, direction: "in" | "out") {
     const target = tableFor(ref);
     return (
@@ -97,6 +101,7 @@ export function Connections({
           }}
           className={cn(
             "flex w-full items-center gap-2 rounded border px-2 py-1 text-left text-[11px]",
+            ref.declared === true && "border-dashed",
             target === null ? "opacity-70" : "hover:bg-muted",
           )}
         >
@@ -105,6 +110,11 @@ export function Connections({
           ) : null}
           <span className="font-mono">{ref.id}</span>
           <span className="text-muted-foreground">{ref.label}</span>
+          {ref.declared === true ? (
+            <Badge variant="outline" className="ml-auto border-dashed text-[9px]">
+              聲明 declared
+            </Badge>
+          ) : null}
         </button>
       </li>
     );

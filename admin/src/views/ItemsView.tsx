@@ -15,6 +15,7 @@ import { toast } from "sonner";
 
 import { api, ApiError } from "@/api";
 import { AssetThumb } from "@/components/AssetThumb";
+import { EntityLinks } from "@/components/EntityLinks";
 import { InheritanceField } from "@/components/InheritanceField";
 import { JsonField } from "@/components/JsonField";
 import { LocaleGap } from "@/components/LocaleGap";
@@ -90,6 +91,24 @@ interface Issue {
 /** The icon a generated item is expected to carry, when that file exists in the pack. */
 function iconForId(id: string): string | null {
   return ICONS.find((entry) => entry.endsWith(`/${id}.png`)) ?? null;
+}
+
+/**
+ * One line about what the item does, for the simple view.
+ *
+ * The answer a creator cares about ("this opens a door", "this is just a keepsake") is already
+ * implied by the effect lists; saying it out loud is what makes the JSON worth hiding.
+ */
+function describeItemUse(doc: {
+  on_use?: unknown;
+  on_acquire?: unknown;
+  use_requires?: unknown;
+}): string {
+  const onUse = Array.isArray(doc.on_use) ? doc.on_use.length : 0;
+  const onAcquire = Array.isArray(doc.on_acquire) ? doc.on_acquire.length : 0;
+  const gated = doc.use_requires !== undefined && doc.use_requires !== null;
+  if (onUse === 0 && onAcquire === 0) return "未有作用 / does nothing yet";
+  return `使用 ${onUse} 個效果 · 取得 ${onAcquire} 個${gated ? " · 有使用條件" : ""} / ${onUse} on use, ${onAcquire} on acquire${gated ? ", conditional" : ""}`;
 }
 
 export function ItemsView({ token }: { token: string }) {
@@ -229,6 +248,12 @@ export function ItemsView({ token }: { token: string }) {
   }
 
   const usable = doc?.usable === true;
+  /**
+   * Simple by default: an item is "what is it?" and "what does it do?".
+   * The category, the stack limit and the raw effect JSON are how the engine stores answers, not
+   * what a creator came to say — they stay one click away.
+   */
+  const [mode, setMode] = useState<"simple" | "advanced">("simple");
   const iconPath = typeof doc?.icon === "string" ? doc.icon : "";
   const category = doc?.category ?? "";
   const categories = useMemo(
@@ -334,6 +359,30 @@ export function ItemsView({ token }: { token: string }) {
                 <CardTitle className="text-sm">基本 Basics</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="inline-flex rounded border p-0.5">
+                    {(["simple", "advanced"] as const).map((entry) => (
+                      <button
+                        key={entry}
+                        type="button"
+                        aria-pressed={mode === entry}
+                        onClick={() => setMode(entry)}
+                        className={cn(
+                          "rounded px-2 py-0.5 text-[10px]",
+                          mode === entry ? "bg-primary text-primary-foreground" : "hover:bg-muted",
+                        )}
+                      >
+                        {entry === "simple" ? "簡單 Simple" : "進階 Advanced"}
+                      </button>
+                    ))}
+                  </div>
+                  {mode === "simple" ? (
+                    <span className="text-[10px] text-muted-foreground">
+                      {describeItemUse(doc)}
+                    </span>
+                  ) : null}
+                </div>
+
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="space-y-1">
                     <Label className="text-xs">ID</Label>
@@ -348,43 +397,47 @@ export function ItemsView({ token }: { token: string }) {
                     )}
                   </div>
 
+                  {mode === "advanced" ? (
                   <div className="space-y-1">
-                    <Label className="text-xs">類別 Category</Label>
-                    <Select
-                      value={category === "" ? "keepsake" : category}
-                      onValueChange={(next) =>
-                        edit((current) => void (current.category = next ?? "keepsake"))
-                      }
-                    >
-                      <SelectTrigger className="h-8 text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {categories.map((entry) => (
-                          <SelectItem key={entry} value={entry} className="text-xs">
-                            {entry}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                      <Label className="text-xs">類別 Category</Label>
+                      <Select
+                        value={category === "" ? "keepsake" : category}
+                        onValueChange={(next) =>
+                          edit((current) => void (current.category = next ?? "keepsake"))
+                        }
+                      >
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {categories.map((entry) => (
+                            <SelectItem key={entry} value={entry} className="text-xs">
+                              {entry}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                ) : null}
 
+                  {mode === "advanced" ? (
                   <div className="space-y-1">
-                    <Label className="text-xs">堆疊上限 Stack max</Label>
-                    <Input
-                      type="number"
-                      min={0}
-                      step={1}
-                      className="h-8 text-xs"
-                      value={Number(doc.stack_max ?? 1)}
-                      onChange={(event) =>
-                        edit((next) => void (next.stack_max = Number(event.target.value)))
-                      }
-                    />
-                    <p className="text-[10px] text-muted-foreground">
-                      0 表示不設上限（運行時用 999）/ 0 means unlimited (999 at runtime)
-                    </p>
-                  </div>
+                      <Label className="text-xs">堆疊上限 Stack max</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        step={1}
+                        className="h-8 text-xs"
+                        value={Number(doc.stack_max ?? 1)}
+                        onChange={(event) =>
+                          edit((next) => void (next.stack_max = Number(event.target.value)))
+                        }
+                      />
+                      <p className="text-[10px] text-muted-foreground">
+                        0 表示不設上限（運行時用 999）/ 0 means unlimited (999 at runtime)
+                      </p>
+                    </div>
+                ) : null}
 
                   <div className="space-y-1">
                     <Label className="text-xs">典故 Lore file</Label>
@@ -565,6 +618,8 @@ export function ItemsView({ token }: { token: string }) {
                       </div>
                     ))}
                   </div>
+
+                  <EntityLinks token={token} kind="items" id={String(doc.id ?? "")} />
 
                   <JsonField
                     label="使用條件 use_requires"

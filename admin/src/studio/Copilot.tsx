@@ -29,10 +29,13 @@ const STARTERS = [
 export function Copilot({
   token,
   pendingIntent,
+  context,
 }: {
   token: string;
   /** Another place asking the co-pilot something; a new nonce fires a proposal. */
   pendingIntent?: { text: string; nonce: number };
+  /** What the author is looking at, so "make this rarer" has a referent. */
+  context?: { kind: string; id: string } | null;
 }) {
   const client = useQueryClient();
   const [intent, setIntent] = useState("");
@@ -62,7 +65,10 @@ export function Copilot({
     setProposal(null);
     setDiffs({});
     try {
-      const result = (await api.aiPropose(trimmed)) as { proposal: Proposal; cost_usd?: number };
+      const result = (await api.aiPropose(trimmed, context ?? undefined)) as {
+        proposal: Proposal;
+        cost_usd?: number;
+      };
       setProposal(result.proposal);
       setCost(typeof result.cost_usd === "number" ? result.cost_usd : null);
       void loadDiffs(result.proposal);

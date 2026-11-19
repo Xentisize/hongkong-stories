@@ -73,8 +73,13 @@ export const api = {
   meta: () => request("GET", "/v1/admin/meta"),
   drafts: () => request("GET", "/v1/admin/drafts"),
   /** Ask the co-pilot for a proposal. It returns changes; nothing is written until approved. */
-  aiPropose: (intent: string, scene?: string) =>
-    request("POST", "/v1/admin/ai/propose", scene === undefined ? { intent } : { intent, scene }),
+  /**
+   * Ask the co-pilot for a proposal. It returns changes; nothing is written until approved.
+   *
+   * `entity` is what the author is looking at — without it "make this rarer" has no referent.
+   */
+  aiPropose: (intent: string, entity?: { kind: string; id: string }) =>
+    request("POST", "/v1/admin/ai/propose", entity === undefined ? { intent } : { intent, entity }),
   /** The pack the author is editing, drafts overlaid — what the preview and the story map read. */
   previewPack: () => request("GET", "/v1/admin/preview/pack"),
   getDraft: (kind: string, id: string) => request("GET", `/v1/admin/drafts/${kind}/${id}`),
