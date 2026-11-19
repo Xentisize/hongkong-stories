@@ -69,12 +69,23 @@ export const Route = createFileRoute("/v1/admin/ai/propose")({
           const tables = pack.tables as Record<string, Record<string, unknown>>;
           const sceneDoc = scene !== "" && isRecord(tables["locations"]?.[scene]) ? tables["locations"][scene] : null;
 
+          // What the author is looking at. Without it, "make this rarer" has no referent — the most
+          // common way an otherwise-good proposal misses.
+          const entityRaw = isRecord(body["entity"]) ? body["entity"] : null;
+          const entityKind = entityRaw === null ? "" : toKey(entityRaw["kind"] ?? "");
+          const entityId = entityRaw === null ? "" : toKey(entityRaw["id"] ?? "");
+          const entity =
+            entityKind !== "" && entityId !== "" ? tables[entityKind]?.[entityId] : undefined;
+
           const messages = [
             { role: "system" as const, content: SYSTEM },
             {
               role: "user" as const,
               content: [
                 `Author's request: ${intent}`,
+                entity === undefined
+                  ? ""
+                  : `What the author is looking at — ${entityKind}/${entityId}: ${JSON.stringify(entity).slice(0, 4000)}`,
                 sceneDoc === null ? "" : `Current scene (${scene}): ${JSON.stringify(sceneDoc).slice(0, 4000)}`,
                 "What exists:",
                 packIndex(tables),
