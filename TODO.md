@@ -42,9 +42,11 @@ someone who knows the schema. This is the body of work that makes the product ma
 
 ## Build (WYSIWYG)
 
-- [ ] **Drag, not just pick.** Placement currently arms one click inside the iframe; a real drag
-      across a cross-origin frame needs a pointer-capture protocol (`dragstart` in the palette →
-      `hovered` stream from the game → drop). The coordinate mapping already works.
+- [x] **Drag, not just pick.** A palette chip captures the pointer, the studio forwards the position
+      to the frame in its own pixels (`hover`), and the release lands as `place`; the game answers with
+      the tile under it, so the drop is a genuine drag across the frame boundary rather than a second
+      click. Verified: dragging a character onto the street reported `tile 16, 6` and wrote
+      `loc_kln_factory_1963` with the NPC on it.
 - [ ] **Tile painting in the studio.** The paintable canvas + legend/collision forms still live only
       inside the map editor tab; Build should paint the scene it is showing.
 - [ ] **Selection → inspector.** Clicking an NPC currently reports it; editing it in place (the
@@ -68,9 +70,11 @@ someone who knows the schema. This is the body of work that makes the product ma
       (three) are currently the same art; the 1955 rooms could read warmer, the 2027 ones cooler.
 - [ ] **Reference the extras series.** `p1_tiles_*_extra.png` (weeds, water, roof, window) is
       generated but no legend points at it; using one needs an atlas whose columns match the legend.
-- [ ] **(known divergence) Godot ignores tile transforms.** The Phaser client honours `[col, row,
-      "rot90"]`; the legacy Godot client does not, so a transformed tile renders rotated in the web
-      build and unrotated there.
+- [x] **Godot honours tile transforms.** Each variant becomes an *alternative* tile
+      (`transpose`/`flip_h`/`flip_v`); the mapping table is shared from core
+      (`TILE_TRANSFORM_TRANSPOSE`) and pinned by tests, with the GDScript mirroring it because the two
+      share no runtime. **Unverified at runtime**: no Godot binary on this machine — the desktop
+      client should be opened once to confirm a `rot90` cell.
 
 ## Repo hygiene
 
