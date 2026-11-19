@@ -16,6 +16,42 @@ import { isRecord } from "./state";
 /** The layer id that names the document's own `tilemap`. Authored ids may not use it. */
 export const BASE_LAYER_ID = "base";
 
+/**
+ * How each transform is expressed by the two renderers.
+ *
+ * The web client draws with a rotation plus flips; Godot draws with `transpose` plus flips. Both are
+ * renderings of the same six transforms, so they are written down here once and mirrored in
+ * `client/scripts/world/location_root.gd` (GDScript shares no runtime with this file) — a mismatch
+ * would show as a tile rotated one way on the web and another on the desktop build.
+ */
+export const TILE_TRANSFORM_QUARTER_TURNS: Record<TileTransform, 0 | 1 | 2 | 3> = {
+  rot90: 1,
+  rot180: 2,
+  rot270: 3,
+  flipX: 0,
+  flipY: 0,
+  flipXY: 0,
+};
+
+export const TILE_TRANSFORM_FLIPS: Record<TileTransform, { x: boolean; y: boolean }> = {
+  rot90: { x: false, y: false },
+  rot180: { x: false, y: false },
+  rot270: { x: false, y: false },
+  flipX: { x: true, y: false },
+  flipY: { x: false, y: true },
+  flipXY: { x: true, y: true },
+};
+
+/** The same mapping in Godot's vocabulary: `transpose` swaps the axes, then the flips apply. */
+export const TILE_TRANSFORM_TRANSPOSE: Record<TileTransform, { transpose: boolean; flipX: boolean; flipY: boolean }> = {
+  rot90: { transpose: true, flipX: true, flipY: false },
+  rot180: { transpose: false, flipX: true, flipY: true },
+  rot270: { transpose: true, flipX: false, flipY: true },
+  flipX: { transpose: false, flipX: true, flipY: false },
+  flipY: { transpose: false, flipX: false, flipY: true },
+  flipXY: { transpose: false, flipX: true, flipY: true },
+};
+
 /** The character an overlay uses to paint nothing. */
 export const TRANSPARENT_TILE = " ";
 

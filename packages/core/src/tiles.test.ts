@@ -3,6 +3,9 @@ import { describe, expect, test } from "bun:test";
 import {
   BASE_LAYER_ID,
   TILE_TRANSFORMS,
+  TILE_TRANSFORM_FLIPS,
+  TILE_TRANSFORM_QUARTER_TURNS,
+  TILE_TRANSFORM_TRANSPOSE,
   TRANSPARENT_TILE,
   atlasCellSize,
   layerTileAt,
@@ -233,5 +236,33 @@ describe("atlasCellSize", () => {
     expect(atlasCellSize(0, 4)).toBe(0);
     expect(atlasCellSize(96, 0)).toBe(0);
     expect(atlasCellSize(Number.NaN, 4)).toBe(0);
+  });
+});
+
+describe("the renderer mapping tables", () => {
+  test("every transform is described for both clients", () => {
+    for (const transform of TILE_TRANSFORMS) {
+      expect(TILE_TRANSFORM_QUARTER_TURNS[transform]).toBeGreaterThanOrEqual(0);
+      expect(TILE_TRANSFORM_QUARTER_TURNS[transform]).toBeLessThanOrEqual(3);
+      expect(TILE_TRANSFORM_FLIPS[transform]).toBeDefined();
+      expect(TILE_TRANSFORM_TRANSPOSE[transform]).toBeDefined();
+    }
+  });
+
+  test("rotations carry the flips that make the quarter turn the right way round", () => {
+    // Godot composes transpose + flips; the web client rotates. These pairs are the contract the
+    // GDScript mirrors, so they are pinned rather than left to inspection.
+    expect(TILE_TRANSFORM_TRANSPOSE.rot90).toEqual({ transpose: true, flipX: true, flipY: false });
+    expect(TILE_TRANSFORM_TRANSPOSE.rot180).toEqual({ transpose: false, flipX: true, flipY: true });
+    expect(TILE_TRANSFORM_TRANSPOSE.rot270).toEqual({ transpose: true, flipX: false, flipY: true });
+    expect(TILE_TRANSFORM_FLIPS.rot90).toEqual({ x: false, y: false });
+  });
+
+  test("plain flips are flips in both vocabularies", () => {
+    expect(TILE_TRANSFORM_QUARTER_TURNS.flipX).toBe(0);
+    expect(TILE_TRANSFORM_QUARTER_TURNS.flipY).toBe(0);
+    expect(TILE_TRANSFORM_QUARTER_TURNS.flipXY).toBe(0);
+    expect(TILE_TRANSFORM_TRANSPOSE.flipX).toEqual({ transpose: false, flipX: true, flipY: false });
+    expect(TILE_TRANSFORM_TRANSPOSE.flipXY).toEqual({ transpose: false, flipX: true, flipY: true });
   });
 });

@@ -117,6 +117,14 @@ export {
 } from "./aiProposal";
 
 export {
+  LINK_KINDS,
+  declaredLinks,
+  isLinkKind,
+  type DeclaredLink,
+  type LinkKind,
+} from "./links";
+
+export {
   PREVIEW_CHANNEL,
   commandMessage,
   eventMessage,
@@ -145,6 +153,9 @@ export {
 export {
   BASE_LAYER_ID,
   TILE_TRANSFORMS,
+  TILE_TRANSFORM_FLIPS,
+  TILE_TRANSFORM_QUARTER_TURNS,
+  TILE_TRANSFORM_TRANSPOSE,
   TRANSPARENT_TILE,
   atlasCellSize,
   isTileTransform,

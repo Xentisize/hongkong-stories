@@ -12,9 +12,25 @@ export const PREVIEW_CHANNEL = "hkstories-preview";
 /** What the studio may ask the running game to do. */
 export type PreviewCommand =
   | { type: "select"; tile?: [number, number] | null; entity?: string | null }
-  | { type: "hover"; tile?: [number, number] | null }
+  /**
+   * Where a dragged palette item is right now, in **iframe-local pixels**.
+   *
+   * A pointer that starts in the studio cannot be seen by a cross-origin frame, so a real drag has to
+   * be forwarded: the studio captures the pointer, converts to the frame's own coordinates, and the
+   * game answers with the tile under them.
+   */
+  | { type: "hover"; x: number; y: number }
+  /** The drag was released at that point: place it. */
+  | { type: "place"; x: number; y: number }
   /** Arm placement: the next click in the game reports the tile instead of selecting. */
   | { type: "pick"; entity?: string }
+  /**
+   * Hand the admin token over after load.
+   *
+   * Never in the URL: a bearer token in `location.search` lands in history, the referrer and the
+   * iframe's own address. The game waits for this message before fetching the draft pack.
+   */
+  | { type: "auth"; token: string }
   | { type: "goto"; location: string; spawn?: string }
   | { type: "playFrom"; location: string; spawn?: string }
   | { type: "pause" }
@@ -28,7 +44,7 @@ export type PreviewEvent =
   | { type: "picked"; tile: [number, number] }
   | { type: "error"; message: string };
 
-const COMMANDS = new Set(["select", "hover", "pick", "goto", "playFrom", "pause", "resume"]);
+const COMMANDS = new Set(["select", "hover", "pick", "place", "auth", "goto", "playFrom", "pause", "resume"]);
 const EVENTS = new Set(["ready", "selected", "hovered", "picked", "error"]);
 
 function tagged(value: unknown, verbs: Set<string>): boolean {

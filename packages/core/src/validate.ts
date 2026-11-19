@@ -21,6 +21,7 @@
  */
 
 import { ART_MEDIA, ART_STYLES, isArtMediumId, isArtStyleId } from "./artStyle";
+import { LINK_KINDS, isLinkKind } from "./links";
 import { isRecord, pyBool, toInt, toKey } from "./state";
 import { TILE_TRANSFORMS, TRANSPARENT_TILE, isTileTransform } from "./tiles";
 
@@ -143,6 +144,48 @@ export function validatePack(pack: ContentPack): Issue[] {
   // nothing at all. This is the only place that can report it.
   for (const path of pack.dropped ?? []) {
     err(path, "entity has no 'id' — it is dropped from the pack, so no rule validates it");
+  }
+
+  // ---- declared narrative links -------------------------------------------
+  // `links` is the one place where a relationship is *stated* rather than derived, so it is the one
+  // place where a target can be missing. It warns instead of erroring: a narrative note is not a
+  // mechanic, and refusing to publish because "this photo reminds her of her grandmother" points at
+  // a document somebody renamed would be the wrong trade.
+  const knownIds = new Set([
+    ...Object.keys(npcs),
+    ...Object.keys(items),
+    ...Object.keys(locations),
+    ...Object.keys(quests),
+    ...Object.keys(chapters),
+  ]);
+
+  for (const [kind, table] of Object.entries(pack.tables)) {
+    if (kind === "settings") continue;
+    for (const [id, doc] of Object.entries(table)) {
+      const at = `${kind}/${id}.links`;
+      const raw = doc["links"];
+      if (raw === undefined) continue;
+      if (!Array.isArray(raw)) {
+        err(at, "links must be a list of { to, kind }");
+        continue;
+      }
+      raw.forEach((entry, index) => {
+        const linkAt = `${at}[${index}]`;
+        if (!isRecord(entry)) {
+          err(linkAt, "a link must be an object");
+          return;
+        }
+        const to = toKey(entry["to"] ?? "");
+        if (to === "") err(linkAt, "a link needs a 'to'");
+        else if (!knownIds.has(to)) {
+          warn(linkAt, `'${to}' is not in the pack — this is a narrative note, so nothing enforces it`);
+        }
+        const linkKind = entry["kind"];
+        if (!isLinkKind(linkKind)) {
+          warn(linkAt, `unknown link kind '${String(linkKind)}' — use ${LINK_KINDS.join(", ")}`);
+        }
+      });
+    }
   }
 
   const flagsSettable = new Set<string>();
